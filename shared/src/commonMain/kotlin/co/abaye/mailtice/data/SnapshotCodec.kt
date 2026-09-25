@@ -23,6 +23,7 @@ private const val KEY_DENSITY = "density"
 private const val KEY_PANE_STYLE = "paneStyle"
 private const val KEY_SIDEBAR_COLLAPSED = "sidebarCollapsed"
 private const val KEY_LIST_FRACTION = "listFraction"
+private const val KEY_BROWSER_PROFILE = "browserProfile"
 private const val KEY_LANGUAGE = "language"
 private const val KEY_LANGUAGE_AUTO = "languageAuto"
 private const val KEY_POLL = "pollSeconds"
@@ -39,6 +40,7 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_PANE_STYLE=${s.paneStyle.name}")
         add("$KEY_SIDEBAR_COLLAPSED=${s.sidebarCollapsed}")
         add("$KEY_LIST_FRACTION=${s.listFraction}")
+        add("$KEY_BROWSER_PROFILE=${s.browserProfile}")
         add("$KEY_LANGUAGE=${s.uiLanguage.code}")
         add("$KEY_LANGUAGE_AUTO=${s.uiLanguageAuto}")
         add("$KEY_POLL=${s.pollSeconds}")
@@ -66,6 +68,7 @@ fun decodeSnapshot(raw: String): AppData {
         paneStyle = map[KEY_PANE_STYLE]?.let { name -> PaneStyle.entries.firstOrNull { it.name == name } } ?: defaults.paneStyle,
         sidebarCollapsed = flag(KEY_SIDEBAR_COLLAPSED, defaults.sidebarCollapsed),
         listFraction = map[KEY_LIST_FRACTION]?.toFloatOrNull()?.takeIf { it in ListFractionRange } ?: defaults.listFraction,
+        browserProfile = map[KEY_BROWSER_PROFILE].orEmpty(),
         uiLanguage = map[KEY_LANGUAGE]?.let { UiLanguage.fromCode(it) } ?: defaults.uiLanguage,
         uiLanguageAuto = flag(KEY_LANGUAGE_AUTO, defaults.uiLanguageAuto),
         pollSeconds = map[KEY_POLL]?.toIntOrNull()?.takeIf { it in PollIntervals } ?: defaults.pollSeconds,

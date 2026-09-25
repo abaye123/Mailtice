@@ -36,7 +36,7 @@ class AndroidAuthorizer : Authorizer {
         OAuthProvider.Yahoo -> false
     }
 
-    override suspend fun authorize(provider: OAuthProvider, loginHint: String?): AuthCode = when (provider) {
+    override suspend fun authorize(provider: OAuthProvider, loginHint: String?, profile: BrowserProfile?): AuthCode = when (provider) {
         OAuthProvider.Google -> google(loginHint)
         else -> browser(provider, loginHint)
     }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -50,6 +53,7 @@ import co.abaye.mailtice.app.AddAccountStep
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ImapForm
+import co.abaye.mailtice.auth.BrowserProfile
 import co.abaye.mailtice.app.SignInPhase
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ProviderKind
@@ -75,6 +79,9 @@ import mailtice.shared.generated.resources.add_imap_save
 import mailtice.shared.generated.resources.add_imap_username
 import mailtice.shared.generated.resources.add_provider_imap_desc
 import mailtice.shared.generated.resources.provider_imap
+import mailtice.shared.generated.resources.browser_body
+import mailtice.shared.generated.resources.browser_default
+import mailtice.shared.generated.resources.browser_title
 import mailtice.shared.generated.resources.dialog_cancel
 import mailtice.shared.generated.resources.signin_back
 import mailtice.shared.generated.resources.signin_browser_body
@@ -108,6 +115,9 @@ fun AddAccountDialog(state: AppState, onIntent: (AppIntent) -> Unit) {
             ProviderChooser(state, onIntent, close)
         }
         is AddAccountStep.Imap -> ImapFormDialog(step.form, onIntent, close)
+        is AddAccountStep.ChooseBrowser -> FlowDialog(onDismiss = close) {
+            BrowserChooser(step, state, onIntent, close)
+        }
         is AddAccountStep.SignIn -> FlowDialog(
             // A running sign-in is cancelled from its own button, not by a stray click outside.
             onDismiss = { if (step.phase == SignInPhase.Done || step.phase == SignInPhase.Failed) close() },
@@ -179,6 +189,87 @@ private fun ProviderKind.badgeColor(): Color = when (this) {
     ProviderKind.Microsoft -> Color(0xFF0F6CBD)
     ProviderKind.Yahoo -> Color(0xFF6001D2)
     ProviderKind.Imap -> Color(0xFF5A5D72)
+}
+
+/**
+ * Several browser profiles on this computer: the sign-in page should open in the one already signed
+ * in to the right Google (or Microsoft) account. The last pick is marked and listed first.
+ */
+@Composable
+private fun BrowserChooser(step: AddAccountStep.ChooseBrowser, state: AppState, onIntent: (AppIntent) -> Unit, close: () -> Unit) {
+    val last = state.data.settings.browserProfile
+    val profiles = state.browserProfiles.sortedBy { if (it.key == last) 0 else 1 }
+    Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(Res.string.browser_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+            TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.dialog_cancel), close)
+        }
+        Text(
+            stringResource(Res.string.browser_body, step.kind.label()),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Column(
+            Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            profiles.forEach { profile ->
+                BrowserRow(
+                    title = profile.name,
+                    subtitle = listOf(profile.browser, profile.email).filter { it.isNotBlank() }.joinToString(" · "),
+                    letter = profile.name,
+                    color = profile.browserColor(),
+                    marked = profile.key == last,
+                ) { onIntent(AppIntent.ChooseBrowser(profile.key)) }
+            }
+            BrowserRow(
+                title = stringResource(Res.string.browser_default),
+                subtitle = null,
+                letter = "",
+                color = MaterialTheme.colorScheme.outline,
+                marked = last.isEmpty(),
+            ) { onIntent(AppIntent.ChooseBrowser(null)) }
+        }
+    }
+}
+
+@Composable
+private fun BrowserRow(title: String, subtitle: String?, letter: String, color: Color, marked: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .background(if (marked) colors.secondaryContainer else colors.surfaceContainerHigh)
+            .clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (letter.isEmpty()) {
+            Icon(Icons.Outlined.Public, null, Modifier.size(36.dp).padding(4.dp), tint = colors.onSurfaceVariant)
+        } else {
+            LetterAvatar(letter, color, size = 36.dp)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall.merge(LtrField),
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = colors.onSurfaceVariant)
+    }
+}
+
+/** Each browser's own colour, so the same profile name in two browsers is still told apart. */
+private fun BrowserProfile.browserColor(): Color = when (browser) {
+    "Chrome" -> Color(0xFF1A73E8)
+    "Edge" -> Color(0xFF0C8484)
+    "Brave" -> Color(0xFFE3511C)
+    else -> Color(0xFF5A5D72)
 }
 
 @Composable

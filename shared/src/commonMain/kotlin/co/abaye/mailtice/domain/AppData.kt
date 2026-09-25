@@ -75,6 +75,8 @@ data class UserSettings(
     val sidebarCollapsed: Boolean = false,
     /** Share of the width the message list takes next to the reader, [ListFractionRange]. */
     val listFraction: Float = 0.42f,
+    /** The browser profile picked for the last sign-in ([co.abaye.mailtice.auth.BrowserProfile.key]), "" = default browser. */
+    val browserProfile: String = "",
     val uiLanguage: UiLanguage = UiLanguage.Hebrew,
     /** `true` while the interface follows the OS language rather than an explicit pick (the default). */
     val uiLanguageAuto: Boolean = true,

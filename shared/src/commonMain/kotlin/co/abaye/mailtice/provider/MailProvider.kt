@@ -6,6 +6,7 @@ import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.search.MailSearch
 
 /** [color] is the label's "#rrggbb" background where the provider has one (Gmail), "" otherwise. */
 data class RemoteFolder(val id: String, val name: String, val role: FolderRole, val color: String = "")
@@ -29,13 +30,20 @@ data class RemoteMessage(
     val body: MailBody?,
 )
 
+/** A file attached to an outgoing message. */
+class OutgoingAttachment(val name: String, val mimeType: String, val bytes: ByteArray)
+
 /** A message to send. Addresses are already validated; [bcc] never appears in the sent headers. */
 data class OutgoingMail(
     val to: List<String>,
     val cc: List<String> = emptyList(),
     val bcc: List<String> = emptyList(),
     val subject: String,
+    /** The plain-text version; always present (clients without HTML, previews, search). */
     val text: String,
+    /** The formatted version from the editor; null = plain text only. */
+    val html: String? = null,
+    val attachments: List<OutgoingAttachment> = emptyList(),
     /** Message-ID of the message being answered, so every client threads the reply. */
     val inReplyTo: String? = null,
     val references: String? = null,
@@ -45,6 +53,20 @@ data class OutgoingMail(
 
 /** One downloaded attachment. [index] is its position in [co.abaye.mailtice.domain.MailBody.attachments]. */
 class AttachmentFile(val index: Int, val name: String, val bytes: ByteArray)
+
+/**
+ * A look at the server beyond what is stored: messages received before [before] (epoch millis, null
+ * = now) matching the list's filters, newest first, at most [limit].
+ */
+data class OlderQuery(
+    val before: Long?,
+    /** The user's search (words, from:, subject:...), applied on the server. */
+    val search: MailSearch = MailSearch(),
+    val unreadOnly: Boolean = false,
+    val attachmentsOnly: Boolean = false,
+    val flaggedOnly: Boolean = false,
+    val limit: Int = 50,
+)
 
 /** The threading headers of a stored message; null when the server did not say. */
 data class ThreadHeaders(val messageId: String? = null, val references: String? = null)
@@ -106,6 +128,14 @@ interface MailProvider {
      * order the body parser lists them.
      */
     suspend fun fetchAttachments(account: Account, message: MailMessage, indices: Set<Int>?): List<AttachmentFile>
+
+    /**
+     * Messages in [folders] older than what is stored, straight from the server and without bodies
+     * (fetched when opened). Nothing here is written to the database: the disk keeps only the
+     * retention window, older mail is only looked at. [folders] empty with [OlderQuery.flaggedOnly]
+     * means starred mail anywhere.
+     */
+    suspend fun olderMessages(account: Account, folders: List<Folder>, query: OlderQuery): List<RemoteMessage>
 
     /** The message exactly as the server holds it (RFC 5322), for .eml / .mbox export. */
     suspend fun rawMessage(account: Account, message: MailMessage): ByteArray

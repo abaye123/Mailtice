@@ -36,13 +36,58 @@ object MimeBuilder {
         mail.inReplyTo?.let { header("In-Reply-To", it) }
         (mail.references ?: mail.inReplyTo)?.let { header("References", it) }
         header("MIME-Version", "1.0")
-        header("Content-Type", "text/plain; charset=UTF-8")
-        header("Content-Transfer-Encoding", "base64")
-        append("\r\n")
-        Base64.Default.encode(mail.text.replace("\r\n", "\n").replace("\n", "\r\n").encodeToByteArray())
-            .chunked(LINE)
-            .forEach { append(it).append("\r\n") }
+        when {
+            mail.attachments.isNotEmpty() -> {
+                // multipart/mixed: the text part (plain, or plain + HTML), then one part per file.
+                val mixed = boundary(epochMillis, "m")
+                header("Content-Type", "multipart/mixed; boundary=\"$mixed\"")
+                append("\r\n")
+                append("--$mixed\r\n")
+                textParts(mail, epochMillis)
+                mail.attachments.forEach { file ->
+                    append("--$mixed\r\n")
+                    val name = encodeWords(file.name.replace("\"", "'"))
+                    append("Content-Type: ${file.mimeType}; name=\"$name\"\r\n")
+                    append("Content-Disposition: attachment; filename=\"$name\"\r\n")
+                    append("Content-Transfer-Encoding: base64\r\n\r\n")
+                    base64Lines(file.bytes)
+                }
+                append("--$mixed--\r\n")
+            }
+            else -> textParts(mail, epochMillis)
+        }
     }
+
+    /** Headers and body of the text: text/plain alone, or multipart/alternative with an HTML twin. */
+    private fun StringBuilder.textParts(mail: OutgoingMail, epochMillis: Long) {
+        val html = mail.html
+        if (html == null) {
+            append("Content-Type: text/plain; charset=UTF-8\r\n")
+            append("Content-Transfer-Encoding: base64\r\n\r\n")
+            base64Lines(crlf(mail.text).encodeToByteArray())
+            return
+        }
+        val alt = boundary(epochMillis, "a")
+        append("Content-Type: multipart/alternative; boundary=\"$alt\"\r\n\r\n")
+        append("--$alt\r\n")
+        append("Content-Type: text/plain; charset=UTF-8\r\n")
+        append("Content-Transfer-Encoding: base64\r\n\r\n")
+        base64Lines(crlf(mail.text).encodeToByteArray())
+        append("--$alt\r\n")
+        append("Content-Type: text/html; charset=UTF-8\r\n")
+        append("Content-Transfer-Encoding: base64\r\n\r\n")
+        base64Lines(html.encodeToByteArray())
+        append("--$alt--\r\n")
+    }
+
+    private fun StringBuilder.base64Lines(bytes: ByteArray) {
+        Base64.Default.encode(bytes).chunked(LINE).forEach { append(it).append("\r\n") }
+    }
+
+    private fun crlf(text: String) = text.replace("\r\n", "\n").replace("\n", "\r\n")
+
+    /** Unique enough per message and never found in base64 or the headers ("=_" cannot occur in base64). */
+    private fun boundary(epochMillis: Long, tag: String) = "=_mailtice_${tag}_${epochMillis.toString(36)}_${(0..99999).random()}"
 
     /** "Name <a@b>" with a non-ASCII name gets the name encoded; a bare address passes through. */
     internal fun encodeAddress(raw: String): String {

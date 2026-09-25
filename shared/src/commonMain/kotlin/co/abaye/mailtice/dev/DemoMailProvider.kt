@@ -10,6 +10,7 @@ import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.MailProvider
 import co.abaye.mailtice.provider.MimeBuilder
+import co.abaye.mailtice.provider.OlderQuery
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.RemoteFolder
 import co.abaye.mailtice.provider.RemoteMessage
@@ -37,6 +38,9 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
     private val mutex = Mutex()
     private val mailboxes = mutableMapOf<String, MutableMap<String, RemoteMessage>>()
     private val rounds = mutableMapOf<String, Int>()
+
+    /** Older mail handed out by [olderMessages], so [fetchBody] can answer for it. */
+    private val archive = mutableMapOf<String, MailBody>()
     private var nextUid = 1_000L
     private var incomingIndex = 0
 
@@ -131,6 +135,49 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
         }
     }
 
+    /**
+     * A year of older mail that exists only "on the server": one message every ~19 hours, built from
+     * the fixture on demand with stable ids, so paging and search behave like a real mailbox.
+     */
+    override suspend fun olderMessages(account: Account, folders: List<Folder>, query: OlderQuery): List<RemoteMessage> {
+        delay(SYNC_LATENCY_MS * 2)
+        if (account.id == DemoAccounts.QUIET_ID) return emptyList()
+        val templates = (DemoAccounts.mailFor(account.id) + incomingMail).filter { DemoFolders.INBOX in it.folders }
+        if (templates.isEmpty()) return emptyList()
+        val folder = folders.firstOrNull()
+        val start = clock()
+        val step = 19 * 60 * 60_000L
+        val horizon = start - 365 * 24 * 60 * 60_000L
+        val before = query.before ?: start
+        val out = mutableListOf<RemoteMessage>()
+        var n = ((start - before) / step).coerceAtLeast(0) + 1
+        while (out.size < query.limit) {
+            val at = start - n * step - 40 * 24 * 60 * 60_000L
+            if (at < horizon) break
+            val mail = templates[(n % templates.size).toInt()]
+            val s = query.search
+            val hay = listOf(mail.subject, mail.fromName, mail.fromAddress, mail.text)
+            val matches = s.words.all { w -> hay.any { it.contains(w, ignoreCase = true) } } &&
+                s.excluded.none { w -> hay.any { it.contains(w, ignoreCase = true) } } &&
+                (s.from.isEmpty() || mail.fromName.contains(s.from, true) || mail.fromAddress.contains(s.from, true)) &&
+                (s.subject.isEmpty() || mail.subject.contains(s.subject, true)) &&
+                (s.after == null || at >= s.after) && (s.before == null || at < s.before)
+            if (at < before && matches && (!(query.attachmentsOnly || s.hasAttachment) || mail.attachments.isNotEmpty())) {
+                val id = "old-${account.id}-${folder?.id ?: "starred"}-$n"
+                val body = MailBody(mail.text, "", mail.attachments)
+                archive[id] = body
+                out += remote(account, mail.copy(unread = false), receivedAt = at).copy(
+                    id = id,
+                    threadId = id,
+                    folderIds = setOfNotNull(folder?.id),
+                    body = body,
+                )
+            }
+            n++
+        }
+        return out
+    }
+
     override suspend fun rawMessage(account: Account, message: MailMessage): ByteArray {
         val text = mutex.withLock { mailbox(account)[message.id]?.body?.text } ?: message.snippet
         val mail = OutgoingMail(to = listOf(account.email), subject = message.subject, text = text)
@@ -141,7 +188,7 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
         ThreadHeaders(messageId = "<${message.id}@demo.mailtice>")
 
     override suspend fun fetchBody(account: Account, message: MailMessage): MailBody =
-        mutex.withLock { mailbox(account)[message.id]?.body } ?: MailBody(message.snippet, "", emptyList())
+        mutex.withLock { mailbox(account)[message.id]?.body } ?: archive[message.id] ?: MailBody(message.snippet, "", emptyList())
 
     override suspend fun close(account: Account) {
         mutex.withLock {

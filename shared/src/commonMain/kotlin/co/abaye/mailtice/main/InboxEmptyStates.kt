@@ -40,6 +40,9 @@ import org.jetbrains.compose.resources.stringResource
 /** Why the message list is empty, most specific reason first. */
 private enum class ListEmptyReason { Search, FirstSync, Offline, Attachments, Unread, Folder, Account, Inbox }
 
+/** The empty list is explained by a sync that has not caught up (or cannot), not by an empty folder. */
+internal fun AppState.emptyBecauseOfSync(): Boolean = listEmptyReason().let { it == ListEmptyReason.FirstSync || it == ListEmptyReason.Offline }
+
 private fun AppState.listEmptyReason(): ListEmptyReason {
     val f = filter
     val relevant = if (f.accountId.isEmpty()) accounts else accounts.filter { it.id == f.accountId }

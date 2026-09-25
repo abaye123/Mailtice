@@ -14,7 +14,11 @@ import mailtice.shared.generated.resources.message_cache_cleared
 import mailtice.shared.generated.resources.message_db_compacted
 import mailtice.shared.generated.resources.message_download_failed
 import mailtice.shared.generated.resources.message_downloading
+import mailtice.shared.generated.resources.message_attachments_too_large
 import mailtice.shared.generated.resources.message_exported
+import mailtice.shared.generated.resources.message_schedule_cancelled
+import mailtice.shared.generated.resources.message_scheduled
+import mailtice.shared.generated.resources.message_scheduled_sent
 import mailtice.shared.generated.resources.message_files_saved
 import mailtice.shared.generated.resources.message_provider_not_supported
 import mailtice.shared.generated.resources.message_reset_done
@@ -46,6 +50,10 @@ enum class AppMessage {
     NoAttachments,
     DownloadFailed,
     Exported,
+    Scheduled,
+    ScheduledSent,
+    ScheduleCancelled,
+    AttachmentsTooLarge,
 }
 
 @Composable
@@ -70,4 +78,8 @@ fun AppMessage.text(): String = when (this) {
     AppMessage.NoAttachments -> stringResource(Res.string.message_no_attachments)
     AppMessage.DownloadFailed -> stringResource(Res.string.message_download_failed)
     AppMessage.Exported -> stringResource(Res.string.message_exported)
+    AppMessage.Scheduled -> stringResource(Res.string.message_scheduled)
+    AppMessage.ScheduledSent -> stringResource(Res.string.message_scheduled_sent)
+    AppMessage.ScheduleCancelled -> stringResource(Res.string.message_schedule_cancelled)
+    AppMessage.AttachmentsTooLarge -> stringResource(Res.string.message_attachments_too_large)
 }

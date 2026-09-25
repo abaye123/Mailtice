@@ -1,0 +1,9 @@
+-- 2 -> 3: the scheduled-send queue.
+CREATE TABLE scheduled_mail (
+  id TEXT NOT NULL PRIMARY KEY,
+  accountId TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  sendAt INTEGER NOT NULL,             -- epoch millis; moved later after a failed attempt
+  payload TEXT NOT NULL,               -- the outgoing message as JSON (ScheduledCodec)
+  attempts INTEGER NOT NULL DEFAULT 0,
+  lastError TEXT NOT NULL DEFAULT ''
+);

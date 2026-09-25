@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Drafts
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Report
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,6 +20,7 @@ import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.view_archive
 import mailtice.shared.generated.resources.view_drafts
 import mailtice.shared.generated.resources.view_inbox
+import mailtice.shared.generated.resources.view_scheduled
 import mailtice.shared.generated.resources.view_sent
 import mailtice.shared.generated.resources.view_spam
 import mailtice.shared.generated.resources.view_starred
@@ -34,6 +36,7 @@ fun MailView.label(): String = when (this) {
     MailView.Archive -> stringResource(Res.string.view_archive)
     MailView.Spam -> stringResource(Res.string.view_spam)
     MailView.Trash -> stringResource(Res.string.view_trash)
+    MailView.Scheduled -> stringResource(Res.string.view_scheduled)
 }
 
 fun MailView.icon(): ImageVector = when (this) {
@@ -44,6 +47,7 @@ fun MailView.icon(): ImageVector = when (this) {
     MailView.Archive -> Icons.Outlined.Archive
     MailView.Spam -> Icons.Outlined.Report
     MailView.Trash -> Icons.Outlined.Delete
+    MailView.Scheduled -> Icons.Outlined.Schedule
 }
 
 val FolderIcon: ImageVector get() = Icons.AutoMirrored.Outlined.Label

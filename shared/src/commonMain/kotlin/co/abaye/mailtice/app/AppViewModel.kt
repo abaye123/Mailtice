@@ -39,7 +39,11 @@ import co.abaye.mailtice.platform.systemUiLanguage
 import co.abaye.mailtice.provider.ImapAutoConfig
 import co.abaye.mailtice.provider.ImapBackend
 import co.abaye.mailtice.provider.ImapLoginException
+import co.abaye.mailtice.provider.OlderQuery
+import co.abaye.mailtice.search.MailSearch
+import co.abaye.mailtice.provider.OutgoingAttachment
 import co.abaye.mailtice.provider.OutgoingMail
+import co.abaye.mailtice.data.ScheduledMail
 import co.abaye.mailtice.provider.ProviderException
 import co.abaye.mailtice.provider.parseAddressList
 import co.abaye.mailtice.provider.gmail.GmailApi
@@ -55,6 +59,8 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -66,11 +72,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mailtice.shared.generated.resources.Res
+import mailtice.shared.generated.resources.compose_attach
 import mailtice.shared.generated.resources.compose_forward_date
 import mailtice.shared.generated.resources.compose_forward_from
 import mailtice.shared.generated.resources.compose_forward_header
@@ -86,6 +94,12 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private const val SEARCH_DEBOUNCE_MS = 200L
+
+/** How often the scheduled-send queue is checked. */
+private const val SCHEDULE_TICK_MS = 20_000L
+
+/** Gmail's limit on a message with its attachments. */
+private const val MAX_ATTACHMENTS_BYTES = 25L * 1024 * 1024
 
 @AssistedInject
 class AppViewModel(
@@ -138,6 +152,10 @@ class AppViewModel(
         scope.launch { sync.statuses.collect { s -> mutate { it.copy(statuses = s) } } }
         scope.launch { sync.errors.collect { e -> mutate { it.copy(syncErrors = e) } } }
         refreshStorage()
+        scope.launch {
+            val profiles = withContext(io) { runCatching { authorizer.browserProfiles() }.getOrDefault(emptyList()) }
+            mutate { it.copy(browserProfiles = profiles) }
+        }
     }
 
     override fun onCleared() {
@@ -159,10 +177,19 @@ class AppViewModel(
         }
         scope.launch { repo.unreadCounts.collect { counts -> mutate { it.copy(unread = counts) } } }
         scope.launch { repo.unreadByFolder.collect { counts -> mutate { it.copy(unreadByFolder = counts) } } }
+        scope.launch { repo.scheduled.collect { queue -> mutate { it.copy(scheduled = queue) } } }
+        // The scheduled-send queue goes out from here while the app runs (tray included).
         scope.launch {
-            _state.map { it.filter }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MS)
-                .flatMapLatest { f ->
+            while (true) {
+                sendDueScheduled()
+                delay(SCHEDULE_TICK_MS)
+            }
+        }
+        scope.launch {
+            _state.map { it.filter to it.localLimit }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MS)
+                .flatMapLatest { (f, limit) ->
                     val custom = f.folderId.isNotEmpty()
+                    if (!custom && f.view == MailView.Scheduled) return@flatMapLatest flowOf(emptyList())
                     repo.inbox(
                         InboxQuery(
                             accountId = f.accountId,
@@ -171,14 +198,21 @@ class AppViewModel(
                             attachmentsOnly = f.attachmentsOnly,
                             flaggedOnly = !custom && f.view == MailView.Starred,
                             role = if (custom) "" else f.view.role?.name.orEmpty(),
-                            text = f.query,
+                            search = MailSearch.parse(f.query, Platform.now()),
+                            limit = limit,
                         ),
                     )
                 }
                 .collect { list ->
                     mutate { s ->
-                        val keys = list.map { it.key }.toSet()
-                        s.copy(inbox = list, selection = s.selection.filterTo(mutableSetOf()) { it in keys })
+                        val keys = (list + s.older.items).map { it.key }.toSet()
+                        // A message that got stored (a sync caught up with it) is no longer "older".
+                        val stored = list.map { it.key }.toSet()
+                        s.copy(
+                            inbox = list,
+                            older = s.older.copy(items = s.older.items.filter { it.key !in stored }),
+                            selection = s.selection.filterTo(mutableSetOf()) { it in keys },
+                        )
                     }
                 }
         }
@@ -211,8 +245,9 @@ class AppViewModel(
             AppIntent.RetrySignIn -> {
                 val step = _state.value.addAccount as? AddAccountStep.SignIn ?: return
                 val existing = step.reconnectId?.let { _state.value.account(it) }
-                if (DemoMode.enabled && existing == null) addDemoAccount(step.kind) else signInOAuth(step.kind, existing)
+                if (DemoMode.enabled && existing == null) addDemoAccount(step.kind) else signInOAuth(step.kind, existing, step.profileKey)
             }
+            is AppIntent.ChooseBrowser -> chooseBrowser(intent.profileKey)
             is AppIntent.OpenAccount -> {
                 mutate { it.copy(addAccount = null) }
                 navigate(AppKey.Inbox)
@@ -238,6 +273,7 @@ class AppViewModel(
                 mutate { it.copy(filter = it.filter.copy(folderId = intent.folderId), selection = emptySet()) }
                 ensureSynced()
             }
+            AppIntent.LoadOlder -> loadOlder()
             is AppIntent.SetView -> {
                 mutate { it.copy(filter = it.filter.copy(view = intent.view, folderId = ""), selection = emptySet()) }
                 ensureSynced()
@@ -253,11 +289,20 @@ class AppViewModel(
                 val key = intent.message.key
                 s.copy(selection = if (key in s.selection) s.selection - key else s.selection + key)
             }
-            AppIntent.SelectAll -> mutate { s -> s.copy(selection = s.inbox.map { it.key }.toSet()) }
+            AppIntent.SelectAll -> mutate { s -> s.copy(selection = s.visibleMessages.map { it.key }.toSet()) }
             AppIntent.ClearSelection -> mutate { it.copy(selection = emptySet()) }
-            is AppIntent.BulkSetRead -> bulk { m, caps -> if (caps.markRead && m.unread == intent.read) sync.setRead(m, intent.read) }
-            AppIntent.BulkArchive -> bulk(closeReader = true) { m, caps -> if (caps.archive) sync.archive(m) }
-            AppIntent.BulkTrash -> bulk(closeReader = true) { m, caps -> if (caps.trash) sync.trash(m) }
+            is AppIntent.BulkSetRead -> {
+                updateOlder(_state.value.selection) { it.copy(unread = !intent.read) }
+                bulk { m, caps -> if (caps.markRead && m.unread == intent.read) sync.setRead(m, intent.read) }
+            }
+            AppIntent.BulkArchive -> {
+                updateOlder(_state.value.selection) { null }
+                bulk(closeReader = true) { m, caps -> if (caps.archive) sync.archive(m) }
+            }
+            AppIntent.BulkTrash -> {
+                updateOlder(_state.value.selection) { null }
+                bulk(closeReader = true) { m, caps -> if (caps.trash) sync.trash(m) }
+            }
             AppIntent.BulkDownloadAttachments -> {
                 val messages = _state.value.selectedMessages.filter { it.hasAttachments }
                 downloadAll(messages, folder = "selection-${Platform.now() / 1000}")
@@ -271,17 +316,42 @@ class AppViewModel(
             is AppIntent.StartCompose -> startCompose(intent.mode, intent.message)
             is AppIntent.UpdateCompose -> mutate { s ->
                 val current = s.compose ?: return@mutate s
-                // Sending and threading state is owned here; the UI only edits the text fields.
+                // Sending, threading, body, quote and files are owned here; the UI edits the fields.
                 s.copy(
                     compose = intent.draft.copy(
+                        draftId = current.draftId,
                         sending = current.sending,
                         inReplyTo = current.inReplyTo,
                         references = current.references,
                         threadId = current.threadId,
+                        body = current.body,
+                        html = current.html,
+                        quote = current.quote,
+                        quoteHtml = current.quoteHtml,
+                        attachments = current.attachments,
+                        scheduledId = current.scheduledId,
+                        initialHtml = current.initialHtml,
                         invalidAddresses = false,
                     ),
                 )
             }
+            is AppIntent.ComposeBody -> mutate { s -> s.copy(compose = s.compose?.copy(body = intent.text, html = intent.html)) }
+            is AppIntent.ComposeWindow -> mutate { s -> s.copy(compose = s.compose?.copy(window = intent.mode)) }
+            is AppIntent.ComposeSuggest -> suggestContacts(intent.query)
+            AppIntent.ComposeAttach -> attachFiles()
+            is AppIntent.ComposeRemoveAttachment -> mutate { s ->
+                s.copy(compose = s.compose?.let { d -> d.copy(attachments = d.attachments.filter { it.id != intent.id }) })
+            }
+            is AppIntent.ScheduleCompose -> scheduleCompose(intent.sendAt)
+            is AppIntent.SendScheduledNow -> background {
+                _state.value.scheduled.firstOrNull { it.id == intent.id }?.let { repo.schedule(it.copy(sendAt = Platform.now())) }
+                sendDueScheduled()
+            }
+            is AppIntent.CancelScheduled -> background {
+                repo.unschedule(intent.id)
+                mutate { it.copy(message = AppMessage.ScheduleCancelled) }
+            }
+            is AppIntent.EditScheduled -> editScheduled(intent.id)
             AppIntent.SendCompose -> sendCompose()
             AppIntent.CloseCompose -> mutate { if (it.compose?.sending == true) it else it.copy(compose = null) }
             is AppIntent.SetSearchQuery -> mutate { it.copy(filter = it.filter.copy(query = intent.query)) }
@@ -290,7 +360,10 @@ class AppViewModel(
                 mutate { it.copy(reader = null) }
                 if (backStack.lastOrNull() == AppKey.Reader) back()
             }
-            is AppIntent.SetRead -> serverAction { sync.setRead(intent.message, intent.read) }
+            is AppIntent.SetRead -> {
+                updateOlder(setOf(intent.message.key)) { it.copy(unread = !intent.read) }
+                serverAction { sync.setRead(intent.message, intent.read) }
+            }
             is AppIntent.Archive -> archive(intent.message)
             is AppIntent.OpenInWeb -> openInWeb(intent.message)
             is AppIntent.OpenHtml -> background {
@@ -376,11 +449,23 @@ class AppViewModel(
             mutate { it.copy(addAccount = AddAccountStep.Imap(ImapForm())) }
             return
         }
+        // Several browser profiles: ask which one first (demo too, so the picker can be seen).
+        if (_state.value.browserProfiles.size > 1) {
+            mutate { it.copy(addAccount = AddAccountStep.ChooseBrowser(kind)) }
+            return
+        }
         if (DemoMode.enabled) {
             addDemoAccount(kind)
             return
         }
         signInOAuth(kind, existing = null)
+    }
+
+    private fun chooseBrowser(profileKey: String?) {
+        val step = _state.value.addAccount as? AddAccountStep.ChooseBrowser ?: return
+        settings { it.copy(browserProfile = profileKey.orEmpty()) }
+        val existing = step.reconnectId?.let { _state.value.account(it) }
+        if (DemoMode.enabled && existing == null) addDemoAccount(step.kind) else signInOAuth(step.kind, existing, profileKey)
     }
 
     /** Demo mode: an OAuth provider "signs in" at once with a made-up address. */
@@ -410,7 +495,7 @@ class AppViewModel(
         if (s.addAccount == null && step.phase != SignInPhase.Browser) s else s.copy(addAccount = step)
     }
 
-    private fun signInOAuth(kind: ProviderKind, existing: Account?) {
+    private fun signInOAuth(kind: ProviderKind, existing: Account?, profileKey: String? = null) {
         val provider = OAuthProvider.of(kind) ?: return
         if (!provider.isConfigured) {
             mutate { it.copy(message = AppMessage.NotConfigured, addAccount = null) }
@@ -422,11 +507,14 @@ class AppViewModel(
         }
         signInJob?.cancel()
         val reconnectId = existing?.id
+        val profile = _state.value.browserProfiles.firstOrNull { it.key == profileKey }
         signInJob = scope.launch {
-            signInStep(AddAccountStep.SignIn(kind, SignInPhase.Browser, reconnectId))
+            signInStep(AddAccountStep.SignIn(kind, SignInPhase.Browser, reconnectId, profileKey = profileKey))
             try {
-                val code = authorizer.authorize(provider, loginHint = existing?.email)
-                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Connecting, reconnectId))
+                val code = authorizer.authorize(provider, loginHint = existing?.email, profile = profile)
+                // Back from the browser: Mailtice comes to the front while it finishes.
+                _raiseWindow.tryEmit(Unit)
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Connecting, reconnectId, profileKey = profileKey))
                 val tokens = auth.exchange(provider, code)
                 val email = when (kind) {
                     ProviderKind.Gmail -> gmail.profile(tokens.accessToken).emailAddress
@@ -451,15 +539,15 @@ class AppViewModel(
                     }
                 }
                 if (known != null) sync.restart(scope, known.id)
-                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Done, reconnectId, accountId = id, email = email))
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Done, reconnectId, accountId = id, email = email, profileKey = profileKey))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AuthCancelledException) {
                 // Closed the browser tab or denied consent: offer the same provider again.
-                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId))
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId, profileKey = profileKey))
             } catch (e: Exception) {
                 println("Sign-in failed: ${e::class.simpleName}")
-                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId))
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId, profileKey = profileKey))
             }
         }
     }
@@ -475,6 +563,8 @@ class AppViewModel(
         if (DemoMode.enabled && account.kind.oauth) {
             sync.restart(scope, account.id)
             mutate { it.copy(message = AppMessage.AccountReconnected) }
+        } else if (account.kind.oauth && _state.value.browserProfiles.size > 1) {
+            mutate { it.copy(addAccount = AddAccountStep.ChooseBrowser(account.kind, reconnectId = account.id)) }
         } else if (account.kind.oauth) {
             signInOAuth(account.kind, existing = account)
         } else {
@@ -651,6 +741,7 @@ class AppViewModel(
             // Opening means reading, where the account can say so.
             val account = _state.value.account(message.accountId)
             if (message.unread && account?.capabilities?.markRead == true) {
+                updateOlder(setOf(message.key)) { it.copy(unread = false) }
                 runCatching { sync.setRead(message, read = true) }
             }
         }
@@ -659,6 +750,7 @@ class AppViewModel(
     private fun archive(message: MailMessage) {
         val account = _state.value.account(message.accountId) ?: return
         if (!account.capabilities.archive) return
+        updateOlder(setOf(message.key)) { null }
         if (_state.value.reader?.message?.id == message.id) onIntent(AppIntent.CloseReader)
         serverAction { sync.archive(message) }
     }
@@ -666,6 +758,7 @@ class AppViewModel(
     private fun trash(message: MailMessage) {
         val account = _state.value.account(message.accountId) ?: return
         if (!account.capabilities.trash) return
+        updateOlder(setOf(message.key)) { null }
         if (_state.value.reader?.message?.id == message.id) onIntent(AppIntent.CloseReader)
         scope.launch {
             try {
@@ -678,6 +771,72 @@ class AppViewModel(
                 mutate { it.copy(message = AppMessage.ActionFailed) }
             }
         }
+    }
+
+    // ---- older mail from the server --------------------------------------------------------
+
+    /**
+     * The end of the list: first more stored rows (the list reads them [LocalPage] at a time), then
+     * the server, per account in scope, for mail older than the oldest row of that account already
+     * shown - or than its retention window when nothing is shown. An account that returns nothing
+     * is done for this list. A result for a list the user has since left is dropped.
+     */
+    private fun loadOlder() {
+        val s = _state.value
+        if (s.older.loading) return
+        if (s.inbox.size >= s.localLimit) {
+            mutate { it.copy(localLimit = it.localLimit + LocalPage) }
+            return
+        }
+        val filter = s.filter
+        val accounts = s.scopeAccounts.filter { it.id !in s.older.exhausted }
+        if (accounts.isEmpty()) return
+        val shown = s.visibleMessages
+        mutate { it.copy(older = it.older.copy(loading = true, failed = false)) }
+        scope.launch {
+            val results = accounts.map { account ->
+                async { account.id to runCatching { olderFor(s, account, filter, shown) }.getOrNull() }
+            }.awaitAll()
+            mutate { st ->
+                if (st.filter != filter) return@mutate st
+                val known = st.visibleMessages.map { it.key }.toSet()
+                val fresh = results.flatMap { it.second.orEmpty() }.filter { it.key !in known }.distinctBy { it.key }
+                st.copy(
+                    older = st.older.copy(
+                        items = st.older.items + fresh,
+                        loading = false,
+                        exhausted = st.older.exhausted + results.filter { it.second?.isEmpty() == true }.map { it.first },
+                        failed = results.any { it.second == null },
+                    ),
+                )
+            }
+        }
+    }
+
+    private suspend fun olderFor(s: AppState, account: Account, filter: InboxFilter, shown: List<MailMessage>): List<MailMessage> {
+        val starred = filter.folderId.isEmpty() && filter.view == MailView.Starred
+        val folders = when {
+            filter.folderId.isNotEmpty() -> s.foldersOf(account.id).filter { it.id == filter.folderId }
+            starred -> emptyList()
+            else -> s.foldersOf(account.id).filter { it.role == filter.view.role }
+        }
+        if (folders.isEmpty() && !starred) return emptyList()
+        val oldest = shown.filter { it.accountId == account.id }.minOfOrNull { it.receivedAt }
+        val floor = account.retentionDays.takeIf { it > 0 }?.let { Platform.now() - it * MailRepository.DAY_MS }
+        val query = OlderQuery(
+            before = oldest ?: floor,
+            search = MailSearch.parse(filter.query, Platform.now()),
+            unreadOnly = filter.unreadOnly,
+            attachmentsOnly = filter.attachmentsOnly,
+            flaggedOnly = starred,
+        )
+        return withContext(io) { sync.olderMessages(account, folders, query) }
+    }
+
+    /** Applies [change] to older (unstored) rows among [keys]; returning null drops the row. */
+    private fun updateOlder(keys: Set<String>, change: (MailMessage) -> MailMessage?) = mutate { s ->
+        if (s.older.items.none { it.key in keys }) return@mutate s
+        s.copy(older = s.older.copy(items = s.older.items.mapNotNull { if (it.key in keys) change(it) else it }))
     }
 
     /**
@@ -802,7 +961,7 @@ class AppViewModel(
             return
         }
         if (message == null || mode == ComposeMode.New) {
-            mutate { it.copy(compose = ComposeDraft(accountId = account.id)) }
+            mutate { it.copy(compose = ComposeDraft(accountId = account.id, draftId = Platform.now())) }
             return
         }
         val to = when (mode) {
@@ -820,6 +979,7 @@ class AppViewModel(
         val alreadyPrefixed = message.subject.trimStart().startsWith(prefix.trim(), ignoreCase = true)
         val draft = ComposeDraft(
             mode = mode,
+            draftId = Platform.now(),
             accountId = account.id,
             to = to,
             subject = if (alreadyPrefixed) message.subject else prefix + message.subject,
@@ -829,14 +989,15 @@ class AppViewModel(
         scope.launch {
             val body = _state.value.reader?.takeIf { it.message.id == message.id }?.body
                 ?: runCatching { withContext(io) { sync.body(message) } }.getOrNull()
-            val quote = quoteFor(mode, message, body?.text.orEmpty().ifBlank { message.snippet })
+            val (quote, quoteHtml) = quoteFor(mode, message, body?.text.orEmpty().ifBlank { message.snippet })
             val headers = if (mode == ComposeMode.Forward) null else withContext(io) { sync.threadHeaders(message) }
             mutate { st ->
-                val current = st.compose?.takeIf { it.accountId == draft.accountId && it.mode == mode } ?: return@mutate st
+                val current = st.compose?.takeIf { it.draftId == draft.draftId } ?: return@mutate st
                 st.copy(
                     compose = current.copy(
-                        // The user may have started typing; the quote goes under whatever is there.
-                        body = current.body + quote,
+                        // Kept out of the editor (shown folded, like Gmail) and added on send.
+                        quote = quote,
+                        quoteHtml = quoteHtml,
                         inReplyTo = headers?.messageId,
                         references = headers?.let { h -> listOfNotNull(h.references, h.messageId).joinToString(" ").ifBlank { null } },
                     ),
@@ -845,46 +1006,65 @@ class AppViewModel(
         }
     }
 
-    private suspend fun quoteFor(mode: ComposeMode, message: MailMessage, text: String): String {
+    /** The quoted original, as plain text and as HTML (a blockquote, the way mail clients fold it). */
+    private suspend fun quoteFor(mode: ComposeMode, message: MailMessage, text: String): Pair<String, String> {
         val language = _state.value.data.settings.uiLanguage.code
         val date = co.abaye.mailtice.main.formatTime(message.receivedAt, withDate = true)
         val sender = if (message.fromName.isBlank()) message.fromAddress else "${message.fromName} <${message.fromAddress}>"
+        fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        fun lines(s: String) = s.lines().joinToString("<br>") { esc(it) }
         return if (mode == ComposeMode.Forward) {
             val header = localizedString(language, Res.string.compose_forward_header)
-            "\n\n$header\n" +
-                localizedString(language, Res.string.compose_forward_from, sender) + "\n" +
-                localizedString(language, Res.string.compose_forward_date, date) + "\n" +
-                localizedString(language, Res.string.compose_forward_subject, message.subject) + "\n" +
-                localizedString(language, Res.string.compose_forward_to, message.toLine) + "\n\n" + text
+            val meta = listOf(
+                localizedString(language, Res.string.compose_forward_from, sender),
+                localizedString(language, Res.string.compose_forward_date, date),
+                localizedString(language, Res.string.compose_forward_subject, message.subject),
+                localizedString(language, Res.string.compose_forward_to, message.toLine),
+            )
+            val plain = "\n\n$header\n" + meta.joinToString("\n") + "\n\n" + text
+            val html = "<br><div dir=\"auto\">$header<br>${meta.joinToString("<br>") { esc(it) }}<br><br>${lines(text)}</div>"
+            plain to html
         } else {
             val header = localizedString(language, Res.string.compose_quote_header, date, sender)
-            "\n\n$header\n" + text.lines().joinToString("\n") { "> $it" }
+            val plain = "\n\n$header\n" + text.lines().joinToString("\n") { "> $it" }
+            val html = "<br><div dir=\"auto\">${esc(header)}<blockquote style=\"margin:0 0 0 .8ex;border-inline-start:2px solid #ccc;" +
+                "padding-inline-start:1ex\">${lines(text)}</blockquote></div>"
+            plain to html
         }
+    }
+
+    /** The draft as a message, or null (and the address fields flagged) when an address is wrong. */
+    private fun outgoing(draft: ComposeDraft): OutgoingMail? {
+        val to = parseAddressList(draft.to)
+        val cc = parseAddressList(draft.cc)
+        val bcc = parseAddressList(draft.bcc)
+        if (to.isNullOrEmpty() || cc == null || bcc == null) {
+            mutate { it.copy(compose = draft.copy(invalidAddresses = true)) }
+            return null
+        }
+        val html = draft.html?.takeIf { draft.body.isNotBlank() || draft.quoteHtml != null }
+        return OutgoingMail(
+            to = to, cc = cc, bcc = bcc,
+            subject = draft.subject.trim(),
+            text = draft.body + draft.quote.orEmpty(),
+            html = html?.let { "<div dir=\"auto\">$it</div>" + draft.quoteHtml.orEmpty() },
+            attachments = draft.attachments.map { OutgoingAttachment(it.name, it.mimeType, it.bytes) },
+            inReplyTo = draft.inReplyTo,
+            references = draft.references,
+            threadId = draft.threadId,
+        )
     }
 
     private fun sendCompose() {
         val draft = _state.value.compose ?: return
         if (draft.sending) return
         val account = _state.value.account(draft.accountId) ?: return
-        val to = parseAddressList(draft.to)
-        val cc = parseAddressList(draft.cc)
-        val bcc = parseAddressList(draft.bcc)
-        if (to.isNullOrEmpty() || cc == null || bcc == null) {
-            mutate { it.copy(compose = draft.copy(invalidAddresses = true)) }
-            return
-        }
-        val mail = OutgoingMail(
-            to = to, cc = cc, bcc = bcc,
-            subject = draft.subject.trim(),
-            text = draft.body,
-            inReplyTo = draft.inReplyTo,
-            references = draft.references,
-            threadId = draft.threadId,
-        )
+        val mail = outgoing(draft) ?: return
         mutate { it.copy(compose = draft.copy(sending = true)) }
         scope.launch {
             try {
                 withContext(io) { sync.send(account, mail) }
+                draft.scheduledId?.let { id -> withContext(io) { repo.unschedule(id) } }
                 mutate { it.copy(compose = null, message = AppMessage.Sent) }
             } catch (e: CancellationException) {
                 throw e
@@ -893,6 +1073,101 @@ class AppViewModel(
             } catch (e: Exception) {
                 println("Send failed: ${e::class.simpleName}")
                 mutate { it.copy(compose = it.compose?.copy(sending = false), message = AppMessage.SendFailed) }
+            }
+        }
+    }
+
+    // ---- compose extras: files, suggestions, scheduling ---------------------------------------
+
+    private fun attachFiles() {
+        scope.launch {
+            val title = localizedString(_state.value.data.settings.uiLanguage.code, Res.string.compose_attach)
+            val picked = withContext(io) { Platform.pickFiles(title) }
+            if (picked.isEmpty()) return@launch
+            mutate { s ->
+                val draft = s.compose ?: return@mutate s
+                val added = picked.map { DraftAttachment(newId(), it.name, it.mimeType, it.bytes) }
+                val total = (draft.attachments + added).sumOf { it.size }
+                if (total > MAX_ATTACHMENTS_BYTES) {
+                    s.copy(message = AppMessage.AttachmentsTooLarge)
+                } else {
+                    s.copy(compose = draft.copy(attachments = draft.attachments + added))
+                }
+            }
+        }
+    }
+
+    private var suggestJob: Job? = null
+
+    private fun suggestContacts(query: String) {
+        suggestJob?.cancel()
+        if (query.isBlank()) {
+            mutate { it.copy(contactSuggestions = emptyList()) }
+            return
+        }
+        suggestJob = scope.launch {
+            delay(120)
+            val found = withContext(io) { repo.contacts(query) }
+            mutate { it.copy(contactSuggestions = found) }
+        }
+    }
+
+    private fun scheduleCompose(sendAt: Long) {
+        val draft = _state.value.compose ?: return
+        val mail = outgoing(draft) ?: return
+        val item = ScheduledMail(id = draft.scheduledId ?: newId(), accountId = draft.accountId, sendAt = sendAt, mail = mail)
+        background {
+            repo.schedule(item)
+            mutate { it.copy(compose = null, message = AppMessage.Scheduled) }
+        }
+    }
+
+    /** Opens a queued message for editing; it stays queued until sent or rescheduled from the editor. */
+    private fun editScheduled(id: String) {
+        val item = _state.value.scheduled.firstOrNull { it.id == id } ?: return
+        val m = item.mail
+        mutate {
+            it.copy(
+                compose = ComposeDraft(
+                    draftId = Platform.now(),
+                    accountId = item.accountId,
+                    to = m.to.joinToString(", "),
+                    cc = m.cc.joinToString(", "),
+                    bcc = m.bcc.joinToString(", "),
+                    showCcBcc = m.cc.isNotEmpty() || m.bcc.isNotEmpty(),
+                    subject = m.subject,
+                    body = m.text,
+                    html = m.html,
+                    initialHtml = m.html?.removePrefix("<div dir=\"auto\">")?.substringBeforeLast("</div>") ?: "",
+                    attachments = m.attachments.map { a -> DraftAttachment(newId(), a.name, a.mimeType, a.bytes) },
+                    scheduledId = item.id,
+                    inReplyTo = m.inReplyTo,
+                    references = m.references,
+                    threadId = m.threadId,
+                ),
+            )
+        }
+    }
+
+    /** Sends what is due; a failure waits longer each time (2, 4, 8... up to 60 minutes) and says why. */
+    private suspend fun sendDueScheduled() {
+        val due = withContext(io) { runCatching { repo.dueScheduled(Platform.now()) }.getOrDefault(emptyList()) }
+        due.forEach { item ->
+            val account = withContext(io) { repo.account(item.accountId) }
+            if (account == null) {
+                withContext(io) { repo.unschedule(item.id) }
+                return@forEach
+            }
+            try {
+                withContext(io) { sync.send(account, item.mail) }
+                withContext(io) { repo.unschedule(item.id) }
+                mutate { it.copy(message = AppMessage.ScheduledSent) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val wait = (2L shl item.attempts.coerceAtMost(5)).coerceAtMost(60) * 60_000L
+                val why = listOfNotNull(e::class.simpleName, e.message?.lineSequence()?.firstOrNull()).joinToString(": ")
+                withContext(io) { repo.scheduledFailed(item.id, why, Platform.now() + wait) }
             }
         }
     }
@@ -1013,5 +1288,8 @@ class AppViewModel(
         }
     }
 
-    private fun mutate(block: (AppState) -> AppState) = _state.update(block)
+    private fun mutate(block: (AppState) -> AppState) = _state.update { old ->
+        val new = block(old)
+        if (new.filter != old.filter) new.copy(older = OlderMail(), localLimit = LocalPage) else new
+    }
 }

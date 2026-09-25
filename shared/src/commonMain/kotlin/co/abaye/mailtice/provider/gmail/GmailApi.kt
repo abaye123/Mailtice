@@ -111,6 +111,20 @@ class GmailApi(private val http: HttpClient) {
             parameter("format", "raw")
         }.parsed()
 
+    /**
+     * Messages over the JSON body limit (attachments) go through the media upload endpoint, which
+     * takes the RFC 5322 bytes as they are, up to Gmail's 35 MB. It cannot carry a threadId; the
+     * In-Reply-To / References headers still thread a reply for everyone.
+     */
+    suspend fun sendLarge(token: String, raw: ByteArray) {
+        http.post("https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/send") {
+            bearerAuth(token)
+            parameter("uploadType", "media")
+            contentType(ContentType("message", "rfc822"))
+            setBody(raw)
+        }.parsed<MessageRef>()
+    }
+
     /** Only the headers a reply needs to thread correctly. */
     suspend fun threadHeaders(token: String, id: String): GmailMessage =
         http.get("$BASE/messages/$id") {

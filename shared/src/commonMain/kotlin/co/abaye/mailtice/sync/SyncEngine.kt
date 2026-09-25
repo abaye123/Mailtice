@@ -9,7 +9,9 @@ import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.MailProviders
+import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.provider.AttachmentFile
+import co.abaye.mailtice.provider.OlderQuery
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.ProviderException
 import co.abaye.mailtice.provider.ThreadHeaders
@@ -246,6 +248,15 @@ class SyncEngine(
         return providers.forAccount(account).fetchAttachments(account, message, indices)
     }
 
+    /** Older mail straight from the server, as list rows. Never stored (see [MailProvider.olderMessages]). */
+    suspend fun olderMessages(account: Account, folders: List<Folder>, query: OlderQuery): List<MailMessage> =
+        providers.forAccount(account).olderMessages(account, folders, query).map { r ->
+            MailMessage(
+                account.id, r.id, r.threadId, r.uid, r.fromName, r.fromAddress, r.toLine, r.subject, r.snippet,
+                r.receivedAt, r.unread, r.flagged, r.hasAttachments, r.sizeBytes, folderIds = r.folderIds.toList(),
+            )
+        }
+
     suspend fun rawMessage(message: MailMessage): ByteArray {
         val account = repo.account(message.accountId) ?: return ByteArray(0)
         return providers.forAccount(account).rawMessage(account, message)
@@ -268,7 +279,8 @@ class SyncEngine(
         repo.body(message.accountId, message.id)?.let { return it }
         val account = repo.account(message.accountId) ?: return MailBody("", "", emptyList())
         val body = providers.forAccount(account).fetchBody(account, message)
-        repo.saveBody(message.accountId, message.id, body)
+        // Older mail looked at from the server has no stored row, so its body is not stored either.
+        if (repo.message(message.accountId, message.id) != null) repo.saveBody(message.accountId, message.id, body)
         return body
     }
 

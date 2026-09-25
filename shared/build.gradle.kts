@@ -120,6 +120,8 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.materialKolor)
             implementation(libs.aboutlibraries.compose.m3)
+            // The compose window's rich text (bold, lists, links) and its HTML.
+            implementation(libs.richeditor)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.json)

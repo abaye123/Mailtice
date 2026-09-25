@@ -2,6 +2,7 @@ package co.abaye.mailtice
 
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.provider.MimeBuilder
+import co.abaye.mailtice.provider.OutgoingAttachment
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.parseAddressList
 import kotlin.io.encoding.Base64
@@ -47,6 +48,26 @@ class MimeBuilderTest {
         val decoded = words.joinToString("") { Base64.Default.decode(it.removePrefix("=?UTF-8?B?").removeSuffix("?=")).decodeToString() }
         assertEquals(mail.subject, decoded)
         assertEquals("plain ascii", MimeBuilder.encodeWords("plain ascii"))
+    }
+
+    @Test
+    fun htmlAndAttachmentBecomeMultipart() {
+        val rich = mail.copy(
+            html = "<p><b>שלום</b></p>",
+            attachments = listOf(OutgoingAttachment("הצעה.pdf", "application/pdf", byteArrayOf(1, 2, 3))),
+        )
+        val raw = MimeBuilder.build("me@example.com", rich, epochMillis = 0)
+        val headers = raw.substringBefore("\r\n\r\n")
+        assertTrue(headers.all { it.code < 128 })
+        assertTrue("multipart/mixed" in headers)
+        assertTrue("multipart/alternative" in raw)
+        assertTrue("text/html; charset=UTF-8" in raw)
+        assertTrue("Content-Disposition: attachment; filename=\"=?UTF-8?B?" in raw)
+        // The attachment bytes come back out of the base64 part.
+        val part = raw.substringAfter("Content-Disposition: attachment").substringAfter("\r\n\r\n").substringBefore("\r\n--")
+        assertEquals(listOf<Byte>(1, 2, 3), Base64.Default.decode(part.replace("\r\n", "")).toList())
+        val mixed = headers.substringAfter("boundary=\"").substringBefore("\"")
+        assertTrue(raw.trimEnd().endsWith("--$mixed--"))
     }
 
     @Test

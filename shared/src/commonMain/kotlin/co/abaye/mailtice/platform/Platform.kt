@@ -40,7 +40,16 @@ internal expect object Platform {
 
     /** Shows where [location] (from [saveDownload]) was saved: the folder in the file manager. */
     fun revealDownload(location: String)
+
+    /** The OS "open files" dialog, several files at once; empty when cancelled or unsupported. Blocks. */
+    fun pickFiles(title: String): List<PickedFile>
+
+    /** False where [pickFiles] has no dialog yet (Android): the compose window hides "attach". */
+    val canPickFiles: Boolean
 }
+
+/** A file the user picked to attach. */
+class PickedFile(val name: String, val mimeType: String, val bytes: ByteArray)
 
 /** A file or folder name every OS accepts: no separators or reserved characters, not too long. */
 internal fun safeFileName(raw: String, fallback: String = "Mailtice"): String {

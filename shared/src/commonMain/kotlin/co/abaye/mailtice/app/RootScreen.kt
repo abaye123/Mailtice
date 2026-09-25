@@ -20,7 +20,7 @@ import co.abaye.mailtice.main.AboutScreen
 import co.abaye.mailtice.main.AccountDetailScreen
 import co.abaye.mailtice.main.ReaderScreen
 import co.abaye.mailtice.main.AccountsScreen
-import co.abaye.mailtice.main.ComposeDialog
+import co.abaye.mailtice.main.ComposeWindow
 import co.abaye.mailtice.main.InboxScreen
 import co.abaye.mailtice.main.MainShell
 import co.abaye.mailtice.main.SettingsScreen
@@ -48,7 +48,7 @@ fun RootScreen(state: AppState, backStack: NavBackStack<AppKey>, onIntent: (AppI
             modifier = Modifier.align(Alignment.BottomCenter),
         )
         AppDialogHost(state = state, onIntent = onIntent)
-        ComposeDialog(state = state, onIntent = onIntent)
+        ComposeWindow(state = state, onIntent = onIntent)
     }
 }
 

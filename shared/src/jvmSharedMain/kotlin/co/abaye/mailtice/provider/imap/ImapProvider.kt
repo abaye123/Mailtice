@@ -19,6 +19,7 @@ import co.abaye.mailtice.provider.FolderState
 import co.abaye.mailtice.provider.HtmlText
 import co.abaye.mailtice.provider.ImapBackend
 import co.abaye.mailtice.provider.ImapLoginException
+import co.abaye.mailtice.provider.OlderQuery
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.ProviderException
 import co.abaye.mailtice.provider.RemoteFolder
@@ -36,9 +37,20 @@ import jakarta.mail.Part
 import jakarta.mail.Session
 import jakarta.mail.UIDFolder
 import jakarta.mail.internet.InternetAddress
+import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMessage
+import jakarta.mail.internet.MimeMultipart
 import jakarta.mail.internet.MimeUtility
+import jakarta.mail.search.AndTerm
+import jakarta.mail.search.BodyTerm
 import jakarta.mail.search.ComparisonTerm
+import jakarta.mail.search.FlagTerm
+import jakarta.mail.search.FromStringTerm
+import jakarta.mail.search.NotTerm
+import jakarta.mail.search.RecipientStringTerm
+import jakarta.mail.search.OrTerm
+import jakarta.mail.search.SearchTerm
+import jakarta.mail.search.SubjectTerm
 import jakarta.mail.search.ReceivedDateTerm
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -221,6 +233,74 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
             out
         }
 
+    /**
+     * IMAP SEARCH per folder (the server filters by date, text and flags), then only envelopes and
+     * flags for the newest [OlderQuery.limit] hits - no bodies.
+     */
+    override suspend fun olderMessages(account: Account, folders: List<Folder>, query: OlderQuery): List<RemoteMessage> =
+        withStore(account) { store ->
+            val targets = folders.ifEmpty { listOf(Folder(account.id, "INBOX", "INBOX", FolderRole.Inbox, sync = false, notify = false)) }
+            targets.flatMap { f ->
+                val folder = store.getFolder(f.id) as IMAPFolder
+                folder.open(JFolder.READ_ONLY)
+                try {
+                    val s = query.search
+                    val terms = buildList<SearchTerm> {
+                        listOfNotNull(query.before, s.before).minOrNull()?.let { add(ReceivedDateTerm(ComparisonTerm.LT, Date(it))) }
+                        s.after?.let { add(ReceivedDateTerm(ComparisonTerm.GE, Date(it))) }
+                        s.words.forEach { w -> add(OrTerm(arrayOf(SubjectTerm(w), FromStringTerm(w), BodyTerm(w)))) }
+                        s.excluded.forEach { w -> add(NotTerm(OrTerm(arrayOf(SubjectTerm(w), FromStringTerm(w), BodyTerm(w))))) }
+                        if (s.from.isNotEmpty()) add(FromStringTerm(s.from))
+                        if (s.to.isNotEmpty()) add(RecipientStringTerm(Message.RecipientType.TO, s.to))
+                        if (s.subject.isNotEmpty()) add(SubjectTerm(s.subject))
+                        if (query.unreadOnly || s.unread == true) add(FlagTerm(Flags(Flags.Flag.SEEN), false))
+                        if (s.unread == false) add(FlagTerm(Flags(Flags.Flag.SEEN), true))
+                        if (query.flaggedOnly || s.starred) add(FlagTerm(Flags(Flags.Flag.FLAGGED), true))
+                    }
+                    val hits = when (terms.size) {
+                        0 -> folder.messages
+                        1 -> folder.search(terms.first())
+                        else -> folder.search(AndTerm(terms.toTypedArray()))
+                    }
+                    // Sequence order is arrival order: the last hits are the newest.
+                    val page = hits.takeLast(query.limit).toTypedArray()
+                    folder.fetch(
+                        page,
+                        FetchProfile().apply {
+                            add(FetchProfile.Item.ENVELOPE)
+                            add(FetchProfile.Item.FLAGS)
+                            add(FetchProfile.Item.CONTENT_INFO)
+                            add(UIDFolder.FetchProfileItem.UID)
+                        },
+                    )
+                    page.map { m ->
+                        val uid = folder.getUID(m)
+                        val from = m.from?.firstOrNull() as? InternetAddress
+                        RemoteMessage(
+                            id = "${folder.fullName}/$uid",
+                            threadId = "",
+                            uid = uid,
+                            fromName = from?.personal.orEmpty(),
+                            fromAddress = from?.address.orEmpty(),
+                            toLine = m.getRecipients(Message.RecipientType.TO)
+                                ?.joinToString(", ") { (it as? InternetAddress)?.toUnicodeString() ?: it.toString() }.orEmpty(),
+                            subject = m.subject.orEmpty(),
+                            snippet = "",
+                            receivedAt = (m.receivedDate ?: m.sentDate)?.time ?: 0L,
+                            unread = !m.isSet(Flags.Flag.SEEN),
+                            flagged = m.isSet(Flags.Flag.FLAGGED),
+                            hasAttachments = query.attachmentsOnly || query.search.hasAttachment || m.isMimeType("multipart/mixed"),
+                            sizeBytes = m.size.toLong().coerceAtLeast(0),
+                            folderIds = setOf(folder.fullName),
+                            body = null,
+                        )
+                    }.filter { !(query.attachmentsOnly || query.search.hasAttachment) || it.hasAttachments }
+                } finally {
+                    runCatching { folder.close(false) }
+                }
+            }.sortedByDescending { it.receivedAt }.take(query.limit)
+        }
+
     override suspend fun rawMessage(account: Account, message: MailMessage): ByteArray = withStore(account) { store ->
         var bytes = ByteArray(0)
         withMessage(store, message, readOnly = true) { _, m ->
@@ -347,12 +427,35 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
             if (mail.cc.isNotEmpty()) setRecipients(Message.RecipientType.CC, addresses(mail.cc))
             if (mail.bcc.isNotEmpty()) setRecipients(Message.RecipientType.BCC, addresses(mail.bcc))
             setSubject(mail.subject, "UTF-8")
-            setText(mail.text, "UTF-8")
+            setContent(mimeContent(mail))
             sentDate = Date()
             mail.inReplyTo?.let { setHeader("In-Reply-To", it) }
             (mail.references ?: mail.inReplyTo)?.let { setHeader("References", it) }
             saveChanges()
         }
+
+    /** Plain text; or plain + HTML (alternative); with files, all of that inside multipart/mixed. */
+    private fun mimeContent(mail: OutgoingMail): MimeMultipart {
+        val text = MimeBodyPart().apply { setText(mail.text, "UTF-8") }
+        val body = if (mail.html == null) {
+            MimeMultipart(text)
+        } else {
+            MimeMultipart("alternative", text, MimeBodyPart().apply { setContent(mail.html, "text/html; charset=UTF-8") })
+        }
+        if (mail.attachments.isEmpty()) return body
+        val mixed = MimeMultipart("mixed")
+        mixed.addBodyPart(MimeBodyPart().apply { setContent(body) })
+        mail.attachments.forEach { file ->
+            mixed.addBodyPart(
+                MimeBodyPart().apply {
+                    dataHandler = jakarta.activation.DataHandler(jakarta.mail.util.ByteArrayDataSource(file.bytes, file.mimeType))
+                    fileName = MimeUtility.encodeText(file.name, "UTF-8", "B")
+                    disposition = Part.ATTACHMENT
+                },
+            )
+        }
+        return mixed
+    }
 
     /** Re-creates each address with its display name encoded as UTF-8, so Hebrew names survive SMTP. */
     private fun addresses(list: List<String>): Array<InternetAddress> = list.map { raw ->

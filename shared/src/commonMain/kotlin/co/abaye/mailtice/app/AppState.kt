@@ -1,6 +1,9 @@
 package co.abaye.mailtice.app
 
 import androidx.compose.runtime.Immutable
+import co.abaye.mailtice.auth.BrowserProfile
+import co.abaye.mailtice.data.Contact
+import co.abaye.mailtice.data.ScheduledMail
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.AppData
@@ -57,6 +60,9 @@ sealed interface AddAccountStep {
     data object ChooseProvider : AddAccountStep
     data class Imap(val form: ImapForm) : AddAccountStep
 
+    /** Several browser profiles exist: which one should the sign-in page open in. */
+    data class ChooseBrowser(val kind: ProviderKind, val reconnectId: String? = null) : AddAccountStep
+
     /**
      * The sign-in in progress, shown inside the same dialog. [reconnectId] is set when an existing
      * account signs in again; [accountId] and [email] are filled once the account is known.
@@ -67,6 +73,8 @@ sealed interface AddAccountStep {
         val reconnectId: String? = null,
         val accountId: String = "",
         val email: String = "",
+        /** The browser profile used, so "try again" opens the same one. */
+        val profileKey: String? = null,
     ) : AddAccountStep
 }
 
@@ -84,6 +92,15 @@ data class InboxFilter(
 
 enum class ComposeMode { New, Reply, ReplyAll, Forward }
 
+/** The compose window's size: docked at the bottom corner, just its title bar, or large and centred. */
+enum class ComposeWindowMode { Normal, Minimized, Maximized }
+
+/** A file attached in the compose window. */
+@Immutable
+class DraftAttachment(val id: String, val name: String, val mimeType: String, val bytes: ByteArray) {
+    val size: Long get() = bytes.size.toLong()
+}
+
 /** [Html]: a readable page. [Mail]: .eml for one message, .mbox for a conversation. */
 enum class ExportFormat { Html, Mail }
 
@@ -94,19 +111,49 @@ enum class ExportFormat { Html, Mail }
 @Immutable
 data class ComposeDraft(
     val mode: ComposeMode = ComposeMode.New,
+    /** Changes whenever a new draft opens, so the editor knows to start over. */
+    val draftId: Long = 0,
     val accountId: String,
     val to: String = "",
     val cc: String = "",
     val bcc: String = "",
     val showCcBcc: Boolean = false,
     val subject: String = "",
+    /** Plain text of what the user wrote (the editor's text). */
     val body: String = "",
+    /** The same as HTML from the rich editor; null until the editor reports. */
+    val html: String? = null,
+    /** HTML the editor starts with (editing a scheduled message); "" = empty. */
+    val initialHtml: String = "",
+    /** The quoted original of a reply / forward, kept apart from the editor and added on send. */
+    val quote: String? = null,
+    val quoteHtml: String? = null,
+    val attachments: List<DraftAttachment> = emptyList(),
+    val window: ComposeWindowMode = ComposeWindowMode.Normal,
+    /** Set while editing a message from the scheduled queue; sending or rescheduling replaces it. */
+    val scheduledId: String? = null,
     val inReplyTo: String? = null,
     val references: String? = null,
     val threadId: String? = null,
     val sending: Boolean = false,
     val invalidAddresses: Boolean = false,
 )
+
+/**
+ * Mail older than the stored window, fetched from the server for the current list (filter) as the
+ * user scrolls to the end or searches. Kept in memory only; the disk holds the retention window.
+ */
+@Immutable
+data class OlderMail(
+    val items: List<MailMessage> = emptyList(),
+    val loading: Boolean = false,
+    /** Accounts whose server has nothing older for this list. */
+    val exhausted: Set<String> = emptySet(),
+    val failed: Boolean = false,
+)
+
+/** Stored rows the list reads at first; reaching the end reads [LocalPage] more before asking the server. */
+const val LocalPage: Long = 500
 
 @Immutable
 data class Reader(val message: MailMessage, val body: MailBody? = null, val failed: Boolean = false)
@@ -126,12 +173,20 @@ data class AppState(
     val filter: InboxFilter = InboxFilter(),
     val reader: Reader? = null,
     val compose: ComposeDraft? = null,
+    val older: OlderMail = OlderMail(),
+    /** Address suggestions for the recipient being typed in the compose window. */
+    val contactSuggestions: List<Contact> = emptyList(),
+    /** The scheduled-send queue, soonest first. */
+    val scheduled: List<ScheduledMail> = emptyList(),
+    val localLimit: Long = LocalPage,
     /** Checked rows ("<accountId>/<messageId>"); non-empty turns the list toolbar into bulk actions. */
     val selection: Set<String> = emptySet(),
     /** A download or export is running; the UI shows progress and blocks a second one. */
     val working: Boolean = false,
     val storage: StorageUsage = StorageUsage(),
     val addAccount: AddAccountStep? = null,
+    /** Browser profiles found on this computer (desktop); two or more bring up the profile picker. */
+    val browserProfiles: List<BrowserProfile> = emptyList(),
     /** Providers the build has credentials for and this platform can sign in to. */
     val availableProviders: List<ProviderKind> = ProviderKind.entries,
     val dialog: AppDialog = AppDialog.Hidden,
@@ -148,7 +203,14 @@ data class AppState(
     /** Accounts that can send, in sidebar order; the compose "from" picker offers these. */
     val sendingAccounts: List<Account> get() = accounts.filter { it.capabilities.send }
 
-    val selectedMessages: List<MailMessage> get() = inbox.filter { it.key in selection }
+    /** The list as shown: stored rows, then older ones from the server, newest first. */
+    val visibleMessages: List<MailMessage> get() =
+        if (older.items.isEmpty()) inbox else (inbox + older.items).sortedByDescending { it.receivedAt }
+
+    /** The server has nothing older for any account in scope. */
+    val olderExhausted: Boolean get() = scopeAccounts.all { it.id in older.exhausted }
+
+    val selectedMessages: List<MailMessage> get() = visibleMessages.filter { it.key in selection }
 
     /** Accounts the list currently covers: the one picked in the sidebar, or all of them. */
     val scopeAccounts: List<Account> get() = if (filter.accountId.isEmpty()) accounts else accounts.filter { it.id == filter.accountId }
@@ -156,7 +218,12 @@ data class AppState(
     /** Views some account in scope actually has a folder for (Inbox and Starred always). */
     val availableViews: List<MailView> get() {
         val roles = scopeAccounts.flatMap { foldersOf(it.id) }.map { it.role }.toSet()
-        return MailView.entries.filter { it.role == null || it.role == FolderRole.Inbox || it.role in roles }
+        return MailView.entries.filter {
+            when (it) {
+                MailView.Scheduled -> scheduled.any { s -> filter.accountId.isEmpty() || s.accountId == filter.accountId }
+                else -> it.role == null || it.role == FolderRole.Inbox || it.role in roles
+            }
+        }
     }
 
     /** Unread in the folders of [view] across the accounts in scope. */

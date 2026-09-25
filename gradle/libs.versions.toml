@@ -38,6 +38,8 @@ ktlint-cli = "1.8.0"
 compose-rules = "0.6.4"
 stability-analyzer = "0.12.0"
 aboutLibraries = "15.0.4"
+# 1.1.0 is built on Compose 1.11.1 / material3 1.11.0-alpha07; 1.2.0 moves to Compose 1.12.
+richeditor = "1.1.0"
 
 [libraries]
 
@@ -94,6 +96,7 @@ composenativetray = { module = "dev.nucleusframework:composenativetray", version
 structured-coroutines-annotations = { module = "io.github.santimattius:structured-coroutines-annotations", version.ref = "structured-coroutines" }
 detekt-compose-rules = { module = "io.nlopez.compose.rules:detekt", version.ref = "compose-rules" }
 ktlint-compose-rules = { module = "io.nlopez.compose.rules:ktlint", version.ref = "compose-rules" }
+richeditor = { module = "com.mohamedrejeb.richeditor:richeditor-compose", version.ref = "richeditor" }
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutLibraries" }
 
 [plugins]

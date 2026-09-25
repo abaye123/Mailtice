@@ -16,6 +16,7 @@ import co.abaye.mailtice.provider.HtmlText
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.MailProvider
 import co.abaye.mailtice.provider.MimeBuilder
+import co.abaye.mailtice.provider.OlderQuery
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.ProviderException
 import co.abaye.mailtice.provider.RemoteFolder
@@ -31,6 +32,9 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 private const val FETCH_PARALLELISM = 6
+
+/** Above this many raw bytes a message is sent through the upload endpoint (the JSON body limit is ~5 MB). */
+private const val JSON_SEND_LIMIT = 3_500_000
 
 /** Metadata is small, so more of it can be in flight at once. */
 private const val METADATA_PARALLELISM = 10
@@ -125,6 +129,32 @@ class GmailProvider(
         }
     }
 
+    /** Gmail search does the filtering: "before:", the text, is:unread, has:attachment, is:starred. */
+    override suspend fun olderMessages(account: Account, folders: List<Folder>, query: OlderQuery): List<RemoteMessage> =
+        withToken(account) { token ->
+            // The paging cursor and the search's own before: - whichever is earlier - bound the page.
+            val cursor = listOfNotNull(query.before, query.search.before).minOrNull()
+            val q = listOfNotNull(
+                cursor?.let { "before:${it / 1000}" },
+                query.search.copy(before = null).toGmailQuery().takeIf { it.isNotEmpty() },
+                "is:unread".takeIf { query.unreadOnly },
+                "has:attachment".takeIf { query.attachmentsOnly },
+                "is:starred".takeIf { query.flaggedOnly },
+            ).joinToString(" ")
+            val labels: List<String?> = folders.map { it.id }.ifEmpty { listOf(null) }
+            val ids = labels.flatMap { label ->
+                retrying { api.messageIds(token, label, afterEpochSeconds = null, max = query.limit, query = q) }.map { it.id }
+            }.distinct()
+            fetchMetadata(token, ids)
+                .map { m ->
+                    // Metadata has no parts; a multipart/mixed top level is how attachments show up.
+                    val mixed = m.payload?.mimeType == "multipart/mixed"
+                    m.toRemote(m.labelIds.toSet(), withBody = false).copy(hasAttachments = query.attachmentsOnly || mixed)
+                }
+                .sortedByDescending { it.receivedAt }
+                .take(query.limit)
+        }
+
     /** Gmail answers bursts with 429 and occasional 5xx: wait a little longer each time and try again. */
     private suspend fun <T> retrying(block: suspend () -> T): T {
         var wait = 1_000L
@@ -184,8 +214,10 @@ class GmailProvider(
     /** Gmail files the sent copy under SENT by itself and threads it by [OutgoingMail.threadId]. */
     @OptIn(ExperimentalEncodingApi::class)
     override suspend fun send(account: Account, mail: OutgoingMail, folders: List<Folder>) {
-        val raw = Base64.UrlSafe.encode(MimeBuilder.build(account.email, mail, Platform.now()).encodeToByteArray())
-        withToken(account) { token -> api.send(token, raw, mail.threadId) }
+        val bytes = MimeBuilder.build(account.email, mail, Platform.now()).encodeToByteArray()
+        withToken(account) { token ->
+            if (bytes.size > JSON_SEND_LIMIT) api.sendLarge(token, bytes) else api.send(token, Base64.UrlSafe.encode(bytes), mail.threadId)
+        }
     }
 
     /** Same walk as [body]: the n-th part with a file name is attachment n. */

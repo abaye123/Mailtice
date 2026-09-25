@@ -271,4 +271,76 @@
     <string name="signin_back">חזרה</string>
     <string name="signin_close">סגור</string>
     <string name="signin_open_mail">מעבר לדואר</string>
+
+    <!-- Older mail from the server -->
+    <string name="older_loading">טוען מיילים ישנים יותר מהשרת…</string>
+    <string name="older_searching">מחפש בשרת…</string>
+    <string name="older_none">אין מיילים ישנים יותר</string>
+    <string name="older_load">טען מיילים ישנים יותר</string>
+    <string name="older_failed">הטעינה מהשרת נכשלה · נסה שוב</string>
+    <string name="older_hint">ישן מטווח הימים שנשמר: מוצג מהשרת ולא נשמר במכשיר</string>
+
+    <!-- Browser profile picker -->
+    <string name="browser_title">באיזה פרופיל דפדפן?</string>
+    <string name="browser_body">דף ההתחברות של %1$s ייפתח בפרופיל שתבחר. כדאי לבחור את הפרופיל שכבר מחובר לחשבון הנכון.</string>
+    <string name="browser_default">דפדפן ברירת המחדל</string>
+
+    <!-- Search options -->
+    <string name="search_options">אפשרויות חיפוש</string>
+    <string name="search_from">מאת</string>
+    <string name="search_to">אל</string>
+    <string name="search_subject">נושא</string>
+    <string name="search_words">כולל את המילים</string>
+    <string name="search_exclude">לא כולל</string>
+    <string name="search_date">תאריך</string>
+    <string name="search_any_time">בכל זמן</string>
+    <string name="search_last_day">היום האחרון</string>
+    <string name="search_last_week">השבוע האחרון</string>
+    <string name="search_last_month">החודש האחרון</string>
+    <string name="search_last_year">השנה האחרונה</string>
+    <string name="search_older_year">ישן משנה</string>
+    <string name="search_has_attachment">עם קבצים מצורפים</string>
+    <string name="search_unread">לא נקראו</string>
+    <string name="search_apply">חיפוש</string>
+    <string name="search_clear">ניקוי</string>
+
+    <!-- Compose window, formatting, scheduled send -->
+    <string name="view_scheduled">מתוזמנים</string>
+    <string name="compose_minimize">מזעור</string>
+    <string name="compose_maximize">מסך מלא</string>
+    <string name="compose_restore">חזרה לגודל רגיל</string>
+    <string name="compose_close">סגירה</string>
+    <string name="compose_formatting">אפשרויות עיצוב</string>
+    <string name="compose_attach">צירוף קבצים</string>
+    <string name="compose_delete_draft">מחיקת הטיוטה</string>
+    <string name="compose_show_quote">הצגת התוכן המצוטט</string>
+    <string name="compose_schedule">תזמון שליחה</string>
+    <string name="fmt_bold">מודגש</string>
+    <string name="fmt_italic">נטוי</string>
+    <string name="fmt_underline">קו תחתון</string>
+    <string name="fmt_strike">קו חוצה</string>
+    <string name="fmt_bullets">רשימה עם תבליטים</string>
+    <string name="fmt_numbers">רשימה ממוספרת</string>
+    <string name="fmt_link">הוספת קישור</string>
+    <string name="fmt_unlink">הסרת הקישור</string>
+    <string name="link_text">הטקסט שיוצג</string>
+    <string name="link_url">כתובת (URL)</string>
+    <string name="link_add">הוספה</string>
+    <string name="schedule_tomorrow_morning">מחר בבוקר</string>
+    <string name="schedule_tomorrow_afternoon">מחר אחר הצהריים</string>
+    <string name="schedule_next_week">תחילת השבוע הבא</string>
+    <string name="schedule_pick">בחירת תאריך ושעה</string>
+    <string name="schedule_pick_time">בחירת שעה</string>
+    <string name="schedule_confirm">תזמון</string>
+    <string name="schedule_note">Mailtice שולח הודעות מתוזמנות כשהוא פועל (גם במגש המערכת). אם הוא סגור בשעה שנקבעה, ההודעה תישלח כשייפתח.</string>
+    <string name="scheduled_at">יישלח %1$s</string>
+    <string name="scheduled_send_now">שליחה עכשיו</string>
+    <string name="scheduled_edit">עריכה</string>
+    <string name="scheduled_cancel">ביטול התזמון</string>
+    <string name="scheduled_failed">עדיין לא נשלח, ינסה שוב: %1$s</string>
+    <string name="scheduled_empty_title">אין הודעות מתוזמנות</string>
+    <string name="message_scheduled">ההודעה תוזמנה</string>
+    <string name="message_scheduled_sent">הודעה מתוזמנת נשלחה</string>
+    <string name="message_schedule_cancelled">התזמון בוטל</string>
+    <string name="message_attachments_too_large">הקבצים גדולים מדי: עד 25MB להודעה.</string>
 </resources>

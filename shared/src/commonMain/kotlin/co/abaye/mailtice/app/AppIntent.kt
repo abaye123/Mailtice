@@ -27,6 +27,9 @@ sealed interface AppIntent {
     /** From the "sign-in failed" screen: the same provider (and account, when reconnecting) again. */
     data object RetrySignIn : AppIntent
 
+    /** The profile picker's answer; null = the default browser. */
+    data class ChooseBrowser(val profileKey: String?) : AppIntent
+
     /** From the "connected" screen: close the dialog and show the new account's mail. */
     data class OpenAccount(val accountId: String) : AppIntent
 
@@ -47,6 +50,9 @@ sealed interface AppIntent {
     data class SetUnreadOnly(val on: Boolean) : AppIntent
     data class SetAttachmentsOnly(val on: Boolean) : AppIntent
     data class SetView(val view: MailView) : AppIntent
+
+    /** The list reached its end: read more stored rows, or ask the server for older mail. */
+    data object LoadOlder : AppIntent
     data class Trash(val message: MailMessage) : AppIntent
 
     data object ToggleSidebar : AppIntent
@@ -70,6 +76,19 @@ sealed interface AppIntent {
     data class UpdateCompose(val draft: ComposeDraft) : AppIntent
     data object SendCompose : AppIntent
     data object CloseCompose : AppIntent
+
+    /** The rich editor changed: its plain text and HTML. */
+    data class ComposeBody(val text: String, val html: String) : AppIntent
+    data class ComposeWindow(val mode: ComposeWindowMode) : AppIntent
+    data class ComposeSuggest(val query: String) : AppIntent
+    data object ComposeAttach : AppIntent
+    data class ComposeRemoveAttachment(val id: String) : AppIntent
+
+    /** Queue the draft to go out at [sendAt] (epoch millis). */
+    data class ScheduleCompose(val sendAt: Long) : AppIntent
+    data class SendScheduledNow(val id: String) : AppIntent
+    data class CancelScheduled(val id: String) : AppIntent
+    data class EditScheduled(val id: String) : AppIntent
     data class SetSearchQuery(val query: String) : AppIntent
     data class OpenMail(val message: MailMessage) : AppIntent
     data object CloseReader : AppIntent

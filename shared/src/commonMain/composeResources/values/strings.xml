@@ -271,4 +271,76 @@
     <string name="signin_back">Back</string>
     <string name="signin_close">Close</string>
     <string name="signin_open_mail">Go to the mail</string>
+
+    <!-- Older mail from the server -->
+    <string name="older_loading">Loading older mail from the server…</string>
+    <string name="older_searching">Searching the server…</string>
+    <string name="older_none">No older mail</string>
+    <string name="older_load">Load older mail</string>
+    <string name="older_failed">Loading from the server failed · Try again</string>
+    <string name="older_hint">Older than the days kept: shown from the server, not stored on this device</string>
+
+    <!-- Browser profile picker -->
+    <string name="browser_title">Which browser profile?</string>
+    <string name="browser_body">The %1$s sign-in page opens in the profile you pick. Choose the one already signed in to the right account.</string>
+    <string name="browser_default">Default browser</string>
+
+    <!-- Search options -->
+    <string name="search_options">Search options</string>
+    <string name="search_from">From</string>
+    <string name="search_to">To</string>
+    <string name="search_subject">Subject</string>
+    <string name="search_words">Has the words</string>
+    <string name="search_exclude">Doesn't have</string>
+    <string name="search_date">Date</string>
+    <string name="search_any_time">Any time</string>
+    <string name="search_last_day">Last day</string>
+    <string name="search_last_week">Last week</string>
+    <string name="search_last_month">Last month</string>
+    <string name="search_last_year">Last year</string>
+    <string name="search_older_year">Older than a year</string>
+    <string name="search_has_attachment">Has attachment</string>
+    <string name="search_unread">Unread</string>
+    <string name="search_apply">Search</string>
+    <string name="search_clear">Clear</string>
+
+    <!-- Compose window, formatting, scheduled send -->
+    <string name="view_scheduled">Scheduled</string>
+    <string name="compose_minimize">Minimise</string>
+    <string name="compose_maximize">Full screen</string>
+    <string name="compose_restore">Restore</string>
+    <string name="compose_close">Close</string>
+    <string name="compose_formatting">Formatting options</string>
+    <string name="compose_attach">Attach files</string>
+    <string name="compose_delete_draft">Discard draft</string>
+    <string name="compose_show_quote">Show quoted text</string>
+    <string name="compose_schedule">Schedule send</string>
+    <string name="fmt_bold">Bold</string>
+    <string name="fmt_italic">Italic</string>
+    <string name="fmt_underline">Underline</string>
+    <string name="fmt_strike">Strikethrough</string>
+    <string name="fmt_bullets">Bulleted list</string>
+    <string name="fmt_numbers">Numbered list</string>
+    <string name="fmt_link">Insert link</string>
+    <string name="fmt_unlink">Remove link</string>
+    <string name="link_text">Text to show</string>
+    <string name="link_url">Web address (URL)</string>
+    <string name="link_add">Add</string>
+    <string name="schedule_tomorrow_morning">Tomorrow morning</string>
+    <string name="schedule_tomorrow_afternoon">Tomorrow afternoon</string>
+    <string name="schedule_next_week">Start of next week</string>
+    <string name="schedule_pick">Pick date and time</string>
+    <string name="schedule_pick_time">Pick a time</string>
+    <string name="schedule_confirm">Schedule</string>
+    <string name="schedule_note">Mailtice sends scheduled messages while it is running (the tray counts). If it is closed at the time, the message goes out when it next starts.</string>
+    <string name="scheduled_at">Sends %1$s</string>
+    <string name="scheduled_send_now">Send now</string>
+    <string name="scheduled_edit">Edit</string>
+    <string name="scheduled_cancel">Cancel scheduled send</string>
+    <string name="scheduled_failed">Not sent yet, will retry: %1$s</string>
+    <string name="scheduled_empty_title">Nothing scheduled</string>
+    <string name="message_scheduled">Message scheduled</string>
+    <string name="message_scheduled_sent">A scheduled message was sent</string>
+    <string name="message_schedule_cancelled">Scheduled send cancelled</string>
+    <string name="message_attachments_too_large">The files are too large: up to 25 MB per message.</string>
 </resources>

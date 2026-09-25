@@ -16,6 +16,7 @@ import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.export.ThreadExport
+import co.abaye.mailtice.search.MailSearch
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.StorageUsage
 import co.abaye.mailtice.platform.Platform
@@ -34,7 +35,8 @@ data class InboxQuery(
     val flaggedOnly: Boolean = false,
     /** Folder role name, "" = any synced folder. */
     val role: String = "",
-    val text: String = "",
+    /** The parsed search; its unread / starred / attachment parts combine with the flags above. */
+    val search: MailSearch = MailSearch(),
     val limit: Long = 500,
 )
 
@@ -131,18 +133,41 @@ class MailRepository(
 
     // ---- messages -------------------------------------------------------------------------
 
-    fun inbox(query: InboxQuery): Flow<List<MailMessage>> =
-        q.selectInbox(
+    fun inbox(query: InboxQuery): Flow<List<MailMessage>> {
+        val s = query.search
+        fun w(i: Int) = s.words.getOrElse(i) { "" }
+        fun x(i: Int) = s.excluded.getOrElse(i) { "" }
+        // Words and exclusions beyond what the SQL takes are checked on the rows it returns.
+        val extraWords = s.words.drop(4)
+        val extraExcluded = s.excluded.drop(2)
+        return q.selectInbox(
             folderId = query.folderId,
             accountId = query.accountId,
-            unreadOnly = if (query.unreadOnly) 1 else 0,
-            attachmentsOnly = if (query.attachmentsOnly) 1 else 0,
-            flaggedOnly = if (query.flaggedOnly) 1 else 0,
             role = query.role,
-            query = query.text.trim(),
+            unreadOnly = if (query.unreadOnly || s.unread == true) 1 else 0,
+            flaggedOnly = if (query.flaggedOnly || s.starred) 1 else 0,
+            readOnly = if (s.unread == false) 1 else 0,
+            fromQ = s.from,
+            toQ = s.to,
+            subjectQ = s.subject,
+            after = s.after ?: 0,
+            before = s.before ?: 0,
+            w1 = w(0), w2 = w(1), w3 = w(2), w4 = w(3),
+            x1 = x(0), x2 = x(1),
+            attachmentsOnly = if (query.attachmentsOnly || s.hasAttachment) 1 else 0,
             limit = query.limit,
             mapper = ::mapInboxMessage,
-        ).asFlow().mapToList(dispatcher)
+        ).asFlow().mapToList(dispatcher).map { rows ->
+            if (extraWords.isEmpty() && extraExcluded.isEmpty()) {
+                rows
+            } else {
+                rows.filter { m ->
+                    val hay = "${m.subject} ${m.fromName} ${m.fromAddress} ${m.snippet}"
+                    extraWords.all { hay.contains(it, ignoreCase = true) } && extraExcluded.none { hay.contains(it, ignoreCase = true) }
+                }
+            }
+        }
+    }
 
     val unreadCounts: Flow<Map<String, Long>> =
         q.unreadCounts().asFlow().mapToList(dispatcher).map { rows -> rows.associate { it.accountId to it.unread } }
@@ -181,6 +206,33 @@ class MailRepository(
             .filter { ThreadExport.baseSubject(it.subject).equals(base, ignoreCase = true) }
             .ifEmpty { listOf(message) }
     }
+
+    // ---- scheduled send ---------------------------------------------------------------------
+
+    val scheduled: Flow<List<ScheduledMail>> = q.selectScheduled().asFlow().mapToList(dispatcher).map { rows ->
+        rows.mapNotNull { r ->
+            runCatching { ScheduledMail(r.id, r.accountId, r.sendAt, ScheduledCodec.decode(r.payload), r.attempts.toInt(), r.lastError) }.getOrNull()
+        }
+    }
+
+    fun dueScheduled(now: Long): List<ScheduledMail> = q.selectDueScheduled(now).executeAsList().mapNotNull { r ->
+        runCatching { ScheduledMail(r.id, r.accountId, r.sendAt, ScheduledCodec.decode(r.payload), r.attempts.toInt(), r.lastError) }.getOrNull()
+    }
+
+    fun schedule(item: ScheduledMail) {
+        q.insertScheduled(item.id, item.accountId, item.sendAt, ScheduledCodec.encode(item.mail))
+    }
+
+    fun unschedule(id: String) {
+        q.deleteScheduled(id)
+    }
+
+    fun scheduledFailed(id: String, error: String, retryAt: Long) {
+        q.failScheduled(error.take(300), retryAt, id)
+    }
+
+    fun contacts(query: String): List<Contact> =
+        q.selectContacts(query.trim()).executeAsList().map { Contact(it.fromName, it.fromAddress) }
 
     fun folderIdsOf(accountId: String, messageId: String): List<String> =
         q.folderIdsOfMessage(accountId, messageId).executeAsList()

@@ -133,6 +133,24 @@ internal actual object Platform {
         }
     }
 
+    actual val canPickFiles: Boolean = true
+
+    actual fun pickFiles(title: String): List<PickedFile> = runCatching {
+        // A hidden owner frame: the window itself is not AWT (Tao), and FileDialog wants a Frame.
+        val owner = java.awt.Frame()
+        try {
+            val dialog = java.awt.FileDialog(owner, title, java.awt.FileDialog.LOAD).apply { isMultipleMode = true }
+            dialog.isVisible = true
+            dialog.files.orEmpty().filter { it.isFile }.map { f ->
+                val mime = runCatching { java.nio.file.Files.probeContentType(f.toPath()) }.getOrNull()
+                    ?: java.net.URLConnection.guessContentTypeFromName(f.name) ?: "application/octet-stream"
+                PickedFile(f.name, mime, f.readBytes())
+            }
+        } finally {
+            owner.dispose()
+        }
+    }.getOrDefault(emptyList())
+
     actual fun setLaunchAtLogin(enabled: Boolean): Boolean = runCatching {
         val result = if (enabled) AutoLaunch.enable() else AutoLaunch.disable()
         result == AutoLaunchResult.OK || result == AutoLaunchResult.UNCHANGED

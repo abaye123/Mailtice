@@ -33,6 +33,9 @@ enum class MailView(val role: FolderRole?) {
     Archive(FolderRole.Archive),
     Spam(FolderRole.Spam),
     Trash(FolderRole.Trash),
+
+    /** Messages waiting in Mailtice's scheduled-send queue (local, not a server folder). */
+    Scheduled(null),
 }
 
 /**

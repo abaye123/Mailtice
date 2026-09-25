@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -136,18 +137,19 @@ private fun ContentArea(destination: AppKey, onIntent: (AppIntent) -> Unit, modi
             content()
         } else {
             Pane(rounded = cards, modifier = Modifier.fillMaxSize()) {
-                Column(Modifier.fillMaxSize()) {
-                    // Settings, accounts and about lay over the mail; this pill goes straight back to it.
-                    // It has a row of its own at the leading edge, so it never covers a screen's title.
+                Box(Modifier.fillMaxSize()) {
+                    content()
+                    // Settings, accounts and about lay over the mail; this pill floats at the far end of
+                    // their title row (titles sit at the leading edge) and goes straight back to it.
                     Button(
                         onClick = { onIntent(AppIntent.Navigate(AppKey.Inbox)) },
-                        modifier = Modifier.padding(start = 16.dp, top = 12.dp),
+                        modifier = Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 16.dp),
                         contentPadding = PaddingValues(start = 12.dp, end = 18.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
                     ) {
                         Icon(Icons.Outlined.Close, null, Modifier.size(18.dp))
                         Text(stringResource(Res.string.close_to_mail), Modifier.padding(start = 8.dp))
                     }
-                    Box(Modifier.weight(1f).fillMaxWidth()) { content() }
                 }
             }
         }
@@ -275,6 +277,7 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
                     count = when (view) {
                         MailView.Inbox -> state.scopeAccounts.sumOf { state.unread[it.id] ?: 0L }.toInt()
                         MailView.Spam -> state.unreadIn(view).toInt()
+                        MailView.Scheduled -> state.scheduled.count { filtered.isEmpty() || it.accountId == filtered }
                         else -> 0
                     },
                     leading = { tint -> Icon(view.icon(), null, tint = tint) },

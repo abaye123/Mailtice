@@ -63,6 +63,16 @@ CREATE TABLE message_folder (
 
 CREATE INDEX message_folder_folder ON message_folder(accountId, folderId);
 
+-- Messages scheduled to be sent later. Sent by the app while it runs (Gmail's API has no scheduled send).
+CREATE TABLE scheduled_mail (
+  id TEXT NOT NULL PRIMARY KEY,
+  accountId TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  sendAt INTEGER NOT NULL,             -- epoch millis; moved later after a failed attempt
+  payload TEXT NOT NULL,               -- the outgoing message as JSON (ScheduledCodec)
+  attempts INTEGER NOT NULL DEFAULT 0,
+  lastError TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE message_body (
   accountId TEXT NOT NULL,
   messageId TEXT NOT NULL,
@@ -163,6 +173,31 @@ SELECT * FROM message WHERE accountId = ? AND threadId = ? ORDER BY receivedAt;
 selectBySubject:
 SELECT * FROM message WHERE accountId = ? AND subject LIKE '%' || ? || '%' ORDER BY receivedAt;
 
+-- Scheduled send ------------------------------------------------------------------------------
+
+selectScheduled:
+SELECT * FROM scheduled_mail ORDER BY sendAt;
+
+selectDueScheduled:
+SELECT * FROM scheduled_mail WHERE sendAt <= ? ORDER BY sendAt;
+
+insertScheduled:
+INSERT OR REPLACE INTO scheduled_mail(id, accountId, sendAt, payload, attempts, lastError) VALUES (?, ?, ?, ?, 0, '');
+
+deleteScheduled:
+DELETE FROM scheduled_mail WHERE id = ?;
+
+failScheduled:
+UPDATE scheduled_mail SET attempts = attempts + 1, lastError = ?, sendAt = ? WHERE id = ?;
+
+-- People mail came from, most recent first: the compose window's address suggestions.
+selectContacts:
+SELECT fromName, fromAddress FROM message
+WHERE fromAddress <> '' AND (fromAddress LIKE '%' || :q || '%' OR fromName LIKE '%' || :q || '%')
+GROUP BY lower(fromAddress)
+ORDER BY max(receivedAt) DESC
+LIMIT 8;
+
 folderIdsOfMessage:
 SELECT folderId FROM message_folder WHERE accountId = ? AND messageId = ?;
 
@@ -195,9 +230,34 @@ WHERE EXISTS (
 AND (:accountId = '' OR m.accountId = :accountId)
 AND (:unreadOnly = 0 OR m.unread = 1)
 AND (:flaggedOnly = 0 OR m.flagged = 1)
+AND (:readOnly = 0 OR m.unread = 0)
+AND (:fromQ = '' OR m.fromName LIKE '%' || :fromQ || '%' OR m.fromAddress LIKE '%' || :fromQ || '%')
+AND (:toQ = '' OR m.toLine LIKE '%' || :toQ || '%')
+AND (:subjectQ = '' OR m.subject LIKE '%' || :subjectQ || '%')
+AND (:after = 0 OR m.receivedAt >= :after)
+AND (:before = 0 OR m.receivedAt < :before)
+-- Up to four words, each in subject, sender, snippet or stored body; two excluded words.
+AND (:w1 = '' OR m.subject LIKE '%' || :w1 || '%' OR m.fromName LIKE '%' || :w1 || '%'
+     OR m.fromAddress LIKE '%' || :w1 || '%' OR m.snippet LIKE '%' || :w1 || '%'
+     OR EXISTS (SELECT 1 FROM message_body b WHERE b.accountId = m.accountId AND b.messageId = m.id
+                AND b.textBody LIKE '%' || :w1 || '%'))
+AND (:w2 = '' OR m.subject LIKE '%' || :w2 || '%' OR m.fromName LIKE '%' || :w2 || '%'
+     OR m.fromAddress LIKE '%' || :w2 || '%' OR m.snippet LIKE '%' || :w2 || '%'
+     OR EXISTS (SELECT 1 FROM message_body b WHERE b.accountId = m.accountId AND b.messageId = m.id
+                AND b.textBody LIKE '%' || :w2 || '%'))
+AND (:w3 = '' OR m.subject LIKE '%' || :w3 || '%' OR m.fromName LIKE '%' || :w3 || '%'
+     OR m.fromAddress LIKE '%' || :w3 || '%' OR m.snippet LIKE '%' || :w3 || '%'
+     OR EXISTS (SELECT 1 FROM message_body b WHERE b.accountId = m.accountId AND b.messageId = m.id
+                AND b.textBody LIKE '%' || :w3 || '%'))
+AND (:w4 = '' OR m.subject LIKE '%' || :w4 || '%' OR m.fromName LIKE '%' || :w4 || '%'
+     OR m.fromAddress LIKE '%' || :w4 || '%' OR m.snippet LIKE '%' || :w4 || '%'
+     OR EXISTS (SELECT 1 FROM message_body b WHERE b.accountId = m.accountId AND b.messageId = m.id
+                AND b.textBody LIKE '%' || :w4 || '%'))
+AND (:x1 = '' OR (m.subject NOT LIKE '%' || :x1 || '%' AND m.fromName NOT LIKE '%' || :x1 || '%'
+     AND m.fromAddress NOT LIKE '%' || :x1 || '%' AND m.snippet NOT LIKE '%' || :x1 || '%'))
+AND (:x2 = '' OR (m.subject NOT LIKE '%' || :x2 || '%' AND m.fromName NOT LIKE '%' || :x2 || '%'
+     AND m.fromAddress NOT LIKE '%' || :x2 || '%' AND m.snippet NOT LIKE '%' || :x2 || '%'))
 AND (:attachmentsOnly = 0 OR m.hasAttachments = 1)
-AND (:query = '' OR m.subject LIKE '%' || :query || '%' OR m.fromName LIKE '%' || :query || '%'
-     OR m.fromAddress LIKE '%' || :query || '%' OR m.snippet LIKE '%' || :query || '%')
 ORDER BY m.receivedAt DESC
 LIMIT :limit;
 

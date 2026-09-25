@@ -19,5 +19,9 @@ class AuthCancelledException(message: String) : Exception(message)
 interface Authorizer {
     fun supports(provider: OAuthProvider): Boolean = true
 
-    suspend fun authorize(provider: OAuthProvider, loginHint: String? = null): AuthCode
+    /** Browser profiles the sign-in page can open in; empty where the choice does not exist (Android). */
+    fun browserProfiles(): List<BrowserProfile> = emptyList()
+
+    /** [profile] null = the default browser. */
+    suspend fun authorize(provider: OAuthProvider, loginHint: String? = null, profile: BrowserProfile? = null): AuthCode
 }

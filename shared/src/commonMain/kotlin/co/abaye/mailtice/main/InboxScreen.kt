@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +31,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
@@ -39,6 +42,8 @@ import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.DropdownMenuItem
@@ -55,6 +60,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -89,9 +97,13 @@ import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.platform.ResizeHorizontalIcon
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.ui.LocalDensitySpec
+import co.abaye.mailtice.ui.EmptyIllustration
+import co.abaye.mailtice.ui.Illustration
 import co.abaye.mailtice.ui.Pane
 import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
@@ -110,6 +122,13 @@ import mailtice.shared.generated.resources.inbox_search_all
 import mailtice.shared.generated.resources.inbox_search_in
 import mailtice.shared.generated.resources.inbox_trash
 import mailtice.shared.generated.resources.inbox_unread_only
+import mailtice.shared.generated.resources.search_options
+import mailtice.shared.generated.resources.older_failed
+import mailtice.shared.generated.resources.older_hint
+import mailtice.shared.generated.resources.older_load
+import mailtice.shared.generated.resources.older_loading
+import mailtice.shared.generated.resources.older_none
+import mailtice.shared.generated.resources.older_searching
 import mailtice.shared.generated.resources.selection_all
 import mailtice.shared.generated.resources.selection_check
 import mailtice.shared.generated.resources.selection_clear
@@ -119,6 +138,12 @@ import mailtice.shared.generated.resources.selection_uncheck
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+
+/**
+ * Filter chips are clicked, not tabbed to: without this, the chip keeps keyboard focus after a click
+ * and desktop Compose paints a grey focus layer around it until something else takes focus.
+ */
+private val NoFocus = Modifier.focusProperties { canFocus = false }
 
 /** Subject and snippet take their direction from their own first strong character. */
 internal val ContentDirection = TextStyle(textDirection = TextDirection.Content)
@@ -220,18 +245,39 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
     state.needsReauth.forEach { account -> ReauthBanner(account, onIntent) }
     Filters(state, onIntent)
     if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    if (state.inbox.isEmpty()) {
-        MessageListEmptyState(state, onIntent)
+    // The scheduled-send queue is not stored mail: it has a list of its own.
+    if (state.filter.folderId.isEmpty() && state.filter.view == MailView.Scheduled) {
+        ScheduledList(state, onIntent)
+        return
+    }
+    val visible = state.visibleMessages
+    if (visible.isEmpty()) {
+        // Nothing stored for this list: ask the server before calling it empty (an old search
+        // result, a folder whose mail is all older than the kept days).
+        val canAsk = !state.olderExhausted && !state.emptyBecauseOfSync()
+        LaunchedEffect(state.filter, canAsk) { if (canAsk) onIntent(AppIntent.LoadOlder) }
+        if (state.older.loading || canAsk) OlderLoading(Modifier.fillMaxSize()) else MessageListEmptyState(state, onIntent)
         return
     }
     val accounts = state.accounts.associateBy { it.id }
+    val stored = remember(state.inbox) { state.inbox.map { it.key }.toSet() }
     val gap = LocalDensitySpec.current.rowGap
+    val listState = rememberLazyListState()
+    // Near the end of the list: more stored rows, then older mail from the server. Restarted when the
+    // list grows, so a short page right after another keeps loading until the screen is full.
+    LaunchedEffect(listState, state.filter, visible.size) {
+        snapshotFlow {
+            val info = listState.layoutInfo
+            (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - 4
+        }.distinctUntilChanged().filter { it }.collect { onIntent(AppIntent.LoadOlder) }
+    }
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = listState,
         contentPadding = if (cards) PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp) else PaddingValues(0.dp),
         verticalArrangement = Arrangement.spacedBy(if (cards) gap else 0.dp),
     ) {
-        items(state.inbox, key = { it.key }) { message ->
+        items(visible, key = { it.key }) { message ->
             MailRow(
                 message,
                 accounts[message.accountId],
@@ -239,9 +285,49 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
                 checked = message.key in state.selection,
                 selecting = state.selection.isNotEmpty(),
                 labels = state.labelsOf(message),
+                fromServer = message.key !in stored,
                 onIntent = onIntent,
             )
             if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        }
+        item(key = "older-footer") { OlderFooter(state, onIntent) }
+    }
+}
+
+/** The end of the list: loading older mail, a way to ask for it, or the note that there is no more. */
+@Composable
+private fun OlderFooter(state: AppState, onIntent: (AppIntent) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+        when {
+            state.older.loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Text(stringResource(Res.string.older_loading), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+            state.olderExhausted -> Text(
+                stringResource(Res.string.older_none),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
+            else -> TextButton(onClick = { onIntent(AppIntent.LoadOlder) }) {
+                Icon(Icons.Outlined.CloudDownload, null, Modifier.size(18.dp))
+                Text(
+                    stringResource(if (state.older.failed) Res.string.older_failed else Res.string.older_load),
+                    Modifier.padding(start = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/** A whole list's worth of waiting: nothing stored matches, the server is being asked. */
+@Composable
+private fun OlderLoading(modifier: Modifier = Modifier) {
+    Column(modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        EmptyIllustration(Illustration.NoResults, size = 150.dp)
+        Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            Text(stringResource(Res.string.older_searching), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -261,9 +347,19 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         val query = state.filter.query
+        var optionsOpen by remember { mutableStateOf(false) }
+        // Trailing: clear (when there is a search) and the "search options" panel, like Gmail.
         val clear: @Composable () -> Unit = {
-            if (query.isNotEmpty()) {
-                TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.empty_search_action), { onIntent(AppIntent.SetSearchQuery("")) })
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (query.isNotEmpty()) {
+                    TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.empty_search_action), { onIntent(AppIntent.SetSearchQuery("")) })
+                }
+                Box {
+                    TooltipIconButton(Icons.Outlined.Tune, stringResource(Res.string.search_options), { optionsOpen = true })
+                    DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
+                        SearchOptions(query, onSearch = { onIntent(AppIntent.SetSearchQuery(it)) }, onDismiss = { optionsOpen = false })
+                    }
+                }
             }
         }
         if (cards) {
@@ -374,12 +470,14 @@ private fun Filters(state: AppState, onIntent: (AppIntent) -> Unit) {
     ) {
         if (compact) {
             FilterChip(
+                modifier = NoFocus,
                 selected = filter.accountId.isEmpty(),
                 onClick = { onIntent(AppIntent.SetFilterAccount("")) },
                 label = { Text("${stringResource(Res.string.inbox_all)} (${state.unreadTotal})") },
             )
             state.accounts.forEach { account ->
                 FilterChip(
+                    modifier = NoFocus,
                     selected = filter.accountId == account.id,
                     onClick = { onIntent(AppIntent.SetFilterAccount(account.id)) },
                     leadingIcon = { AccountDot(account) },
@@ -388,6 +486,7 @@ private fun Filters(state: AppState, onIntent: (AppIntent) -> Unit) {
             }
         } else {
             FilterChip(
+                modifier = NoFocus,
                 selected = !filter.unreadOnly && !filter.attachmentsOnly,
                 onClick = {
                     onIntent(AppIntent.SetUnreadOnly(false))
@@ -397,11 +496,13 @@ private fun Filters(state: AppState, onIntent: (AppIntent) -> Unit) {
             )
         }
         FilterChip(
+            modifier = NoFocus,
             selected = filter.unreadOnly,
             onClick = { onIntent(AppIntent.SetUnreadOnly(!filter.unreadOnly)) },
             label = { Text(stringResource(Res.string.inbox_unread_only)) },
         )
         FilterChip(
+            modifier = NoFocus,
             selected = filter.attachmentsOnly,
             onClick = { onIntent(AppIntent.SetAttachmentsOnly(!filter.attachmentsOnly)) },
             leadingIcon = { Icon(Icons.Outlined.AttachFile, null, Modifier.size(16.dp)) },
@@ -420,6 +521,7 @@ private fun FolderPicker(state: AppState, onIntent: (AppIntent) -> Unit) {
     val notInbox = state.filter.folderId.isNotEmpty() || state.filter.view != MailView.Inbox
     Box {
         FilterChip(
+            modifier = NoFocus,
             selected = notInbox,
             onClick = { open = true },
             leadingIcon = { Icon(if (state.filter.folderId.isNotEmpty()) FolderIcon else state.filter.view.icon(), null, Modifier.size(16.dp)) },
@@ -475,6 +577,7 @@ private fun MailRow(
     checked: Boolean,
     selecting: Boolean,
     labels: List<Folder>,
+    fromServer: Boolean,
     onIntent: (AppIntent) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -521,6 +624,12 @@ private fun MailRow(
                             overflow = TextOverflow.Ellipsis,
                         )
                         if (message.hasAttachments) Icon(Icons.Outlined.AttachFile, null, Modifier.size(16.dp), tint = colors.onSurfaceVariant)
+                        // Older than the kept days: shown from the server, not stored on this device.
+                        if (fromServer) {
+                            Tooltip(stringResource(Res.string.older_hint)) {
+                                Icon(Icons.Outlined.Cloud, null, Modifier.size(16.dp), tint = colors.onSurfaceVariant)
+                            }
+                        }
                         Text(
                             formatTime(message.receivedAt),
                             style = MaterialTheme.typography.labelMedium,
