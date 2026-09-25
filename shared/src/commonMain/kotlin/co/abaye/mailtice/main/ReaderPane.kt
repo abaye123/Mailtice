@@ -1,0 +1,272 @@
+package co.abaye.mailtice.main
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Forward
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.automirrored.outlined.ReplyAll
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.MarkEmailUnread
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import co.abaye.mailtice.app.AppIntent
+import co.abaye.mailtice.app.AppState
+import co.abaye.mailtice.app.ComposeMode
+import co.abaye.mailtice.app.Reader
+import co.abaye.mailtice.domain.Account
+import co.abaye.mailtice.domain.Attachment
+import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.ui.AutoLinkedText
+import co.abaye.mailtice.ui.Tooltip
+import co.abaye.mailtice.ui.TooltipIconButton
+import co.abaye.mailtice.ui.formatBytes
+import mailtice.shared.generated.resources.Res
+import mailtice.shared.generated.resources.inbox_archive
+import mailtice.shared.generated.resources.inbox_mark_unread
+import mailtice.shared.generated.resources.reader_back
+import mailtice.shared.generated.resources.inbox_trash
+import mailtice.shared.generated.resources.reader_body_failed
+import mailtice.shared.generated.resources.reader_forward
+import mailtice.shared.generated.resources.reader_open_html
+import mailtice.shared.generated.resources.reader_open_web
+import mailtice.shared.generated.resources.reader_reply
+import mailtice.shared.generated.resources.reader_reply_all
+import mailtice.shared.generated.resources.reader_to
+import org.jetbrains.compose.resources.stringResource
+
+/** The reader as a full page (narrow layouts). */
+@Composable
+fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
+    val reader = state.reader ?: return
+    ReaderPane(reader, state.account(reader.message.accountId), onIntent, modifier, showBack = true)
+}
+
+/**
+ * After the approved design: an action bar, a large subject with the account as a chip, the sender
+ * with an avatar, the body at a comfortable reading width and attachments as cards.
+ */
+@Composable
+fun ReaderPane(reader: Reader, account: Account?, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier, showBack: Boolean = false) {
+    val message = reader.message
+    val colors = MaterialTheme.colorScheme
+    val cards = cardStyle()
+    Column(modifier.fillMaxSize()) {
+        ReaderActions(reader, account, onIntent, showBack)
+        if (!cards) HorizontalDivider(color = colors.outlineVariant)
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = if (cards) 32.dp else 24.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SelectionContainer {
+                    Text(
+                        message.subject,
+                        style = MaterialTheme.typography.headlineSmall.merge(ContentDirection),
+                        fontWeight = FontWeight.Normal,
+                    )
+                }
+                if (account != null) AccountChip(account)
+            }
+            SenderLine(message, account)
+            val body = reader.body
+            if (body != null && body.attachments.isNotEmpty()) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    body.attachments.forEach { AttachmentCard(it) }
+                }
+            }
+            if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+            Box(Modifier.widthIn(max = 680.dp)) {
+                when {
+                    body != null -> SelectionContainer {
+                        AutoLinkedText(
+                            body.text.ifBlank { message.snippet },
+                            style = MaterialTheme.typography.bodyLarge.merge(ContentDirection),
+                            onOpen = { onIntent(AppIntent.OpenUrl(it)) },
+                        )
+                    }
+                    reader.failed -> Text(stringResource(Res.string.reader_body_failed), color = colors.error)
+                    else -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                }
+            }
+            if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
+        }
+    }
+}
+
+@Composable
+private fun ReplyButtons(message: MailMessage, onIntent: (AppIntent) -> Unit) {
+    FlowRow(
+        Modifier.padding(top = 8.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Button(onClick = { onIntent(AppIntent.StartCompose(ComposeMode.Reply, message)) }) {
+            Icon(Icons.AutoMirrored.Outlined.Reply, null, Modifier.size(18.dp))
+            Text(stringResource(Res.string.reader_reply), Modifier.padding(start = 8.dp))
+        }
+        FilledTonalButton(onClick = { onIntent(AppIntent.StartCompose(ComposeMode.ReplyAll, message)) }) {
+            Icon(Icons.AutoMirrored.Outlined.ReplyAll, null, Modifier.size(18.dp))
+            Text(stringResource(Res.string.reader_reply_all), Modifier.padding(start = 8.dp))
+        }
+        OutlinedButton(onClick = { onIntent(AppIntent.StartCompose(ComposeMode.Forward, message)) }) {
+            Icon(Icons.AutoMirrored.Outlined.Forward, null, Modifier.size(18.dp))
+            Text(stringResource(Res.string.reader_forward), Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+/** Only what this account supports - nothing is offered that would fail. Every icon has a tooltip. */
+@Composable
+private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppIntent) -> Unit, showBack: Boolean) {
+    val message = reader.message
+    val caps = account?.capabilities
+    Row(
+        Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (showBack) {
+            TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), { onIntent(AppIntent.CloseReader) })
+        }
+        if (caps?.archive == true) {
+            TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), { onIntent(AppIntent.Archive(message)) })
+        }
+        if (caps?.trash == true) {
+            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), { onIntent(AppIntent.Trash(message)) })
+        }
+        if (caps?.markRead == true) {
+            TooltipIconButton(Icons.Outlined.MarkEmailUnread, stringResource(Res.string.inbox_mark_unread), {
+                onIntent(AppIntent.SetRead(message, read = false))
+            })
+        }
+        if (caps?.send == true) {
+            TooltipIconButton(Icons.AutoMirrored.Outlined.Reply, stringResource(Res.string.reader_reply), {
+                onIntent(AppIntent.StartCompose(ComposeMode.Reply, message))
+            })
+        }
+        Box(Modifier.weight(1f))
+        if (Platform.isDesktop && reader.body?.html?.isNotBlank() == true) {
+            TooltipIconButton(Icons.Outlined.Code, stringResource(Res.string.reader_open_html), { onIntent(AppIntent.OpenHtml(message)) })
+        }
+        if (caps?.openInWeb == true) {
+            TooltipIconButton(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(Res.string.reader_open_web), { onIntent(AppIntent.OpenInWeb(message)) })
+        }
+    }
+}
+
+@Composable
+private fun AccountChip(account: Account) {
+    val colors = MaterialTheme.colorScheme
+    Tooltip(account.email) {
+        Row(
+            Modifier.height(28.dp).background(colors.secondaryContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            AccountDot(account)
+            Text(account.displayName, style = MaterialTheme.typography.labelMedium, color = colors.onSecondaryContainer)
+        }
+    }
+}
+
+@Composable
+private fun SenderLine(message: MailMessage, account: Account?) {
+    val colors = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        LetterAvatar(message.sender, account?.color?.color ?: colors.primary, size = 40.dp)
+        Column(Modifier.weight(1f)) {
+            SelectionContainer {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        message.sender,
+                        style = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (message.fromName.isNotBlank()) {
+                        Text(
+                            "<${message.fromAddress}>",
+                            style = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Ltr),
+                            color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            val to = if (message.toLine.isNotBlank()) "${stringResource(Res.string.reader_to)} ${message.toLine} · " else ""
+            Text(
+                to + formatTime(message.receivedAt, withDate = true),
+                style = MaterialTheme.typography.bodySmall.merge(ContentDirection),
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** The design's attachment card: a type badge, the name and the size. */
+@Composable
+private fun AttachmentCard(attachment: Attachment) {
+    val colors = MaterialTheme.colorScheme
+    val extension = attachment.name.substringAfterLast('.', "").take(4).uppercase().ifEmpty { "FILE" }
+    Tooltip(attachment.name) {
+        Row(
+            Modifier.widthIn(min = 200.dp, max = 280.dp)
+                .border(1.dp, colors.outlineVariant, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.size(40.dp).background(colors.primaryContainer, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                Text(extension, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = colors.onPrimaryContainer)
+            }
+            Column(Modifier.weight(1f, fill = false)) {
+                Text(
+                    attachment.name,
+                    style = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(formatBytes(attachment.size), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+        }
+    }
+}

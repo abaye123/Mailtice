@@ -1,0 +1,352 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    name: Desktop (GraalVM) - ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # A native image takes far longer to build than a jpackage runtime image.
+    timeout-minutes: 90
+    strategy:
+      # One broken platform should not deny you the installers that did build.
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            arch: amd64
+            tasks: :desktopApp:packageGraalvmNsis
+          - name: Linux x64
+            os: ubuntu-latest
+            arch: amd64
+            tasks: :desktopApp:packageGraalvmDeb
+          - name: Linux ARM64
+            os: ubuntu-24.04-arm
+            arch: arm64
+            tasks: :desktopApp:packageGraalvmDeb
+          # Zip is the silent macOS updater payload; the .dmg stays the first-install image.
+          - name: macOS ARM64
+            os: macos-latest
+            arch: arm64
+            tasks: :desktopApp:packageGraalvmDmg :desktopApp:packageGraalvmZip
+          - name: macOS Intel
+            os: macos-15-intel
+            arch: amd64
+            tasks: :desktopApp:packageGraalvmDmg :desktopApp:packageGraalvmZip
+
+    env:
+      RELEASE_VERSION: ${{ github.ref_name }}
+      # OAuth clients are generated into the shared module at build time; a missing one only
+      # hides that provider in the app.
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+      GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.GOOGLE_WEB_CLIENT_SECRET }}
+      MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+      YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+      YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+      YAHOO_REDIRECT_URI: ${{ vars.YAHOO_REDIRECT_URI }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # git tracks the executable bit, and a wrapper committed from Windows arrives without it,
+      # which fails as exit 126 on every Unix runner. Cheap to re-assert here.
+      - name: Make the Gradle wrapper executable
+        if: runner.os != 'Windows'
+        shell: bash
+        run: chmod +x ./gradlew
+
+      # A manual run has no tag in ref_name, so fall back to the newest one.
+      - name: Resolve version for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0)" >> "$GITHUB_ENV"
+
+      # JDK 25 for Gradle, Node for the electron-builder packaging step, and the native-image
+      # prerequisites (MSVC/Xcode plus the toolchain cache). The GraalVM JDK itself is downloaded
+      # by the Nucleus plugin, per the graalvm { } block in desktopApp/build.gradle.kts.
+      - name: Setup Nucleus (GraalVM)
+        uses: NucleusFramework/Nucleus/.github/actions/setup-nucleus@v2.4.3
+        with:
+          java-version: '25'
+          graalvm: 'true'
+          graalvm-distribution: community
+          packaging-tools: 'true'
+          setup-gradle: 'true'
+          setup-node: 'true'
+
+      # A .deb installs itself without a sudo prompt only if it is signed, which is what makes the
+      # Linux self-update silent. Absent the secret the build still produces a working .deb, so a
+      # fork can cut a release without holding the key - it just will not update silently.
+      - name: Configure Linux package signing
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          LINUX_GPG_KEY_ID: ${{ secrets.LINUX_GPG_KEY_ID }}
+          LINUX_GPG_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${LINUX_GPG_PRIVATE_KEY:-}" ]; then
+            echo "No LINUX_GPG_PRIVATE_KEY secret; the .deb will be unsigned and will not self-update silently."
+            exit 0
+          fi
+          key="$RUNNER_TEMP/mailtice-signing-key.asc"
+          printf '%s' "$LINUX_GPG_PRIVATE_KEY" > "$key"
+          # desktopApp/build.gradle.kts declares signing { }; these properties supply the key it
+          # signs with. Written to gradle.properties because that is where the plugin reads them.
+          {
+            echo "compose.desktop.linux.sign=true"
+            echo "compose.desktop.linux.signing.keyId=$LINUX_GPG_KEY_ID"
+            echo "compose.desktop.linux.signing.keyFile=$key"
+            echo "compose.desktop.linux.signing.passphrase=$LINUX_GPG_PASSPHRASE"
+            echo "compose.desktop.linux.signing.silentUpdate=true"
+          } >> gradle.properties
+
+      - name: Build native installer
+        shell: bash
+        # GraalVM CE is resolved through the GitHub releases API. Hosted runners share an IP,
+        # so the 60/hour anonymous limit is routinely exhausted - authenticate the call.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        # The compatibility march that keeps the image off the runner's own CPU features is set in
+        # desktopApp/build.gradle.kts, where the plugin reads it. Nothing here consumes a
+        # -PnativeMarch property, so passing one only reads as protection that is not there.
+        run: ./gradlew ${{ matrix.tasks }} --no-daemon --stacktrace
+
+      # native-image and electron-builder both write their real error to a file on the runner and
+      # Gradle only prints the path, so a failure is otherwise undiagnosable from the CI output.
+      - name: Show packaging logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          find desktopApp/build/compose/logs -type f 2>/dev/null | while read -r f; do
+            echo "===== $f"
+            cat "$f"
+          done
+          echo "(end of packaging logs)"
+
+      - name: Collect installers
+        uses: actions/upload-artifact@v5
+        with:
+          # generate-update-yml reads the platform out of this name and matches on Linux/Windows/
+          # macOS, so it has to be runner.os and not matrix.os - "ubuntu-latest" matches nothing.
+          # The release-assets- prefix is what the action globs for.
+          name: release-assets-${{ runner.os }}-${{ matrix.arch }}
+          # Installers only, scoped to the graalvm-* output directories: those also hold the
+          # electron-builder scratch files (package.json, linux-icons/*.png) and the bare native
+          # binary, none of which belong in a release.
+          #
+          # .blockmap rides along now that the updater is wired in: it is electron-builder's index
+          # of which parts of an installer changed, and it is what lets an update download a few
+          # hundred KB instead of the whole package. .asc is the .deb's detached signature.
+          path: |
+            desktopApp/build/compose/binaries/**/graalvm-nsis/*.exe
+            desktopApp/build/compose/binaries/**/graalvm-nsis/*.blockmap
+            desktopApp/build/compose/binaries/**/graalvm-deb/*.deb
+            desktopApp/build/compose/binaries/**/graalvm-deb/*.asc
+            desktopApp/build/compose/binaries/**/graalvm-dmg/*.dmg
+            desktopApp/build/compose/binaries/**/graalvm-dmg/*.blockmap
+            desktopApp/build/compose/binaries/**/graalvm-zip/*.zip
+            desktopApp/build/compose/binaries/**/graalvm-zip/*.blockmap
+          if-no-files-found: error
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      RELEASE_VERSION: ${{ github.ref_name }}
+      # Monotonic across runs, which is all Android asks of it.
+      VERSION_CODE: ${{ github.run_number }}
+      # OAuth clients are generated into the shared module at build time; a missing one only
+      # hides that provider in the app.
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+      GOOGLE_WEB_CLIENT_SECRET: ${{ secrets.GOOGLE_WEB_CLIENT_SECRET }}
+      MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+      YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+      YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+      YAHOO_REDIRECT_URI: ${{ vars.YAHOO_REDIRECT_URI }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # git tracks the executable bit, and a wrapper committed from Windows arrives without it,
+      # which fails as exit 126 on every Unix runner. Cheap to re-assert here.
+      - name: Make the Gradle wrapper executable
+        if: runner.os != 'Windows'
+        shell: bash
+        run: chmod +x ./gradlew
+
+      - name: Resolve version for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0)" >> "$GITHUB_ENV"
+
+      # The JVM that runs Gradle, not the bytecode target: the modules still compile to 17, but
+      # the Metro compiler plugin refuses to load on anything below 21.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # Without the secret the build still runs and produces an unsigned APK, so a fork can
+      # verify a release builds without holding the signing key.
+      - name: Restore keystore
+        id: keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret; the APK will be unsigned."
+            exit 0
+          fi
+          # Whitespace is stripped first: a secret uploaded from Windows carries CRLF, and
+          # `base64 -d` rejects the stray carriage returns outright.
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+          if [ ! -s "$RUNNER_TEMP/release.jks" ]; then
+            echo "Decoded keystore is empty - check the ANDROID_KEYSTORE_BASE64 secret." >&2
+            exit 1
+          fi
+          echo "path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK and AAB
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ steps.keystore.outputs.path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :androidApp:assembleRelease :androidApp:bundleRelease --no-daemon --stacktrace
+
+      - name: Name the APK after the release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_VERSION#v}"
+          mkdir -p out
+          for f in androidApp/build/outputs/apk/release/*.apk; do
+            [ -e "$f" ] || continue
+            cp "$f" "out/Mailtice-${version}.apk"
+          done
+          for f in androidApp/build/outputs/bundle/release/*.aab; do
+            [ -e "$f" ] || continue
+            cp "$f" "out/Mailtice-${version}.aab"
+          done
+          ls -la out
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: android
+          path: out/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [desktop, android]
+    # Publish whatever succeeded rather than losing a whole release to one dead runner.
+    if: ${{ !cancelled() && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+
+      # The updater reads a version and a channel out of the tag, and the YML it later downloads
+      # has to be named for the same channel or a stable build would go looking for beta.yml.
+      - name: Resolve version and channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          case "$version" in
+            *-alpha*) channel=alpha ;;
+            *-beta*|*-rc*) channel=beta ;;
+            *) channel=latest ;;
+          esac
+          {
+            echo "VERSION=$version"
+            echo "CHANNEL=$channel"
+          } >> "$GITHUB_ENV"
+
+      # Writes latest.yml, latest-mac.yml and latest-linux.yml: the manifests GitHubProvider
+      # fetches to learn what the newest version is, how big each installer is and what its
+      # SHA-512 should be. Without these the app has nothing to compare itself against and every
+      # update check comes back empty. It reads the platform out of the release-assets-* directory
+      # names the desktop job produced, and skips the android artifact on its own.
+      - name: Generate update manifests
+        uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.4.3
+        with:
+          artifacts-path: artifacts
+          version: ${{ env.VERSION }}
+          channel: ${{ env.CHANNEL }}
+
+      - name: Flatten and list
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          # Deliberately narrower than what the jobs uploaded:
+          #   .aab      is a Play upload format; downloading one gets you a file you cannot
+          #             install, so it stays a workflow artifact and never reaches the release.
+          #   .zip      is macOS only and rides along for the updater, which cannot consume a .dmg.
+          #   .yml      is the update manifest generated just above.
+          #   .blockmap lets an update download only the changed blocks of an installer. The
+          #             updater falls back to the whole file if it is missing, so this is a size
+          #             optimisation rather than a requirement - but it is a large one.
+          find artifacts -type f \( -name '*.exe' -o -name '*.deb' -o -name '*.dmg' \
+            -o -name '*.zip' -o -name '*.apk' -o -name '*.asc' \
+            -o -name '*.yml' -o -name '*.blockmap' \) \
+            -exec cp {} release/ \;
+          ls -la release
+          # Every platform failing would otherwise produce an empty, confusing release page.
+          if [ -z "$(ls -A release)" ]; then
+            echo "No installers were produced - refusing to publish an empty release." >&2
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          # A tag carrying -alpha or -beta publishes as a prerelease.
+          flags=()
+          case "$tag" in
+            *-alpha*|*-beta*|*-rc*) flags+=(--prerelease) ;;
+          esac
+          gh release create "$tag" release/* \
+            --title "Music Radio ${tag#v}" \
+            --generate-notes \
+            "${flags[@]}"

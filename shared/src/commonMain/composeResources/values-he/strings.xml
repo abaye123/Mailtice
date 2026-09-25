@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mailtice</string>
+    <string name="app_tagline">כל חשבונות ה-Gmail במקום אחד</string>
+
+    <string name="nav_inbox">תיבה</string>
+    <string name="nav_accounts">חשבונות</string>
+    <string name="nav_settings">הגדרות</string>
+    <string name="nav_about">אודות</string>
+
+    <string name="inbox_all">הכל</string>
+    <string name="inbox_refresh">בדוק עכשיו</string>
+    <string name="inbox_empty">אין מיילים חדשים</string>
+    <string name="inbox_no_accounts_action">הוסף חשבון</string>
+    <string name="inbox_reauth_banner">החשבון %1$s דורש התחברות מחדש</string>
+    <string name="inbox_mark_read">סמן כנקרא</string>
+    <string name="inbox_archive">העבר לארכיון</string>
+
+    <string name="accounts_add">הוסף חשבון</string>
+    <string name="accounts_waiting">השלם את ההתחברות בחלון שנפתח…</string>
+    <string name="accounts_cancel_sign_in">ביטול</string>
+    <string name="accounts_empty">הוסף חשבון כדי להתחיל.</string>
+    <string name="accounts_label">כינוי (לא חובה)</string>
+    <string name="accounts_notify">התראות מהחשבון הזה</string>
+    <string name="accounts_color">החלף צבע</string>
+    <string name="accounts_reconnect">התחבר מחדש</string>
+    <string name="accounts_remove">הסר חשבון</string>
+    <string name="accounts_remove_confirm">החשבון %1$s ינותק והגישה שלו תבוטל ב-Google.</string>
+
+    <string name="status_idle">ממתין</string>
+    <string name="status_syncing">מסתנכרן…</string>
+    <string name="status_ok">מעודכן</string>
+    <string name="status_offline">אין חיבור ל-Gmail, מנסה שוב</string>
+    <string name="status_needs_reauth">פג תוקף ההתחברות</string>
+
+    <string name="notif_open">פתח</string>
+    <string name="notif_mark_read">סמן כנקרא</string>
+    <string name="notif_summary_title">%1$d מיילים חדשים</string>
+    <string name="notif_summary_body">בחשבון %1$s</string>
+
+    <string name="settings_appearance">מראה</string>
+    <string name="settings_theme">ערכת נושא</string>
+    <string name="theme_system">לפי המערכת</string>
+    <string name="theme_light">בהירה</string>
+    <string name="theme_dark">כהה</string>
+    <string name="settings_accent">צבע הדגשה</string>
+    <string name="settings_language">שפה</string>
+    <string name="language_system">שפת המערכת</string>
+    <string name="settings_sync">סנכרון והתראות</string>
+    <string name="settings_poll">בדיקת מיילים חדשים כל</string>
+    <string name="settings_poll_desc">בדיקה בלי שינויים היא בקשה קטנה אחת לכל חשבון.</string>
+    <string name="poll_seconds">%1$d שנ\'</string>
+    <string name="poll_minutes">%1$d דק\'</string>
+    <string name="settings_notifications">התראות</string>
+    <string name="settings_notifications_desc">הצג התראת מערכת על כל מייל חדש.</string>
+    <string name="settings_window">חלון</string>
+    <string name="settings_close_to_tray">המשך לרוץ במגש המערכת</string>
+    <string name="settings_close_to_tray_desc">סגירת החלון מסתירה אותו במקום לצאת.</string>
+    <string name="settings_launch_at_login">הפעלה עם עליית המחשב</string>
+    <string name="settings_launch_at_login_desc">נפתח מוסתר במגש המערכת.</string>
+    <string name="settings_data">נתונים</string>
+    <string name="settings_reset">איפוס האפליקציה</string>
+    <string name="settings_reset_desc">מנתק את כל החשבונות ומחזיר את הגדרות ברירת המחדל.</string>
+    <string name="settings_reset_confirm">כל החשבונות ינותקו וכל ההגדרות יימחקו.</string>
+
+    <string name="message_not_configured">לא הוגדר OAuth client לספק הזה. הוסף אותו ל-oauth.local.properties ובנה מחדש.</string>
+    <string name="message_sign_in_failed">ההתחברות נכשלה. נסה שוב.</string>
+    <string name="message_account_added">החשבון נוסף</string>
+    <string name="message_account_reconnected">החשבון חובר מחדש</string>
+    <string name="message_action_failed">Gmail דחה את השינוי. המייל חזר לרשימה.</string>
+    <string name="message_launch_at_login_failed">Windows לא אישר הפעלה עם עליית המחשב.</string>
+    <string name="message_reset_done">האפליקציה אופסה</string>
+
+    <string name="about_version">גרסה %1$s</string>
+    <string name="about_licenses">רישיונות קוד פתוח</string>
+    <string name="about_repo">קוד המקור ב-%1$s</string>
+
+    <string name="dialog_confirm">אישור</string>
+    <string name="dialog_cancel">ביטול</string>
+    <string name="dialog_dismiss">סגור</string>
+
+    <string name="tray_open">פתח את Mailtice</string>
+    <string name="tray_refresh">בדוק עכשיו</string>
+    <string name="tray_quit">יציאה</string>
+    <string name="tray_tooltip">Mailtice · %1$d לא נקראו</string>
+
+    <string name="update_available">גרסה חדשה מוכנה להתקנה</string>
+    <string name="update_restart_title">הפעלה מחדש לעדכון</string>
+    <string name="update_restart_body">העדכון ירד למחשב. Mailtice יופעל מחדש כדי להתקין אותו. אפשר גם פשוט לצאת - העדכון יותקן ביציאה.</string>
+    <string name="update_restart_now">הפעל מחדש</string>
+
+    <!-- v2: providers, IMAP form, account detail, reader, storage -->
+    <string name="accounts_title">חשבונות</string>
+    <string name="accounts_subtitle">Gmail ו-Workspace, Outlook ו-Microsoft 365, Yahoo, וכל ספק IMAP.</string>
+    <string name="add_choose_provider">איפה נמצאת תיבת הדואר?</string>
+    <string name="add_provider_imap_desc">\"ספק אחר\" מתחבר ב-IMAP עם סיסמה. אצל רוב הספקים צריך סיסמת אפליקציה.</string>
+    <string name="provider_gmail">Google (Gmail / Workspace)</string>
+    <string name="provider_microsoft">Microsoft (Outlook / 365)</string>
+    <string name="provider_yahoo">Yahoo / AOL</string>
+    <string name="provider_imap">ספק אחר (IMAP)</string>
+    <string name="add_imap_hint">מלא כתובת וסיסמה ולחץ \"זהה שרת\". אפשר לתקן ידנית.</string>
+    <string name="add_imap_email">כתובת מייל</string>
+    <string name="add_imap_password">סיסמה / סיסמת אפליקציה</string>
+    <string name="add_imap_host">שרת IMAP</string>
+    <string name="add_imap_port">פורט</string>
+    <string name="add_imap_username">שם משתמש (אם שונה מהכתובת)</string>
+    <string name="add_imap_detect">זהה שרת</string>
+    <string name="add_imap_save">בדוק ושמור</string>
+    <string name="add_imap_reconnect_title">סיסמה חדשה</string>
+    <string name="add_imap_error_host">השרת לא נמצא. בדוק את כתובת השרת.</string>
+    <string name="add_imap_error_tls">החיבור המאובטח נכשל. בדוק פורט והצפנה.</string>
+    <string name="add_imap_error_credentials">שם המשתמש או הסיסמה שגויים. ייתכן שנדרשת סיסמת אפליקציה.</string>
+    <string name="add_imap_error_other">ההתחברות לשרת נכשלה.</string>
+    <string name="detail_general">כללי</string>
+    <string name="detail_retention">טווח ימים לשמירה</string>
+    <string name="detail_retention_days">%1$d ימים</string>
+    <string name="detail_retention_all">הכל</string>
+    <string name="detail_retention_all_warning">כל הדואר יורד ונשמר. בתיבות גדולות זה יכול להגיע לגיגה-בייטים.</string>
+    <string name="detail_folders">תיקיות</string>
+    <string name="detail_labels">תוויות</string>
+    <string name="detail_folders_desc">סמן מה לסנכרן ולשמור, ועל מה לקבל התראות.</string>
+    <string name="detail_folders_empty">רשימת התיקיות תופיע אחרי הסנכרון הראשון.</string>
+    <string name="detail_folder_sync">סנכרון</string>
+    <string name="detail_folder_notify">התראות</string>
+    <string name="detail_refresh_folders">רענן רשימת תיקיות</string>
+    <string name="detail_storage">אחסון</string>
+    <string name="detail_storage_value">%1$s · %2$s הודעות</string>
+    <string name="detail_clear_cache">נקה מטמון</string>
+    <string name="detail_clear_cache_desc">מוחק את המיילים השמורים של החשבון. הם יורדו שוב בסנכרון הבא.</string>
+    <string name="detail_clear_cache_confirm">למחוק את כל המיילים השמורים של %1$s מהמחשב? הם לא יימחקו מהשרת.</string>
+    <string name="inbox_all_folders">כל התיקיות</string>
+    <string name="inbox_mark_unread">סמן כלא נקרא</string>
+    <string name="inbox_select_message">בחר מייל לקריאה</string>
+    <string name="inbox_unread_only">לא נקראו</string>
+    <string name="reader_back">חזרה</string>
+    <string name="reader_body_failed">לא הצלחנו לטעון את תוכן המייל.</string>
+    <string name="reader_open_html">פתח כ-HTML בדפדפן</string>
+    <string name="reader_open_web">פתח באתר הספק</string>
+    <string name="reader_to">אל:</string>
+    <string name="settings_storage">אחסון</string>
+    <string name="settings_storage_total">נפח כולל: %1$s</string>
+    <string name="settings_storage_desc">מסד הנתונים של Mailtice. נפח כל חשבון הוא הערכה.</string>
+    <string name="settings_storage_compact">דחוס מסד נתונים</string>
+    <string name="message_cache_cleared">המטמון נוקה. הסנכרון יוריד את המיילים מחדש.</string>
+    <string name="message_db_compacted">מסד הנתונים נדחס.</string>
+    <string name="message_provider_not_supported">ההתחברות לספק הזה עדיין לא נתמכת בפלטפורמה הזו.</string>
+
+    <!-- Demo mode and empty screens -->
+    <string name="demo_badge">דמו</string>
+    <string name="empty_welcome_title">ברוך הבא ל-Mailtice</string>
+    <string name="empty_welcome_body">חבר חשבון Gmail, Outlook, Yahoo או כל תיבת IMAP, וכל המיילים יגיעו לתיבה אחת.</string>
+    <string name="empty_inbox_body">מיילים חדשים יופיעו כאן ברגע שיגיעו.</string>
+    <string name="empty_account_body">אין כלום שממתין ב-%1$s. מיילים חדשים יופיעו כאן ברגע שיגיעו.</string>
+    <string name="empty_folder_title">התיקייה ריקה</string>
+    <string name="empty_folder_body">אין מיילים ב-%1$s בטווח הימים שנשמר.</string>
+    <string name="empty_unread_title">הכל נקרא</string>
+    <string name="empty_unread_body">לא נשארו מיילים שלא נקראו. כל הכבוד.</string>
+    <string name="empty_unread_action">הצג את כל המיילים</string>
+    <string name="empty_search_title">לא נמצאו תוצאות</string>
+    <string name="empty_search_body">שום דבר לא תואם ל-\"%1$s\". נסה מילה אחרת או בדוק את האיות.</string>
+    <string name="empty_search_action">נקה חיפוש</string>
+    <string name="empty_syncing_title">מביא את המיילים שלך</string>
+    <string name="empty_syncing_body">הסנכרון הראשון עשוי להימשך דקה בתיבות גדולות.</string>
+    <string name="empty_offline_title">אין חיבור לשרת הדואר</string>
+    <string name="empty_offline_body">בדוק את החיבור. Mailtice ממשיך לנסות שוב בעצמו.</string>
+    <string name="empty_offline_action">נסה שוב</string>
+    <string name="empty_reader_body">המייל המלא ייפתח כאן.</string>
+
+    <!-- Sidebar, list density, pane style -->
+    <string name="nav_all_inboxes">כל התיבות</string>
+    <string name="nav_manage_accounts">ניהול חשבונות</string>
+    <string name="inbox_search_all">חיפוש בכל החשבונות</string>
+    <string name="inbox_search_in">חיפוש ב-%1$s</string>
+    <string name="settings_density">צפיפות הרשימה</string>
+    <string name="settings_density_desc">כמה מקום תופס כל מייל ברשימה.</string>
+    <string name="density_compact">קומפקטית</string>
+    <string name="density_comfortable">נוחה</string>
+    <string name="density_spacious">מרווחת</string>
+    <string name="settings_pane_style">סגנון החלוניות</string>
+    <string name="settings_pane_style_desc">כרטיסים צפים בלי גבולות, או חלוניות שטוחות עם קווי הפרדה.</string>
+    <string name="pane_cards">כרטיסים</string>
+    <string name="pane_lines">קווים</string>
+    <string name="accent_flag">כחול דגל</string>
+    <string name="accent_indigo">אינדיגו</string>
+    <string name="accent_teal">טורקיז</string>
+    <string name="accent_amber">ענבר</string>
+    <string name="accent_rose">ורד</string>
+    <string name="accent_violet">סגול</string>
+    <string name="accent_slate">אפור צפחה</string>
+
+    <!-- Attachments filter, sending, trash -->
+    <string name="inbox_attachments_only">עם קבצים</string>
+    <string name="inbox_trash">העבר לאשפה</string>
+    <string name="empty_attachments_title">אין כאן קבצים מצורפים</string>
+    <string name="empty_attachments_body">אף אחד מהמיילים האלה לא מגיע עם קובץ.</string>
+    <string name="reader_reply">השב</string>
+    <string name="reader_reply_all">השב לכולם</string>
+    <string name="reader_forward">העבר</string>
+    <string name="compose_new">כתיבה</string>
+    <string name="compose_new_title">הודעה חדשה</string>
+    <string name="compose_reply_title">תשובה</string>
+    <string name="compose_forward_title">העברה</string>
+    <string name="compose_from">מאת</string>
+    <string name="compose_to">אל</string>
+    <string name="compose_cc">עותק</string>
+    <string name="compose_bcc">עותק מוסתר</string>
+    <string name="compose_cc_bcc">עותק/מוסתר</string>
+    <string name="compose_subject">נושא</string>
+    <string name="compose_body">כתוב את ההודעה</string>
+    <string name="compose_send">שלח</string>
+    <string name="compose_send_hint">שלח (Ctrl+Enter)</string>
+    <string name="compose_discard">בטל</string>
+    <string name="compose_invalid_address">בדוק את הכתובות: הפרד ביניהן בפסיקים.</string>
+    <string name="compose_quote_header">ב-%1$s, %2$s כתב/ה:</string>
+    <string name="compose_forward_header">---------- הודעה שהועברה ---------</string>
+    <string name="compose_forward_from">מאת: %1$s</string>
+    <string name="compose_forward_date">תאריך: %1$s</string>
+    <string name="compose_forward_subject">נושא: %1$s</string>
+    <string name="compose_forward_to">אל: %1$s</string>
+    <string name="message_sent">ההודעה נשלחה</string>
+    <string name="message_send_failed">ההודעה לא נשלחה. בדוק את החיבור ונסה שוב.</string>
+    <string name="message_send_needs_reauth">השליחה דורשת הרשאה חדשה. התחבר לחשבון הזה מחדש ממסך החשבונות.</string>
+    <string name="message_moved_to_trash">הועבר לאשפה</string>
+    <string name="message_no_sending_account">אף אחד מהחשבונות המחוברים עדיין לא יכול לשלוח.</string>
+</resources>

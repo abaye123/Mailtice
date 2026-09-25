@@ -1,0 +1,63 @@
+name: Deploy website to GitHub Pages
+
+# Publishes website/ at the Pages root: the download page (it reads the latest release from the
+# GitHub API in the browser, so a new release shows up without redeploying), the help guide, the
+# privacy policy and terms of use, and the Yahoo OAuth relay page.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; let an in-progress run finish rather than cancelling it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p _site
+          cp -a website/. _site/
+          # A plain static site; keep Jekyll from rewriting or skipping anything.
+          touch _site/.nojekyll
+          for f in index.html privacy.html terms.html; do
+            if [ ! -f "_site/$f" ]; then
+              echo "::error::website/$f is missing"
+              exit 1
+            fi
+          done
+
+      - name: Configure Pages
+        # Pages has to be switched on once in the repo UI first
+        # (Settings -> Pages -> Source: GitHub Actions). GITHUB_TOKEN may not create
+        # the Pages site itself, so `enablement: true` fails with
+        # "Resource not accessible by integration".
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

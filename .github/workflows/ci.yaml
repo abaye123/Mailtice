@@ -1,0 +1,128 @@
+name: CI
+
+# Every pull request gets compiled and tested before anyone reads it. The release workflow only
+# runs on a tag, so without this a broken merge is discovered by cutting a broken release.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch makes the previous run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests and desktop compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # git tracks the executable bit, and a wrapper committed from Windows arrives without it.
+      - name: Make the Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      # Same JDK the desktop release job uses; desktopApp targets JVM 25.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # commonTest compiles into every target's test source set; the JVM one is the cheapest to run
+      # and covers all of it.
+      - name: Run tests
+        run: ./gradlew :shared:jvmTest --no-daemon --stacktrace
+
+      - name: Compile desktop
+        run: ./gradlew :desktopApp:compileKotlin --no-daemon --stacktrace
+
+      # The quality gate AGENTS.MD names, which nothing enforced until now - so it had drifted to
+      # 73 formatting violations and seven compose-rules findings on main, two of them real
+      # behaviour rather than style. Last in the job on purpose: a red rule still fails the run,
+      # but it does so after the tests and the compile have reported, rather than hiding them.
+      # --continue so the first red rule does not hide the rest of them either.
+      - name: Lint
+        run: ./gradlew detekt ktlintCheck --no-daemon --continue --stacktrace
+
+      # The HTML report says which assertion failed, and which rule fired on which line; the
+      # console output usually says neither.
+      - name: Collect reports
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-reports
+          path: |
+            shared/build/reports/tests/**
+            shared/build/test-results/**
+            **/build/reports/ktlint/**
+            **/build/reports/detekt/**
+          if-no-files-found: ignore
+
+
+  android:
+    name: Android release build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Make the Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      # The JVM that runs Gradle, not the bytecode target: the modules still compile to 17, but
+      # the Metro compiler plugin refuses to load on anything below 21, and AGP is not yet happy
+      # on the 25 the desktop job uses.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      # Release rather than debug: it compiles the same sources and additionally runs R8, which
+      # no other build type enables. Until this ran here the shrinker was first exercised by
+      # release.yaml on a tag, so a broken keep rule was discovered by cutting a broken release.
+      #
+      # No signing secrets needed: without a keystore androidApp/build.gradle.kts leaves the APK
+      # unsigned rather than failing, so this still works on a pull request from a fork.
+      - name: Assemble release APK
+        run: ./gradlew :androidApp:assembleRelease --no-daemon --stacktrace
+
+      # A successful R8 run is not the same as a correct one: it drops whatever it cannot see a
+      # reference to, and both of these are reached dynamically rather than called. A keep rule
+      # that stops matching leaves an APK that builds, passes every other check, and then fails
+      # at runtime - blank artwork, or no HTTP engine the moment a stream is opened.
+      - name: Check R8 kept what is loaded dynamically
+        run: |
+          # Globbed, not named: with no keystore AGP writes androidApp-release-unsigned.apk,
+          # while a local build holding the release key writes androidApp-release.apk.
+          apk=$(find androidApp/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$apk" ]; then
+            echo '::error::assembleRelease produced no APK'
+            exit 1
+          fi
+          echo "checking $apk"
+          entries=$(unzip -l "$apk")
+
+          if ! grep -q 'META-INF/services/io.ktor.client.HttpClientEngineContainer' <<< "$entries"; then
+            echo '::error::R8 dropped the Ktor engine ServiceLoader entry'
+            exit 1
+          fi
+
+          # Counted against the source rather than against a floor: losing a handful of station
+          # logos is exactly what shrinkResources would do, and a "more than N" test sails past
+          # it. `|| true` because grep exits 1 on no match, which under `set -e` would kill the
+          # step before the message below explains why.
+          want=$(find shared/src/commonMain/composeResources/drawable -type f | wc -l)
+          got=$(grep -c 'assets/composeResources/.*/drawable/' <<< "$entries" || true)
+          echo "composeResources drawables: $got in the APK, $want in the source"
+          if [ "$got" -ne "$want" ]; then
+            echo "::error::shrinkResources changed the artwork count ($got in the APK, $want in the source)"
+            exit 1
+          fi

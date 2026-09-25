@@ -1,0 +1,24 @@
+# Copy to oauth.local.properties (gitignored). CI reads the same names from repository secrets.
+# Leave a provider empty and it is simply not offered in the app.
+
+# Google Cloud -> APIs & Services -> Credentials. Enable the Gmail API first.
+# "Desktop app" client (loopback sign-in on Windows / macOS / Linux):
+GOOGLE_CLIENT_ID=1234567890-xxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxxxxx
+# "Web application" client in the SAME project (Android exchanges the Play-services code with it).
+# Also create an "Android" client there with package co.abaye.mailtice and the SHA-1 of every
+# signing key you use (debug + release); it has no values to put here.
+GOOGLE_WEB_CLIENT_ID=
+GOOGLE_WEB_CLIENT_SECRET=
+
+# Microsoft Entra -> App registrations. Accounts: "any org directory + personal Microsoft accounts".
+# Platform "Mobile and desktop": redirect http://localhost and co.abaye.mailtice://oauth.
+# API permissions: Office 365 Exchange Online -> IMAP.AccessAsUser.All (delegated), offline_access,
+# openid, email. Public client, no secret.
+MICROSOFT_CLIENT_ID=
+
+# Yahoo Developer (needs Yahoo's approval for the mail scope). Redirect must be https:
+# host website/oauth-relay.html somewhere (GitHub Pages) and put its URL here.
+YAHOO_CLIENT_ID=
+YAHOO_CLIENT_SECRET=
+YAHOO_REDIRECT_URI=

@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  Yahoo accepts only https redirect URIs, but the desktop app listens on http://127.0.0.1:<port>.
+  Host this page (e.g. GitHub Pages) and register its URL as the Yahoo redirect. The app puts its
+  loopback port in `state` as "<port>.<random>", and this page forwards the query to that port.
+  Nothing is stored or sent anywhere else.
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="no-referrer">
+  <title>Mailtice</title>
+</head>
+<body style="font-family: system-ui; text-align: center; padding: 48px">
+  <p id="msg">מעביר ל-Mailtice…</p>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var port = (params.get("state") || "").split(".")[0];
+      if (!/^\d{2,5}$/.test(port)) {
+        document.getElementById("msg").textContent = "קישור לא תקין. חזור ל-Mailtice ונסה שוב.";
+        return;
+      }
+      location.replace("http://127.0.0.1:" + port + "/" + location.search);
+    })();
+  </script>
+</body>
+</html>

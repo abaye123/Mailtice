@@ -1,0 +1,237 @@
+-- One row per connected mailbox. Secrets (refresh tokens, IMAP passwords) are NOT stored here.
+CREATE TABLE account (
+  id TEXT NOT NULL PRIMARY KEY,
+  kind TEXT NOT NULL,                  -- ProviderKind.name
+  email TEXT NOT NULL,
+  label TEXT NOT NULL DEFAULT '',
+  color TEXT NOT NULL,
+  notify INTEGER NOT NULL DEFAULT 1,
+  retentionDays INTEGER NOT NULL DEFAULT 30,   -- 0 = everything
+  capabilities TEXT NOT NULL DEFAULT '',       -- Capabilities.encode()
+  imapHost TEXT,
+  imapPort INTEGER,
+  imapSecurity TEXT,                   -- ImapSecurity.name
+  username TEXT,
+  syncCursor TEXT NOT NULL DEFAULT '', -- Gmail historyId; unused for IMAP (per folder)
+  sortOrder INTEGER NOT NULL DEFAULT 0,
+  createdAt INTEGER NOT NULL
+);
+
+CREATE TABLE folder (
+  accountId TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  id TEXT NOT NULL,                    -- Gmail label id or IMAP full name
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,                  -- FolderRole.name
+  sync INTEGER NOT NULL DEFAULT 0,
+  notify INTEGER NOT NULL DEFAULT 0,
+  uidValidity INTEGER NOT NULL DEFAULT 0,
+  uidNext INTEGER NOT NULL DEFAULT 0,
+  highestModSeq INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (accountId, id)
+);
+
+CREATE TABLE message (
+  accountId TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  id TEXT NOT NULL,                    -- Gmail message id, or "<folder>/<uid>" for IMAP
+  threadId TEXT NOT NULL DEFAULT '',
+  uid INTEGER NOT NULL DEFAULT 0,
+  fromName TEXT NOT NULL DEFAULT '',
+  fromAddress TEXT NOT NULL DEFAULT '',
+  toLine TEXT NOT NULL DEFAULT '',
+  subject TEXT NOT NULL DEFAULT '',
+  snippet TEXT NOT NULL DEFAULT '',
+  receivedAt INTEGER NOT NULL,
+  unread INTEGER NOT NULL DEFAULT 1,
+  flagged INTEGER NOT NULL DEFAULT 0,
+  hasAttachments INTEGER NOT NULL DEFAULT 0,
+  sizeBytes INTEGER NOT NULL DEFAULT 0,
+  notifiedAt INTEGER,
+  PRIMARY KEY (accountId, id)
+);
+
+CREATE INDEX message_received ON message(receivedAt DESC);
+CREATE INDEX message_unread ON message(accountId, unread);
+
+CREATE TABLE message_folder (
+  accountId TEXT NOT NULL,
+  messageId TEXT NOT NULL,
+  folderId TEXT NOT NULL,
+  PRIMARY KEY (accountId, messageId, folderId),
+  FOREIGN KEY (accountId, messageId) REFERENCES message(accountId, id) ON DELETE CASCADE
+);
+
+CREATE INDEX message_folder_folder ON message_folder(accountId, folderId);
+
+CREATE TABLE message_body (
+  accountId TEXT NOT NULL,
+  messageId TEXT NOT NULL,
+  textBody TEXT NOT NULL DEFAULT '',
+  htmlBody TEXT NOT NULL DEFAULT '',
+  attachments TEXT NOT NULL DEFAULT '', -- "name|size" per line
+  PRIMARY KEY (accountId, messageId),
+  FOREIGN KEY (accountId, messageId) REFERENCES message(accountId, id) ON DELETE CASCADE
+);
+
+-- Accounts -----------------------------------------------------------------------------------
+
+selectAccounts:
+SELECT * FROM account ORDER BY sortOrder, createdAt;
+
+selectAccount:
+SELECT * FROM account WHERE id = ?;
+
+-- Plain INSERT, never REPLACE: a REPLACE deletes the row first, and the cascade would take every
+-- message of the account with it.
+insertAccount:
+INSERT INTO account(id, kind, email, label, color, notify, retentionDays, capabilities,
+  imapHost, imapPort, imapSecurity, username, syncCursor, sortOrder, createdAt)
+VALUES ?;
+
+updateAccountServer:
+UPDATE account SET imapHost = ?, imapPort = ?, imapSecurity = ?, username = ? WHERE id = ?;
+
+updateAccountPrefs:
+UPDATE account SET label = ?, color = ?, notify = ?, retentionDays = ? WHERE id = ?;
+
+updateAccountCursor:
+UPDATE account SET syncCursor = ? WHERE id = ?;
+
+updateAccountCapabilities:
+UPDATE account SET capabilities = ? WHERE id = ?;
+
+deleteAccount:
+DELETE FROM account WHERE id = ?;
+
+-- Folders ------------------------------------------------------------------------------------
+
+selectFolders:
+SELECT * FROM folder WHERE accountId = ? ORDER BY CASE role WHEN 'Inbox' THEN 0 ELSE 1 END, name;
+
+selectAllFolders:
+SELECT * FROM folder;
+
+-- No UPSERT anywhere: Android 8-10 ship SQLite 3.18/3.22, which predate it (3.24).
+insertFolderIfMissing:
+INSERT OR IGNORE INTO folder(accountId, id, name, role, sync, notify) VALUES (?, ?, ?, ?, ?, ?);
+
+renameFolder:
+UPDATE folder SET name = ?, role = ? WHERE accountId = ? AND id = ?;
+
+setFolderPrefs:
+UPDATE folder SET sync = ?, notify = ? WHERE accountId = ? AND id = ?;
+
+setFolderState:
+UPDATE folder SET uidValidity = ?, uidNext = ?, highestModSeq = ? WHERE accountId = ? AND id = ?;
+
+deleteFolder:
+DELETE FROM folder WHERE accountId = ? AND id = ?;
+
+-- Messages -----------------------------------------------------------------------------------
+
+insertMessageIfMissing:
+INSERT OR IGNORE INTO message(accountId, id, threadId, uid, fromName, fromAddress, toLine, subject, snippet,
+  receivedAt, unread, flagged, hasAttachments, sizeBytes)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectMessage:
+SELECT * FROM message WHERE accountId = ? AND id = ?;
+
+linkFolder:
+INSERT OR IGNORE INTO message_folder(accountId, messageId, folderId) VALUES (?, ?, ?);
+
+unlinkFolder:
+DELETE FROM message_folder WHERE accountId = ? AND messageId = ? AND folderId = ?;
+
+setFlags:
+UPDATE message SET unread = ?, flagged = ? WHERE accountId = ? AND id = ?;
+
+setUnread:
+UPDATE message SET unread = ? WHERE accountId = ? AND id = ?;
+
+markNotified:
+UPDATE message SET notifiedAt = ? WHERE accountId = ? AND id = ?;
+
+deleteMessage:
+DELETE FROM message WHERE accountId = ? AND id = ?;
+
+folderIdsOfMessage:
+SELECT folderId FROM message_folder WHERE accountId = ? AND messageId = ?;
+
+upsertBody:
+INSERT OR REPLACE INTO message_body(accountId, messageId, textBody, htmlBody, attachments) VALUES ?;
+
+selectBody:
+SELECT * FROM message_body WHERE accountId = ? AND messageId = ?;
+
+hasBody:
+SELECT count(*) FROM message_body WHERE accountId = ? AND messageId = ?;
+
+messageIdsInFolder:
+SELECT messageId FROM message_folder WHERE accountId = ? AND folderId = ?;
+
+-- The unified list: every message that sits in at least one synced folder.
+-- :accountId / :folderId empty = no filter.
+selectInbox:
+SELECT m.* FROM message m
+WHERE EXISTS (
+  SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+  WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.sync = 1
+    AND (:folderId = '' OR mf.folderId = :folderId)
+)
+AND (:accountId = '' OR m.accountId = :accountId)
+AND (:unreadOnly = 0 OR m.unread = 1)
+AND (:attachmentsOnly = 0 OR m.hasAttachments = 1)
+AND (:query = '' OR m.subject LIKE '%' || :query || '%' OR m.fromName LIKE '%' || :query || '%'
+     OR m.fromAddress LIKE '%' || :query || '%' OR m.snippet LIKE '%' || :query || '%')
+ORDER BY m.receivedAt DESC
+LIMIT :limit;
+
+unreadCounts:
+SELECT m.accountId, count(*) AS unread FROM message m
+WHERE m.unread = 1 AND EXISTS (
+  SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+  WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.sync = 1
+)
+GROUP BY m.accountId;
+
+-- Candidates for a notification: unread, never notified, in a folder with notifications on.
+selectToNotify:
+SELECT m.* FROM message m
+WHERE m.accountId = ? AND m.unread = 1 AND m.notifiedAt IS NULL AND EXISTS (
+  SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+  WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.notify = 1
+)
+ORDER BY m.receivedAt;
+
+markAllNotified:
+UPDATE message SET notifiedAt = ? WHERE accountId = ? AND notifiedAt IS NULL;
+
+-- Retention ----------------------------------------------------------------------------------
+
+pruneOlderThan:
+DELETE FROM message WHERE accountId = ? AND receivedAt < ?;
+
+-- Messages left with no synced folder (folder unticked, or label removed).
+pruneOrphans:
+DELETE FROM message WHERE accountId = ? AND NOT EXISTS (
+  SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+  WHERE mf.accountId = message.accountId AND mf.messageId = message.id AND f.sync = 1
+);
+
+clearFolderLinks:
+DELETE FROM message_folder WHERE accountId = ? AND folderId = ?;
+
+clearAccountMail:
+DELETE FROM message WHERE accountId = ?;
+
+-- Storage ------------------------------------------------------------------------------------
+
+-- Approximate bytes per account: the text columns that carry the weight.
+storagePerAccount:
+SELECT a.id AS accountId,
+  (SELECT coalesce(sum(length(m.subject) + length(m.snippet) + length(m.fromName) + length(m.fromAddress)
+     + length(m.toLine) + 64), 0) FROM message m WHERE m.accountId = a.id)
+  + (SELECT coalesce(sum(length(b.textBody) + length(b.htmlBody) + length(b.attachments)), 0)
+     FROM message_body b WHERE b.accountId = a.id) AS bytes,
+  (SELECT count(*) FROM message m WHERE m.accountId = a.id) AS messages
+FROM account a;

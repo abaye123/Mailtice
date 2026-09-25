@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mailtice | תנאי שימוש</title>
+<link rel="icon" href="AppIcon.png" />
+<style>
+  :root {
+    /* Same tokens as index.html, kept in step with it by hand. */
+    --brand-900: #001452;
+    --brand-700: #0038B7;
+    --brand-500: #2D53D0;
+    --brand-300: #B7C4FF;
+
+    --paper: #F3F2FD;
+    --paper-soft: #FBF8FF;
+    --ink: #1A1B23;
+    --ink-soft: #444654;
+
+    --card: rgba(255, 255, 255, 0.74);
+    --card-border: rgba(45, 83, 208, 0.20);
+    --shadow-sm: 0 4px 14px rgba(0, 20, 82, 0.10);
+    --radius-lg: 18px;
+
+    --font: "Segoe UI Variable", "Segoe UI", "Assistant", "Rubik",
+            system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12131A;
+      --paper-soft: #1A1B23;
+      --ink: #E2E1EC;
+      --ink-soft: #C4C5D6;
+      --card: rgba(30, 31, 39, 0.66);
+      --card-border: rgba(75, 109, 234, 0.26);
+      --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.32);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.75;
+    padding: 32px 20px 64px;
+  }
+
+  main { max-width: 760px; margin: 0 auto; }
+
+  h1 {
+    font-size: clamp(26px, 5vw, 34px);
+    color: var(--brand-700);
+    margin: 0 0 6px;
+  }
+
+  h2 {
+    font-size: 20px;
+    color: var(--brand-700);
+    margin: 32px 0 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    h1, h2 { color: var(--brand-300); }
+  }
+
+  .updated { color: var(--ink-soft); font-size: 14px; margin: 0 0 28px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 24px;
+    margin: 24px 0;
+  }
+
+  .lede { font-size: 18px; }
+
+  ul { padding-inline-start: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+
+  a { color: var(--brand-500); }
+  @media (prefers-color-scheme: dark) { a { color: var(--brand-300); } }
+
+  code {
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--paper-soft);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--card-border);
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+
+  .en { direction: ltr; text-align: left; }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>תנאי שימוש - Mailtice</h1>
+  <p class="updated">עדכון אחרון: 25 בספטמבר 2026</p>
+
+  <div class="card">
+    <p class="lede">
+      Mailtice היא תוכנת דואר חינמית בקוד פתוח. השימוש בה כפוף לתנאים הבאים,
+      ובהורדה או בשימוש בתוכנה אתה מסכים להם.
+    </p>
+  </div>
+
+  <h2>השירות</h2>
+  <p>
+    Mailtice מתחברת לחשבונות הדואר שלך אצל הספקים שלך ומציגה, מסנכרנת ושולחת דואר מהמכשיר שלך.
+    איננו מפעילים שרת דואר, ואיננו מספקים את חשבונות הדואר עצמם.
+  </p>
+
+  <h2>החשבונות שלך</h2>
+  <ul>
+    <li>אתה אחראי לחשבונות שאתה מחבר, לפרטי הגישה אליהם ולשמירה על המכשיר שעליו מותקנת התוכנה.</li>
+    <li>השימוש בחשבון כפוף גם לתנאי השימוש של ספק הדואר שלך (למשל Google, Microsoft או Yahoo).</li>
+    <li>פעולות שתבצע בתוכנה - שליחה, מחיקה, העברה לארכיון - מתבצעות בחשבון שלך אצל הספק.</li>
+  </ul>
+
+  <h2>שימוש מותר</h2>
+  <p>
+    אין להשתמש בתוכנה לשליחת דואר זבל, להתחזות, לגישה לחשבונות שאינם שלך או שאינך מורשה לגשת אליהם,
+    או לכל פעולה שמפרה את החוק או את תנאי הספק.
+  </p>
+
+  <h2>פרטיות</h2>
+  <p>
+    האופן שבו התוכנה מטפלת במידע מתואר ב<a href="privacy.html">מדיניות הפרטיות</a>.
+  </p>
+
+  <h2>קוד פתוח</h2>
+  <p>
+    קוד המקור זמין ב-<a href="https://github.com/abaye123/Mailtice">GitHub</a>. רכיבי צד שלישי בתוכנה
+    כפופים לרישיונות שלהם, המפורטים במסך "אודות".
+  </p>
+
+  <h2>סימנים מסחריים</h2>
+  <p>
+    Gmail ו-Google Workspace הם סימנים מסחריים של Google LLC; Outlook ו-Microsoft 365 של Microsoft Corporation;
+    Yahoo של Yahoo Inc. Mailtice אינה קשורה לחברות אלה ואינה מאושרת על ידן.
+  </p>
+
+  <h2>אחריות</h2>
+  <p>
+    התוכנה מסופקת "כמות שהיא" (AS IS), ללא אחריות מכל סוג, מפורשת או משתמעת.
+    במידה המרבית שהחוק מתיר, המפתח לא יישא באחריות לכל נזק, אובדן מידע או אובדן דואר שייגרמו מהשימוש בתוכנה
+    או מחוסר היכולת להשתמש בה. מומלץ לא להסתמך על העותק המקומי כגיבוי יחיד של הדואר שלך.
+  </p>
+
+  <h2>שינויים</h2>
+  <p>
+    התנאים עשויים להתעדכן. הגרסה העדכנית תפורסם תמיד בעמוד הזה, עם תאריך העדכון.
+  </p>
+
+  <h2>יצירת קשר</h2>
+  <p><a href="mailto:cs@abaye.co">cs@abaye.co</a></p>
+
+  <div class="card en" lang="en">
+    <h2 style="margin-top:0">Terms of Use - Mailtice (English)</h2>
+    <p>Mailtice is a free, open-source mail client. By downloading or using it you agree to these terms.</p>
+    <p><strong>The service.</strong> Mailtice connects to your mail accounts at your providers and displays, syncs and
+      sends mail from your device. We do not run a mail server and do not provide the mail accounts themselves.</p>
+    <p><strong>Your accounts.</strong> You are responsible for the accounts you connect, their credentials and the
+      security of the device the app runs on. Use of each account is also subject to your provider's terms (for example
+      Google, Microsoft or Yahoo). Actions you take in the app - sending, deleting, archiving - happen in your account at
+      the provider.</p>
+    <p><strong>Acceptable use.</strong> Do not use the app to send spam, to impersonate others, to access accounts you
+      do not own or are not authorised to access, or for anything that breaks the law or your provider's terms.</p>
+    <p><strong>Privacy.</strong> How the app handles data is described in the <a href="privacy.html">Privacy Policy</a>.</p>
+    <p><strong>Open source.</strong> The source code is on <a href="https://github.com/abaye123/Mailtice">GitHub</a>.
+      Third-party components are covered by their own licences, listed in the app's About screen.</p>
+    <p><strong>Trademarks.</strong> Gmail and Google Workspace are trademarks of Google LLC; Outlook and Microsoft 365 of
+      Microsoft Corporation; Yahoo of Yahoo Inc. Mailtice is not affiliated with or endorsed by these companies.</p>
+    <p><strong>No warranty.</strong> The software is provided "AS IS", without warranty of any kind, express or implied.
+      To the maximum extent permitted by law, the developer is not liable for any damage, data loss or loss of mail
+      arising from the use of, or inability to use, the software. Do not rely on the local copy as your only backup.</p>
+    <p><strong>Changes.</strong> These terms may be updated; the current version is always published on this page with
+      its date. Contact: <a href="mailto:cs@abaye.co">cs@abaye.co</a></p>
+  </div>
+
+  <footer>
+    <a href="./">חזרה לעמוד ההורדה</a> · <a href="privacy.html">מדיניות פרטיות</a>
+  </footer>
+
+</main>
+</body>
+</html>

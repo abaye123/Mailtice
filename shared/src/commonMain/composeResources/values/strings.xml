@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mailtice</string>
+    <string name="app_tagline">All your Gmail accounts in one place</string>
+
+    <string name="nav_inbox">Inbox</string>
+    <string name="nav_accounts">Accounts</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_about">About</string>
+
+    <string name="inbox_all">All</string>
+    <string name="inbox_refresh">Check now</string>
+    <string name="inbox_empty">No new mail</string>
+    <string name="inbox_no_accounts_action">Add account</string>
+    <string name="inbox_reauth_banner">%1$s needs you to sign in again</string>
+    <string name="inbox_mark_read">Mark as read</string>
+    <string name="inbox_archive">Archive</string>
+
+    <string name="accounts_add">Add account</string>
+    <string name="accounts_waiting">Finish signing in in the window that opened…</string>
+    <string name="accounts_cancel_sign_in">Cancel</string>
+    <string name="accounts_empty">Add an account to start.</string>
+    <string name="accounts_label">Name (optional)</string>
+    <string name="accounts_notify">Notifications for this account</string>
+    <string name="accounts_color">Change colour</string>
+    <string name="accounts_reconnect">Sign in again</string>
+    <string name="accounts_remove">Remove account</string>
+    <string name="accounts_remove_confirm">%1$s will be disconnected and its access revoked at Google.</string>
+
+    <string name="status_idle">Waiting</string>
+    <string name="status_syncing">Syncing…</string>
+    <string name="status_ok">Up to date</string>
+    <string name="status_offline">Can\'t reach Gmail, retrying</string>
+    <string name="status_needs_reauth">Sign-in expired</string>
+
+    <string name="notif_open">Open</string>
+    <string name="notif_mark_read">Mark as read</string>
+    <string name="notif_summary_title">%1$d new messages</string>
+    <string name="notif_summary_body">In %1$s</string>
+
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_accent">Accent colour</string>
+    <string name="settings_language">Language</string>
+    <string name="language_system">System language</string>
+    <string name="settings_sync">Sync and notifications</string>
+    <string name="settings_poll">Check for new mail every</string>
+    <string name="settings_poll_desc">A quiet check is one small request per account.</string>
+    <string name="poll_seconds">%1$d sec</string>
+    <string name="poll_minutes">%1$d min</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_desc">Show a system notification for every new message.</string>
+    <string name="settings_window">Window</string>
+    <string name="settings_close_to_tray">Keep running in the tray</string>
+    <string name="settings_close_to_tray_desc">Closing the window hides it instead of quitting.</string>
+    <string name="settings_launch_at_login">Start with the computer</string>
+    <string name="settings_launch_at_login_desc">Starts hidden in the tray.</string>
+    <string name="settings_data">Data</string>
+    <string name="settings_reset">Reset app</string>
+    <string name="settings_reset_desc">Disconnects every account and restores the default settings.</string>
+    <string name="settings_reset_confirm">All accounts will be disconnected and all settings deleted.</string>
+
+    <string name="message_not_configured">No OAuth client is configured for this provider. Add it to oauth.local.properties and rebuild.</string>
+    <string name="message_sign_in_failed">Sign-in failed. Try again.</string>
+    <string name="message_account_added">Account added</string>
+    <string name="message_account_reconnected">Account reconnected</string>
+    <string name="message_action_failed">Gmail rejected the change. The message is back in the list.</string>
+    <string name="message_launch_at_login_failed">Windows did not allow starting with the computer.</string>
+    <string name="message_reset_done">The app was reset</string>
+
+    <string name="about_version">Version %1$s</string>
+    <string name="about_licenses">Open-source licences</string>
+    <string name="about_repo">Source code at %1$s</string>
+
+    <string name="dialog_confirm">Confirm</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_dismiss">Dismiss</string>
+
+    <string name="tray_open">Open Mailtice</string>
+    <string name="tray_refresh">Check now</string>
+    <string name="tray_quit">Quit</string>
+    <string name="tray_tooltip">Mailtice · %1$d unread</string>
+
+    <string name="update_available">A new version is ready to install</string>
+    <string name="update_restart_title">Restart to update</string>
+    <string name="update_restart_body">The update has been downloaded. Mailtice will restart to install it. You can also just quit - it installs on exit.</string>
+    <string name="update_restart_now">Restart now</string>
+
+    <!-- v2: providers, IMAP form, account detail, reader, storage -->
+    <string name="accounts_title">Accounts</string>
+    <string name="accounts_subtitle">Gmail and Workspace, Outlook and Microsoft 365, Yahoo, and any IMAP provider.</string>
+    <string name="add_choose_provider">Where is the mailbox?</string>
+    <string name="add_provider_imap_desc">\"Other provider\" connects over IMAP with a password. Most providers need an app password.</string>
+    <string name="provider_gmail">Google (Gmail / Workspace)</string>
+    <string name="provider_microsoft">Microsoft (Outlook / 365)</string>
+    <string name="provider_yahoo">Yahoo / AOL</string>
+    <string name="provider_imap">Other provider (IMAP)</string>
+    <string name="add_imap_hint">Enter the address and password, then \"Detect server\". You can correct it by hand.</string>
+    <string name="add_imap_email">Email address</string>
+    <string name="add_imap_password">Password / app password</string>
+    <string name="add_imap_host">IMAP server</string>
+    <string name="add_imap_port">Port</string>
+    <string name="add_imap_username">Username (if not the address)</string>
+    <string name="add_imap_detect">Detect server</string>
+    <string name="add_imap_save">Test and save</string>
+    <string name="add_imap_reconnect_title">New password</string>
+    <string name="add_imap_error_host">Server not found. Check the server name.</string>
+    <string name="add_imap_error_tls">The secure connection failed. Check the port and encryption.</string>
+    <string name="add_imap_error_credentials">Wrong username or password. An app password may be required.</string>
+    <string name="add_imap_error_other">Could not connect to the server.</string>
+    <string name="detail_general">General</string>
+    <string name="detail_retention">Days to keep</string>
+    <string name="detail_retention_days">%1$d days</string>
+    <string name="detail_retention_all">All</string>
+    <string name="detail_retention_all_warning">All mail is downloaded and kept. Large mailboxes can reach gigabytes.</string>
+    <string name="detail_folders">Folders</string>
+    <string name="detail_labels">Labels</string>
+    <string name="detail_folders_desc">Tick what to sync and keep, and what to be notified about.</string>
+    <string name="detail_folders_empty">The folder list appears after the first sync.</string>
+    <string name="detail_folder_sync">Sync</string>
+    <string name="detail_folder_notify">Notify</string>
+    <string name="detail_refresh_folders">Refresh folder list</string>
+    <string name="detail_storage">Storage</string>
+    <string name="detail_storage_value">%1$s · %2$s messages</string>
+    <string name="detail_clear_cache">Clear cache</string>
+    <string name="detail_clear_cache_desc">Deletes this account\'s stored mail. It is downloaded again on the next sync.</string>
+    <string name="detail_clear_cache_confirm">Delete all stored mail of %1$s from this device? Nothing is deleted on the server.</string>
+    <string name="inbox_all_folders">All folders</string>
+    <string name="inbox_mark_unread">Mark as unread</string>
+    <string name="inbox_select_message">Select a message to read</string>
+    <string name="inbox_unread_only">Unread</string>
+    <string name="reader_back">Back</string>
+    <string name="reader_body_failed">Could not load the message body.</string>
+    <string name="reader_open_html">Open as HTML in the browser</string>
+    <string name="reader_open_web">Open on the provider\'s site</string>
+    <string name="reader_to">To:</string>
+    <string name="settings_storage">Storage</string>
+    <string name="settings_storage_total">Total size: %1$s</string>
+    <string name="settings_storage_desc">Mailtice\'s database. Per-account sizes are estimates.</string>
+    <string name="settings_storage_compact">Compact database</string>
+    <string name="message_cache_cleared">Cache cleared. The next sync downloads the mail again.</string>
+    <string name="message_db_compacted">Database compacted.</string>
+    <string name="message_provider_not_supported">Signing in to this provider is not supported on this platform yet.</string>
+
+    <!-- Demo mode and empty screens -->
+    <string name="demo_badge">Demo</string>
+    <string name="empty_welcome_title">Welcome to Mailtice</string>
+    <string name="empty_welcome_body">Connect Gmail, Outlook, Yahoo or any IMAP mailbox, and all your mail arrives in one inbox.</string>
+    <string name="empty_inbox_body">New mail shows up here as soon as it arrives.</string>
+    <string name="empty_account_body">Nothing waiting in %1$s. New mail shows up here as soon as it arrives.</string>
+    <string name="empty_folder_title">This folder is empty</string>
+    <string name="empty_folder_body">No messages in %1$s within the days being kept.</string>
+    <string name="empty_unread_title">All read</string>
+    <string name="empty_unread_body">No unread mail left. Nice work.</string>
+    <string name="empty_unread_action">Show all mail</string>
+    <string name="empty_search_title">No results</string>
+    <string name="empty_search_body">Nothing matches \"%1$s\". Try another word or check the spelling.</string>
+    <string name="empty_search_action">Clear search</string>
+    <string name="empty_syncing_title">Fetching your mail</string>
+    <string name="empty_syncing_body">The first sync can take a minute on large mailboxes.</string>
+    <string name="empty_offline_title">Can\'t reach the mail server</string>
+    <string name="empty_offline_body">Check the connection. Mailtice keeps retrying on its own.</string>
+    <string name="empty_offline_action">Try again</string>
+    <string name="empty_reader_body">The full message opens here.</string>
+
+    <!-- Sidebar, list density, pane style -->
+    <string name="nav_all_inboxes">All inboxes</string>
+    <string name="nav_manage_accounts">Manage accounts</string>
+    <string name="inbox_search_all">Search all accounts</string>
+    <string name="inbox_search_in">Search in %1$s</string>
+    <string name="settings_density">List density</string>
+    <string name="settings_density_desc">How much room each message takes in the list.</string>
+    <string name="density_compact">Compact</string>
+    <string name="density_comfortable">Comfortable</string>
+    <string name="density_spacious">Spacious</string>
+    <string name="settings_pane_style">Panes</string>
+    <string name="settings_pane_style_desc">Floating cards without borders, or flat panes separated by lines.</string>
+    <string name="pane_cards">Cards</string>
+    <string name="pane_lines">Lines</string>
+    <string name="accent_flag">Flag blue</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_teal">Teal</string>
+    <string name="accent_amber">Amber</string>
+    <string name="accent_rose">Rose</string>
+    <string name="accent_violet">Violet</string>
+    <string name="accent_slate">Slate</string>
+
+    <!-- Attachments filter, sending, trash -->
+    <string name="inbox_attachments_only">With attachments</string>
+    <string name="inbox_trash">Move to trash</string>
+    <string name="empty_attachments_title">No attachments here</string>
+    <string name="empty_attachments_body">None of these messages carries a file.</string>
+    <string name="reader_reply">Reply</string>
+    <string name="reader_reply_all">Reply all</string>
+    <string name="reader_forward">Forward</string>
+    <string name="compose_new">Compose</string>
+    <string name="compose_new_title">New message</string>
+    <string name="compose_reply_title">Reply</string>
+    <string name="compose_forward_title">Forward</string>
+    <string name="compose_from">From</string>
+    <string name="compose_to">To</string>
+    <string name="compose_cc">Cc</string>
+    <string name="compose_bcc">Bcc</string>
+    <string name="compose_cc_bcc">Cc/Bcc</string>
+    <string name="compose_subject">Subject</string>
+    <string name="compose_body">Write your message</string>
+    <string name="compose_send">Send</string>
+    <string name="compose_send_hint">Send (Ctrl+Enter)</string>
+    <string name="compose_discard">Discard</string>
+    <string name="compose_invalid_address">Check the addresses: separate them with commas.</string>
+    <string name="compose_quote_header">On %1$s, %2$s wrote:</string>
+    <string name="compose_forward_header">---------- Forwarded message ---------</string>
+    <string name="compose_forward_from">From: %1$s</string>
+    <string name="compose_forward_date">Date: %1$s</string>
+    <string name="compose_forward_subject">Subject: %1$s</string>
+    <string name="compose_forward_to">To: %1$s</string>
+    <string name="message_sent">Message sent</string>
+    <string name="message_send_failed">The message was not sent. Check the connection and try again.</string>
+    <string name="message_send_needs_reauth">Sending needs a new permission. Sign in to this account again from Accounts.</string>
+    <string name="message_moved_to_trash">Moved to trash</string>
+    <string name="message_no_sending_account">None of the connected accounts can send yet.</string>
+</resources>

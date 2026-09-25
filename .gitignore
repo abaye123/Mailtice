@@ -1,0 +1,34 @@
+
+*.iml
+.gradle
+.idea
+.kotlin
+.DS_Store
+build
+*/build
+captures
+.externalNativeBuild
+.cxx
+local.properties
+xcuserdata/
+Pods/
+
+# Release signing. The keystore and its passwords live only on the machines that cut releases;
+# CI gets the same values from repository secrets.
+*.gpg
+/com/
+shared/src/commonMain/composeResources/files/aboutlibraries.json
+# Google OAuth client for local builds. CI writes the same values from repository secrets.
+oauth.local.properties
+# Generated from values-he by :shared:mirrorHebrewStringsForAndroid.
+shared/src/commonMain/composeResources/values-iw/
+# Release signing (Android). CI gets the same values from repository secrets.
+*.jks
+*.keystore
+signing.local.properties
+hs_err_pid*.log
+replay_pid*.log
+core.*
+
+# Gradle output captured while debugging; regenerated on every build.
+build-*.log

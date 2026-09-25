@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mailtice | מדיניות פרטיות</title>
+<link rel="icon" href="AppIcon.png" />
+<style>
+  :root {
+    /* Same tokens as index.html, kept in step with it by hand. */
+    --brand-900: #001452;
+    --brand-700: #0038B7;
+    --brand-500: #2D53D0;
+    --brand-300: #B7C4FF;
+
+    --paper: #F3F2FD;
+    --paper-soft: #FBF8FF;
+    --ink: #1A1B23;
+    --ink-soft: #444654;
+
+    --card: rgba(255, 255, 255, 0.74);
+    --card-border: rgba(45, 83, 208, 0.20);
+    --shadow-sm: 0 4px 14px rgba(0, 20, 82, 0.10);
+    --radius-lg: 18px;
+
+    --font: "Segoe UI Variable", "Segoe UI", "Assistant", "Rubik",
+            system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12131A;
+      --paper-soft: #1A1B23;
+      --ink: #E2E1EC;
+      --ink-soft: #C4C5D6;
+      --card: rgba(30, 31, 39, 0.66);
+      --card-border: rgba(75, 109, 234, 0.26);
+      --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.32);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.75;
+    padding: 32px 20px 64px;
+  }
+
+  main { max-width: 760px; margin: 0 auto; }
+
+  h1 {
+    font-size: clamp(26px, 5vw, 34px);
+    color: var(--brand-700);
+    margin: 0 0 6px;
+  }
+
+  h2 {
+    font-size: 20px;
+    color: var(--brand-700);
+    margin: 32px 0 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    h1, h2 { color: var(--brand-300); }
+  }
+
+  .updated { color: var(--ink-soft); font-size: 14px; margin: 0 0 28px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 24px;
+    margin: 24px 0;
+  }
+
+  .lede { font-size: 18px; }
+
+  ul { padding-inline-start: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+
+  a { color: var(--brand-500); }
+  @media (prefers-color-scheme: dark) { a { color: var(--brand-300); } }
+
+  code {
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--paper-soft);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--card-border);
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+
+  .en { direction: ltr; text-align: left; }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>מדיניות פרטיות - Mailtice</h1>
+  <p class="updated">עדכון אחרון: 25 בספטמבר 2026</p>
+
+  <div class="card">
+    <p class="lede">
+      <strong>Mailtice לא שולחת את הדואר או את המידע שלך אלינו.</strong>
+      אין לנו שרתים, אין הרשמה אצלנו, אין פרסומות, אין כלי אנליטיקה ואין דיווח קריסות.
+      התוכנה מתחברת ישירות מהמכשיר שלך אל ספק הדואר שלך, וכל מה שהיא שומרת נשאר במכשיר.
+    </p>
+  </div>
+
+  <h2>איזה מידע התוכנה ניגשת אליו</h2>
+  <p>כדי לעבוד כתוכנת דואר, Mailtice ניגשת - באישורך ובחשבונות שאתה מחבר בלבד - אל:</p>
+  <ul>
+    <li>כתובת הדואר של כל חשבון שחיברת.</li>
+    <li>ההודעות בתיקיות שבחרת לסנכרן: שולח, נמענים, נושא, תאריך, תוכן ושמות הקבצים המצורפים.</li>
+    <li>רשימת התיקיות או התוויות של החשבון.</li>
+  </ul>
+  <p>
+    בנוסף, לפי בקשתך בלבד, התוכנה מסמנת הודעות כנקראו או כלא נקראו, מעבירה לארכיון,
+    מעבירה לאשפה ושולחת הודעות שכתבת.
+  </p>
+
+  <h2>מה נשמר במכשיר שלך</h2>
+  <ul>
+    <li><strong>עותק מקומי של הדואר</strong> מהתיקיות שבחרת, לפי מספר הימים שהגדרת לכל חשבון, במסד נתונים על המכשיר.</li>
+    <li><strong>פרטי ההתחברות</strong>: אסימוני גישה (OAuth) או סיסמת IMAP. באנדרואיד הם מוצפנים במפתח של Android Keystore.
+      במחשב הם נשמרים בקובץ בתיקיית הנתונים של התוכנה, עם הרשאות קריאה לבעל החשבון במערכת בלבד.</li>
+    <li><strong>ההגדרות</strong>: ערכת צבעים, שפה, תדירות בדיקה, התראות ופריסה.</li>
+  </ul>
+  <p>
+    אפשר למחוק את העותק המקומי של חשבון ("ניקוי מטמון"), להסיר חשבון, או לאפס את התוכנה מההגדרות.
+    הסרת חשבון Google מבטלת גם את ההרשאה שניתנה לתוכנה אצל Google.
+    מחיקת התוכנה מוחקת את כל הנתונים שלה מהמכשיר.
+  </p>
+
+  <h2>לאן התוכנה מתחברת</h2>
+  <ul>
+    <li><strong>ספקי הדואר שחיברת</strong>: Google (Gmail API), Microsoft ו-Yahoo (IMAP ו-SMTP), או שרת ה-IMAP וה-SMTP של הספק שלך.
+      ההתחברות מתבצעת בדפדפן, מול דף ההתחברות של הספק עצמו.</li>
+    <li><strong>זיהוי שרת אוטומטי</strong>: כשאתה לוחץ "זיהוי שרת" בהוספת חשבון IMAP, התוכנה שולחת את <em>שם הדומיין</em> של הכתובת
+      (החלק שאחרי @, בלי שם המשתמש) לשירות ההגדרות הציבורי של Mozilla Thunderbird.</li>
+    <li><strong>עדכונים</strong>: גרסת המחשב בודקת ב-GitHub אם יש גרסה חדשה ומורידה אותה משם.</li>
+    <li><strong>התחברות ל-Yahoo במחשב</strong>: Yahoo מחייבת כתובת חזרה מאובטחת, ולכן ההתחברות עוברת דרך עמוד סטטי באתר הזה
+      שמעביר את קוד ההתחברות, בתוך הדפדפן שלך, בחזרה לתוכנה. העמוד לא שומר ולא שולח את הקוד לשום מקום אחר.</li>
+  </ul>
+  <p>
+    ספקי הדואר, GitHub ו-Mozilla עשויים לרשום את כתובת ה-IP שלך כמו בכל חיבור לאינטרנט, בהתאם למדיניות שלהם.
+  </p>
+
+  <h2>נתוני Google</h2>
+  <p>
+    השימוש של Mailtice במידע שמתקבל מ-Google APIs, והעברתו לכל אפליקציה אחרת, יעמדו ב-
+    <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>,
+    כולל דרישות ה-Limited Use.
+    המידע משמש רק כדי להציג לך את הדואר, להתריע על מייל חדש ולבצע את הפעולות שביקשת. הוא לא מועבר לאף גורם,
+    לא משמש לפרסום, לא נקרא על ידי בני אדם, ולא משמש לאימון מודלים של בינה מלאכותית.
+  </p>
+
+  <h2>שיתוף ומכירה של מידע</h2>
+  <p>איננו מקבלים את המידע שלך, ולכן גם לא מוכרים, משתפים או מעבירים אותו לצד שלישי.</p>
+
+  <h2>ילדים</h2>
+  <p>התוכנה אינה מיועדת לילדים מתחת לגיל 13, ואינה אוספת מידע מאף משתמש.</p>
+
+  <h2>שינויים במדיניות</h2>
+  <p>אם המדיניות תשתנה, הגרסה המעודכנת תפורסם בעמוד הזה עם תאריך עדכון חדש.</p>
+
+  <h2>יצירת קשר</h2>
+  <p>לשאלות בנוגע למדיניות הפרטיות: <a href="mailto:cs@abaye.co">cs@abaye.co</a></p>
+  <p>קוד המקור פתוח וניתן לבדיקה: <a href="https://github.com/abaye123/Mailtice">github.com/abaye123/Mailtice</a></p>
+
+  <div class="card en" lang="en">
+    <h2 style="margin-top:0">Privacy Policy - Mailtice (English)</h2>
+    <p><strong>Mailtice does not send your mail or data to us.</strong> We run no servers, there is no sign-up with us,
+      no advertising, no analytics and no crash reporting. The app connects directly from your device to your mail
+      provider, and everything it stores stays on your device.</p>
+    <p><strong>Data accessed.</strong> Only for the accounts you connect: the account address; messages in the folders
+      you choose to sync (sender, recipients, subject, date, body and attachment names); and the folder or label list.
+      At your request only, the app marks messages read or unread, archives them, moves them to the trash and sends
+      messages you write.</p>
+    <p><strong>Data stored on your device.</strong> A local copy of mail from the chosen folders, within the number of
+      days you set per account; sign-in credentials (OAuth tokens or an IMAP password - encrypted with an Android
+      Keystore key on Android, and kept in a file readable only by your OS user on desktop); and your settings. You can
+      clear an account's local copy, remove an account or reset the app at any time. Removing a Google account also
+      revokes the app's access at Google. Uninstalling deletes all of the app's data.</p>
+    <p><strong>Connections.</strong> Your mail providers (Google Gmail API; Microsoft and Yahoo IMAP/SMTP; or your own
+      IMAP/SMTP server), signing in on the provider's own page in your browser. When you press "Detect server" while
+      adding an IMAP account, the domain part of the address (never the user name) is sent to Mozilla Thunderbird's
+      public autoconfig service. The desktop app checks GitHub for updates. Desktop sign-in to Yahoo passes through a
+      static relay page on this site that hands the sign-in code back to the app inside your browser; it stores and
+      forwards nothing else. These services may log your IP address under their own policies.</p>
+    <p><strong>Google user data.</strong> Mailtice's use and transfer to any other app of information received from
+      Google APIs will adhere to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>,
+      including the Limited Use requirements. The data is used only to show you your mail, notify you of new mail and
+      carry out the actions you request. It is not transferred to anyone, not used for advertising, not read by humans
+      and not used to train AI models.</p>
+    <p><strong>Sharing.</strong> We never receive your data, so we do not sell, share or transfer it.
+      The app is not directed to children under 13.</p>
+    <p>Questions: <a href="mailto:cs@abaye.co">cs@abaye.co</a> ·
+      Source code: <a href="https://github.com/abaye123/Mailtice">github.com/abaye123/Mailtice</a></p>
+  </div>
+
+  <footer>
+    <a href="./">חזרה לעמוד ההורדה</a> · <a href="terms.html">תנאי שימוש</a>
+  </footer>
+
+</main>
+</body>
+</html>
