@@ -222,4 +222,30 @@
     <string name="message_send_needs_reauth">Sending needs a new permission. Sign in to this account again from Accounts.</string>
     <string name="message_moved_to_trash">Moved to trash</string>
     <string name="message_no_sending_account">None of the connected accounts can send yet.</string>
+
+    <!-- Sidebar collapse, selection, downloads, export -->
+    <string name="sidebar_collapse">Collapse sidebar</string>
+    <string name="sidebar_expand">Expand sidebar</string>
+    <string name="selection_clear">Clear selection</string>
+    <string name="selection_count">%1$d selected</string>
+    <string name="selection_all">Select all</string>
+    <string name="selection_download">Download all attachments</string>
+    <string name="selection_check">Select</string>
+    <string name="selection_uncheck">Deselect</string>
+    <string name="reader_download_all">Download all</string>
+    <string name="reader_download_one">Download %1$s</string>
+    <string name="reader_download_thread">Download every attachment in the conversation</string>
+    <string name="reader_export_html">Export conversation as HTML</string>
+    <string name="reader_export_mail">Export as mail file (EML / MBOX)</string>
+    <string name="reader_more">More actions</string>
+    <string name="message_downloading">Downloading…</string>
+    <string name="message_files_saved">Saved to Downloads/Mailtice</string>
+    <string name="message_no_attachments">There are no attachments to download.</string>
+    <string name="message_download_failed">The download failed. Check the connection and try again.</string>
+    <string name="message_exported">Exported to Downloads/Mailtice</string>
+    <string name="export_from">From</string>
+    <string name="export_to">To</string>
+    <string name="export_date">Date</string>
+    <string name="export_attachments">Attachments</string>
+    <string name="export_exported">%1$d messages · exported from Mailtice</string>
 </resources>

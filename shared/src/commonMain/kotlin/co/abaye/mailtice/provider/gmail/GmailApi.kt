@@ -97,6 +97,16 @@ class GmailApi(private val http: HttpClient) {
         }.parsed<MessageRef>()
     }
 
+    /** An attachment's bytes, base64url in [AttachmentBody.data]. */
+    suspend fun attachment(token: String, messageId: String, attachmentId: String): AttachmentBody =
+        http.get("$BASE/messages/$messageId/attachments/$attachmentId") { bearerAuth(token) }.parsed()
+
+    suspend fun raw(token: String, id: String): RawMessage =
+        http.get("$BASE/messages/$id") {
+            bearerAuth(token)
+            parameter("format", "raw")
+        }.parsed()
+
     /** Only the headers a reply needs to thread correctly. */
     suspend fun threadHeaders(token: String, id: String): GmailMessage =
         http.get("$BASE/messages/$id") {

@@ -13,6 +13,7 @@ import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.ProviderKind
+import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.FlagChange
 import co.abaye.mailtice.provider.FolderState
 import co.abaye.mailtice.provider.HtmlText
@@ -191,6 +192,41 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
                 }
             }
         }
+    }
+
+    /** Same walk as [parseBody], so indices line up with the stored attachment list. */
+    override suspend fun fetchAttachments(account: Account, message: MailMessage, indices: Set<Int>?): List<AttachmentFile> =
+        withStore(account) { store ->
+            val out = mutableListOf<AttachmentFile>()
+            withMessage(store, message, readOnly = true) { _, m ->
+                var index = 0
+                fun walk(part: Part) {
+                    val fileName = part.fileName?.let { runCatching { MimeUtility.decodeText(it) }.getOrDefault(it) }
+                    when {
+                        fileName != null || Part.ATTACHMENT.equals(part.disposition, ignoreCase = true) -> {
+                            if (indices == null || index in indices) {
+                                out += AttachmentFile(index, fileName ?: "attachment", part.inputStream.use { it.readBytes() })
+                            }
+                            index++
+                        }
+                        part.isMimeType("multipart/*") -> {
+                            val mp = part.content as Multipart
+                            for (i in 0 until mp.count) walk(mp.getBodyPart(i))
+                        }
+                        part.isMimeType("message/rfc822") -> (part.content as? Part)?.let(::walk)
+                    }
+                }
+                walk(m)
+            }
+            out
+        }
+
+    override suspend fun rawMessage(account: Account, message: MailMessage): ByteArray = withStore(account) { store ->
+        var bytes = ByteArray(0)
+        withMessage(store, message, readOnly = true) { _, m ->
+            bytes = java.io.ByteArrayOutputStream().also { m.writeTo(it) }.toByteArray()
+        }
+        bytes
     }
 
     override suspend fun threadHeaders(account: Account, message: MailMessage): ThreadHeaders = withStore(account) { store ->

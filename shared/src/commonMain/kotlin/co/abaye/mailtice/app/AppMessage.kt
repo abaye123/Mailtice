@@ -7,10 +7,15 @@ import mailtice.shared.generated.resources.message_account_reconnected
 import mailtice.shared.generated.resources.message_action_failed
 import mailtice.shared.generated.resources.message_launch_at_login_failed
 import mailtice.shared.generated.resources.message_moved_to_trash
+import mailtice.shared.generated.resources.message_no_attachments
 import mailtice.shared.generated.resources.message_no_sending_account
 import mailtice.shared.generated.resources.message_not_configured
 import mailtice.shared.generated.resources.message_cache_cleared
 import mailtice.shared.generated.resources.message_db_compacted
+import mailtice.shared.generated.resources.message_download_failed
+import mailtice.shared.generated.resources.message_downloading
+import mailtice.shared.generated.resources.message_exported
+import mailtice.shared.generated.resources.message_files_saved
 import mailtice.shared.generated.resources.message_provider_not_supported
 import mailtice.shared.generated.resources.message_reset_done
 import mailtice.shared.generated.resources.message_send_failed
@@ -36,6 +41,11 @@ enum class AppMessage {
     SendNeedsReauth,
     MovedToTrash,
     NoSendingAccount,
+    Downloading,
+    FilesSaved,
+    NoAttachments,
+    DownloadFailed,
+    Exported,
 }
 
 @Composable
@@ -55,4 +65,9 @@ fun AppMessage.text(): String = when (this) {
     AppMessage.SendNeedsReauth -> stringResource(Res.string.message_send_needs_reauth)
     AppMessage.MovedToTrash -> stringResource(Res.string.message_moved_to_trash)
     AppMessage.NoSendingAccount -> stringResource(Res.string.message_no_sending_account)
+    AppMessage.Downloading -> stringResource(Res.string.message_downloading)
+    AppMessage.FilesSaved -> stringResource(Res.string.message_files_saved)
+    AppMessage.NoAttachments -> stringResource(Res.string.message_no_attachments)
+    AppMessage.DownloadFailed -> stringResource(Res.string.message_download_failed)
+    AppMessage.Exported -> stringResource(Res.string.message_exported)
 }

@@ -106,6 +106,33 @@ internal actual object Platform {
         }
     }
 
+    actual fun saveDownload(folder: String, fileName: String, bytes: ByteArray): String? = runCatching {
+        val downloads = File(System.getProperty("user.home").orEmpty(), "Downloads")
+        val dir = File(File(downloads, APP_DIR_NAME), safeFileName(folder, ""))
+        dir.mkdirs()
+        val name = safeFileName(fileName, "attachment")
+        val stem = name.substringBeforeLast('.', name)
+        val ext = name.substringAfterLast('.', "").let { if (it.isEmpty() || it == name) "" else ".$it" }
+        var target = File(dir, name)
+        var n = 2
+        while (target.exists()) target = File(dir, "$stem ($n)$ext").also { n++ }
+        target.writeBytes(bytes)
+        target.absolutePath
+    }.getOrNull()
+
+    actual fun revealDownload(location: String) {
+        runCatching {
+            val file = File(location)
+            val dir = if (file.isDirectory) file else file.parentFile ?: return
+            when (osLabel) {
+                // Opens the folder with the file selected.
+                "Windows" -> ProcessBuilder("explorer.exe", "/select,", file.absolutePath).start()
+                "macOS" -> ProcessBuilder("open", "-R", file.absolutePath).start()
+                else -> if (Desktop.isDesktopSupported()) Desktop.getDesktop().open(dir) else ProcessBuilder("xdg-open", dir.absolutePath).start()
+            }
+        }
+    }
+
     actual fun setLaunchAtLogin(enabled: Boolean): Boolean = runCatching {
         val result = if (enabled) AutoLaunch.enable() else AutoLaunch.disable()
         result == AutoLaunchResult.OK || result == AutoLaunchResult.UNCHANGED

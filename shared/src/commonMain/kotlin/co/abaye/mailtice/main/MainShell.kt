@@ -1,6 +1,7 @@
 package co.abaye.mailtice.main
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -24,12 +25,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuOpen
 import androidx.compose.material.icons.outlined.AllInbox
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.NavigationBar
@@ -62,12 +66,15 @@ import co.abaye.mailtice.ui.LocalDensitySpec
 import co.abaye.mailtice.ui.LocalPaneStyle
 import co.abaye.mailtice.ui.Pane
 import co.abaye.mailtice.ui.Tooltip
+import co.abaye.mailtice.ui.TooltipIconButton
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.app_name
 import mailtice.shared.generated.resources.compose_new
 import mailtice.shared.generated.resources.nav_accounts
 import mailtice.shared.generated.resources.nav_all_inboxes
 import mailtice.shared.generated.resources.nav_manage_accounts
+import mailtice.shared.generated.resources.sidebar_collapse
+import mailtice.shared.generated.resources.sidebar_expand
 import mailtice.shared.generated.resources.status_needs_reauth
 import mailtice.shared.generated.resources.status_offline
 import org.jetbrains.compose.resources.stringResource
@@ -166,37 +173,76 @@ private fun BrandBar(modifier: Modifier = Modifier) {
 }
 
 /**
- * The wide layout's sidebar, after the approved design: the unified inbox, then every account on its
- * own (its inbox alone, with its unread count), then account management, settings and about.
+ * The wide layout's sidebar, after the approved design: the compose button, the unified inbox, then
+ * every account on its own (its inbox alone, with its unread count), then account management,
+ * settings and about. It collapses to an icon rail; every icon then names itself on hover.
  */
 @Composable
 private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val cards = LocalPaneStyle.current == PaneStyle.Cards
+    val collapsed = state.data.settings.sidebarCollapsed
+    val width by animateDpAsState(
+        when {
+            collapsed -> 80.dp
+            cards -> 264.dp
+            else -> 240.dp
+        },
+        tween(220),
+        label = "sidebar-width",
+    )
     val inInbox = selected == AppKey.Inbox || selected == AppKey.Reader
     val filtered = state.filter.accountId
     Column(
-        modifier.width(if (cards) 264.dp else 240.dp).fillMaxHeight()
+        modifier.width(width).fillMaxHeight()
             .background(if (cards) colors.surfaceContainerLow else colors.surfaceContainer)
             .then(LocalWindowDrag.current)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        if (state.sendingAccounts.isNotEmpty()) {
-            ExtendedFloatingActionButton(
-                onClick = { onIntent(AppIntent.StartCompose(ComposeMode.New)) },
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 12.dp),
-                icon = { Icon(Icons.Outlined.Edit, null) },
-                text = { Text(stringResource(Res.string.compose_new)) },
-                containerColor = colors.primaryContainer,
-                contentColor = colors.onPrimaryContainer,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 1.dp),
+        val toggleLabel = stringResource(if (collapsed) Res.string.sidebar_expand else Res.string.sidebar_collapse)
+        Box(Modifier.fillMaxWidth(), contentAlignment = if (collapsed) Alignment.Center else Alignment.CenterStart) {
+            TooltipIconButton(
+                if (collapsed) Icons.Outlined.Menu else Icons.AutoMirrored.Outlined.MenuOpen,
+                toggleLabel,
+                { onIntent(AppIntent.ToggleSidebar) },
+                modifier = Modifier.padding(start = if (collapsed) 0.dp else 4.dp),
             )
+        }
+        if (state.sendingAccounts.isNotEmpty()) {
+            val composeLabel = stringResource(Res.string.compose_new)
+            val onCompose = { onIntent(AppIntent.StartCompose(ComposeMode.New)) }
+            Box(
+                Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp),
+                contentAlignment = if (collapsed) Alignment.Center else Alignment.CenterStart,
+            ) {
+                if (collapsed) {
+                    Tooltip(composeLabel) {
+                        FloatingActionButton(
+                            onClick = onCompose,
+                            containerColor = colors.primaryContainer,
+                            contentColor = colors.onPrimaryContainer,
+                            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 1.dp),
+                        ) { Icon(Icons.Outlined.Edit, composeLabel) }
+                    }
+                } else {
+                    ExtendedFloatingActionButton(
+                        onClick = onCompose,
+                        modifier = Modifier.padding(start = 4.dp),
+                        icon = { Icon(Icons.Outlined.Edit, null) },
+                        text = { Text(composeLabel) },
+                        containerColor = colors.primaryContainer,
+                        contentColor = colors.onPrimaryContainer,
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 1.dp),
+                    )
+                }
+            }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             SidebarItem(
                 label = stringResource(Res.string.nav_all_inboxes),
                 selected = inInbox && filtered.isEmpty(),
+                collapsed = collapsed,
                 count = state.unreadTotal,
                 leading = { tint -> Icon(Icons.Outlined.AllInbox, null, tint = tint) },
             ) {
@@ -204,13 +250,15 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
                 onIntent(AppIntent.SetFilterAccount(""))
             }
             if (state.accounts.isNotEmpty()) {
-                HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), color = colors.outlineVariant)
-                Text(
-                    stringResource(Res.string.nav_accounts),
-                    Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = colors.onSurfaceVariant,
-                )
+                HorizontalDivider(Modifier.padding(horizontal = if (collapsed) 8.dp else 16.dp, vertical = 10.dp), color = colors.outlineVariant)
+                if (!collapsed) {
+                    Text(
+                        stringResource(Res.string.nav_accounts),
+                        Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
             }
             state.accounts.forEach { account ->
                 AccountSidebarItem(
@@ -218,53 +266,66 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
                     status = state.status(account.id),
                     unread = state.unread[account.id]?.toInt() ?: 0,
                     selected = inInbox && filtered == account.id,
+                    collapsed = collapsed,
                 ) {
                     onIntent(AppIntent.Navigate(AppKey.Inbox))
                     onIntent(AppIntent.SetFilterAccount(account.id))
                 }
             }
         }
-        HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = colors.outlineVariant)
+        HorizontalDivider(Modifier.padding(horizontal = if (collapsed) 8.dp else 16.dp, vertical = 8.dp), color = colors.outlineVariant)
         SidebarItem(
             label = stringResource(Res.string.nav_manage_accounts),
             selected = selected == AppKey.Accounts || selected is AppKey.AccountDetail,
+            collapsed = collapsed,
             leading = { tint -> Icon(AppKey.Accounts.icon(), null, tint = tint) },
         ) { onIntent(AppIntent.Navigate(AppKey.Accounts)) }
         SidebarItem(
             label = AppKey.Settings.label(),
             selected = selected == AppKey.Settings,
+            collapsed = collapsed,
             leading = { tint -> Icon(AppKey.Settings.icon(), null, tint = tint) },
         ) { onIntent(AppIntent.Navigate(AppKey.Settings)) }
         SidebarItem(
             label = AppKey.About.label(),
             selected = selected == AppKey.About,
+            collapsed = collapsed,
             leading = { tint -> Icon(AppKey.About.icon(), null, tint = tint) },
         ) { onIntent(AppIntent.Navigate(AppKey.About)) }
-        VersionLabel(Modifier.padding(start = 16.dp, top = 8.dp))
+        if (!collapsed) VersionLabel(Modifier.padding(start = 16.dp, top = 8.dp))
     }
 }
 
 @Composable
-private fun AccountSidebarItem(account: Account, status: AccountStatus, unread: Int, selected: Boolean, onClick: () -> Unit) {
+private fun AccountSidebarItem(
+    account: Account,
+    status: AccountStatus,
+    unread: Int,
+    selected: Boolean,
+    collapsed: Boolean,
+    onClick: () -> Unit,
+) {
+    val problem = when (status) {
+        AccountStatus.NeedsReauth -> stringResource(Res.string.status_needs_reauth)
+        AccountStatus.Offline -> stringResource(Res.string.status_offline)
+        else -> null
+    }
     // The full address on hover: the label may be a nickname, or the address cut short.
-    Tooltip(account.email) {
+    val hint = listOfNotNull(if (collapsed) account.displayName else null, account.email, problem).distinct().joinToString("\n")
+    Tooltip(hint) {
         SidebarItem(
             label = account.displayName,
             selected = selected,
+            collapsed = collapsed,
             count = unread,
             leading = { AccountAvatar(account, size = 28.dp) },
             trailing = {
-                val problem = when (status) {
-                    AccountStatus.NeedsReauth -> stringResource(Res.string.status_needs_reauth)
-                    AccountStatus.Offline -> stringResource(Res.string.status_offline)
-                    else -> null
-                }
                 if (problem != null) {
-                    Tooltip(problem) {
-                        Icon(Icons.Outlined.ErrorOutline, problem, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
-                    }
+                    Icon(Icons.Outlined.ErrorOutline, problem, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
                 }
             },
+            // Collapsed, the tooltip above already names the account.
+            tooltip = false,
             onClick = onClick,
         )
     }
@@ -274,9 +335,11 @@ private fun AccountSidebarItem(account: Account, status: AccountStatus, unread: 
 private fun SidebarItem(
     label: String,
     selected: Boolean,
+    collapsed: Boolean,
     count: Int = 0,
     leading: @Composable (tint: Color) -> Unit,
     trailing: @Composable () -> Unit = {},
+    tooltip: Boolean = true,
     onClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -292,6 +355,24 @@ private fun SidebarItem(
         label = "nav-fg",
     )
     val height = LocalDensitySpec.current.navItem
+    val countText = if (count > 999) "999+" else count.toString()
+    if (collapsed) {
+        val item: @Composable () -> Unit = {
+            Box(
+                Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(height / 2)).background(background)
+                    .clickable(onClick = onClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (count > 0) {
+                    BadgedBox(badge = { Badge { Text(if (count > 99) "99+" else countText) } }) { leading(foreground) }
+                } else {
+                    leading(foreground)
+                }
+            }
+        }
+        if (tooltip) Tooltip(if (count > 0) "$label ($countText)" else label) { item() } else item()
+        return
+    }
     Row(
         Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(height / 2)).background(background)
             .clickable(onClick = onClick).padding(horizontal = 16.dp),
@@ -309,9 +390,7 @@ private fun SidebarItem(
             overflow = TextOverflow.Ellipsis,
         )
         trailing()
-        if (count > 0) {
-            Text(if (count > 999) "999+" else count.toString(), style = MaterialTheme.typography.labelLarge, color = foreground)
-        }
+        if (count > 0) Text(countText, style = MaterialTheme.typography.labelLarge, color = foreground)
     }
 }
 

@@ -1,6 +1,8 @@
 package co.abaye.mailtice.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.hoverable
@@ -27,19 +29,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MarkEmailRead
 import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -50,6 +56,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,21 +66,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ComposeMode
 import co.abaye.mailtice.domain.Account
+import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.platform.ResizeHorizontalIcon
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.ui.LocalDensitySpec
 import co.abaye.mailtice.ui.Pane
+import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
@@ -94,6 +109,12 @@ import mailtice.shared.generated.resources.inbox_search_all
 import mailtice.shared.generated.resources.inbox_search_in
 import mailtice.shared.generated.resources.inbox_trash
 import mailtice.shared.generated.resources.inbox_unread_only
+import mailtice.shared.generated.resources.selection_all
+import mailtice.shared.generated.resources.selection_check
+import mailtice.shared.generated.resources.selection_clear
+import mailtice.shared.generated.resources.selection_count
+import mailtice.shared.generated.resources.selection_download
+import mailtice.shared.generated.resources.selection_uncheck
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -109,8 +130,12 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
     }
     val compact = LocalCompactLayout.current
     val cards = cardPanes()
-    Row(modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(if (cards) 8.dp else 0.dp)) {
-        Pane(rounded = cards, modifier = if (compact) Modifier.fillMaxSize() else Modifier.weight(0.42f).fillMaxHeight()) {
+    val saved = state.data.settings.listFraction
+    // Local while dragging (smooth), written to the settings once the drag ends.
+    var fraction by remember(saved) { mutableFloatStateOf(saved) }
+    var totalWidth by remember { mutableFloatStateOf(1f) }
+    Row(modifier.fillMaxSize().onSizeChanged { totalWidth = it.width.toFloat().coerceAtLeast(1f) }) {
+        Pane(rounded = cards, modifier = if (compact) Modifier.fillMaxSize() else Modifier.weight(fraction).fillMaxHeight()) {
             Box(Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize()) { MessageList(state, onIntent) }
                 // Phones have no sidebar, so the compose button floats over the list.
@@ -125,15 +150,63 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
             }
         }
         if (!compact) {
-            if (!cards) VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Pane(rounded = cards, modifier = Modifier.weight(0.58f).fillMaxHeight()) {
+            val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+            SplitHandle(
+                lines = !cards,
+                onDrag = { dx ->
+                    // The list sits at the start: in RTL that is the right side, so dragging left grows it.
+                    val delta = (if (rtl) -dx else dx) / totalWidth
+                    fraction = (fraction + delta).coerceIn(ListFractionRange)
+                },
+                onDragEnd = { onIntent(AppIntent.SetListFraction(fraction)) },
+            )
+            Pane(rounded = cards, modifier = Modifier.weight(1f - fraction).fillMaxHeight()) {
                 val reader = state.reader
                 if (reader == null) {
                     ReaderEmptyState()
                 } else {
-                    ReaderPane(reader, state.account(reader.message.accountId), onIntent)
+                    ReaderPane(reader, state.account(reader.message.accountId), onIntent, working = state.working)
                 }
             }
+        }
+    }
+}
+
+/**
+ * The gap between list and reader, draggable to resize them. Card style: the 8dp gap itself, with a
+ * small grip on hover. Line style: the divider line, with the same 8dp to grab.
+ */
+@Composable
+private fun SplitHandle(lines: Boolean, onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    var dragging by remember { mutableStateOf(false) }
+    val colors = MaterialTheme.colorScheme
+    Box(
+        Modifier.width(8.dp).fillMaxHeight()
+            .hoverable(interaction)
+            .pointerHoverIcon(ResizeHorizontalIcon)
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragging = true },
+                    onDragEnd = {
+                        dragging = false
+                        onDragEnd()
+                    },
+                    onDragCancel = {
+                        dragging = false
+                        onDragEnd()
+                    },
+                ) { change, dx ->
+                    change.consume()
+                    onDrag(dx)
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (lines) VerticalDivider(color = if (hovered || dragging) colors.primary else colors.outlineVariant)
+        if (hovered || dragging) {
+            Box(Modifier.width(4.dp).height(40.dp).background(if (dragging) colors.primary else colors.outline, RoundedCornerShape(2.dp)))
         }
     }
 }
@@ -141,7 +214,8 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
 @Composable
 private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
     val cards = cardStyle()
-    Toolbar(state, onIntent)
+    if (state.selection.isEmpty()) Toolbar(state, onIntent) else SelectionBar(state, onIntent)
+    if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
     state.needsReauth.forEach { account -> ReauthBanner(account, onIntent) }
     Filters(state, onIntent)
     if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -156,8 +230,15 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
         contentPadding = if (cards) PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp) else PaddingValues(0.dp),
         verticalArrangement = Arrangement.spacedBy(if (cards) gap else 0.dp),
     ) {
-        items(state.inbox, key = { "${it.accountId}/${it.id}" }) { message ->
-            MailRow(message, accounts[message.accountId], selected = state.reader?.message?.id == message.id, onIntent)
+        items(state.inbox, key = { it.key }) { message ->
+            MailRow(
+                message,
+                accounts[message.accountId],
+                opened = state.reader?.message?.id == message.id,
+                checked = message.key in state.selection,
+                selecting = state.selection.isNotEmpty(),
+                onIntent = onIntent,
+            )
             if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
     }
@@ -213,6 +294,49 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
             )
         }
         TooltipIconButton(Icons.Outlined.Refresh, stringResource(Res.string.inbox_refresh), { onIntent(AppIntent.RefreshNow) })
+    }
+}
+
+/**
+ * Replaces the search bar while rows are checked: how many, and what can be done to all of them.
+ * An action shows only when at least one checked message's account supports it.
+ */
+@Composable
+private fun SelectionBar(state: AppState, onIntent: (AppIntent) -> Unit) {
+    val selected = state.selectedMessages
+    val caps = selected.mapNotNull { state.account(it.accountId)?.capabilities }
+    Row(
+        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 4.dp).height(56.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.selection_clear), { onIntent(AppIntent.ClearSelection) })
+        Text(
+            stringResource(Res.string.selection_count, selected.size),
+            Modifier.weight(1f).padding(horizontal = 4.dp),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (selected.size < state.inbox.size) {
+            TooltipIconButton(Icons.Outlined.SelectAll, stringResource(Res.string.selection_all), { onIntent(AppIntent.SelectAll) })
+        }
+        if (caps.any { it.markRead }) {
+            TooltipIconButton(Icons.Outlined.MarkEmailRead, stringResource(Res.string.inbox_mark_read), { onIntent(AppIntent.BulkSetRead(true)) })
+            TooltipIconButton(Icons.Outlined.MarkEmailUnread, stringResource(Res.string.inbox_mark_unread), { onIntent(AppIntent.BulkSetRead(false)) })
+        }
+        if (caps.any { it.archive }) {
+            TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), { onIntent(AppIntent.BulkArchive) })
+        }
+        if (caps.any { it.trash }) {
+            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), { onIntent(AppIntent.BulkTrash) })
+        }
+        if (selected.any { it.hasAttachments }) {
+            TooltipIconButton(
+                Icons.Outlined.Download,
+                stringResource(Res.string.selection_download),
+                { onIntent(AppIntent.BulkDownloadAttachments) },
+                enabled = !state.working,
+            )
+        }
     }
 }
 
@@ -325,20 +449,35 @@ fun AccountDot(account: Account, modifier: Modifier = Modifier) {
 }
 
 /**
- * One message. The density decides padding, avatar and preview lines; the pane style decides
+ * One message. The density decides padding, avatar size and preview lines; the pane style decides
  * between rounded rows (cards) and flat rows with the account stripe (lines). The mark-read and
- * archive buttons appear on hover or selection, covering the time, so the text never reflows.
+ * archive buttons appear on hover or when opened, covering the time, so the text never reflows.
+ *
+ * The avatar is the checkbox: clicking it checks the row. While anything is checked, a click
+ * anywhere on a row checks or unchecks it instead of opening it.
+ *
+ * Text is aligned to the layout (right in Hebrew) even when it is written left to right, so an
+ * English sender lines up with the Hebrew ones instead of hugging the far edge.
  */
 @Composable
-private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, onIntent: (AppIntent) -> Unit) {
+private fun MailRow(
+    message: MailMessage,
+    account: Account?,
+    opened: Boolean,
+    checked: Boolean,
+    selecting: Boolean,
+    onIntent: (AppIntent) -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     val spec = LocalDensitySpec.current
     val cards = cardStyle()
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val accountColor = account?.color?.color ?: colors.outline
+    val align = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.Right else TextAlign.Left
     val background = when {
-        selected -> colors.secondaryContainer
+        checked -> colors.primaryContainer
+        opened -> colors.secondaryContainer
         hovered -> if (cards) colors.surfaceContainerHigh else colors.surfaceContainerLow
         else -> colors.surface
     }
@@ -346,7 +485,8 @@ private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, 
     val senderStyle = if (spec.avatar >= 40.dp) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium
     Box(
         Modifier.fillMaxWidth().clip(if (cards) RoundedCornerShape(16.dp) else RectangleShape).background(background)
-            .hoverable(interaction).clickable { onIntent(AppIntent.OpenMail(message)) },
+            .hoverable(interaction)
+            .clickable { onIntent(if (selecting) AppIntent.ToggleSelect(message) else AppIntent.OpenMail(message)) },
     ) {
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
             if (!cards) Box(Modifier.width(4.dp).fillMaxHeight().background(accountColor))
@@ -355,7 +495,9 @@ private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, 
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = if (spec.snippetLines > 0) Alignment.Top else Alignment.CenterVertically,
             ) {
-                if (spec.avatar > 0.dp) LetterAvatar(message.sender, accountColor, size = spec.avatar)
+                if (spec.avatar > 0.dp) {
+                    SelectableAvatar(message, accountColor, checked, spec.avatar) { onIntent(AppIntent.ToggleSelect(message)) }
+                }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         // No avatar and no stripe (compact cards): a dot keeps the account visible.
@@ -364,6 +506,7 @@ private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, 
                             message.sender,
                             Modifier.weight(1f),
                             style = senderStyle.merge(ContentDirection),
+                            textAlign = align,
                             fontWeight = weight,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -378,7 +521,9 @@ private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, 
                     }
                     Text(
                         message.subject,
+                        Modifier.fillMaxWidth(),
                         style = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
+                        textAlign = align,
                         fontWeight = weight,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -386,7 +531,9 @@ private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, 
                     if (spec.snippetLines > 0) {
                         Text(
                             message.snippet,
+                            Modifier.fillMaxWidth(),
                             style = MaterialTheme.typography.bodySmall.merge(ContentDirection),
+                            textAlign = align,
                             color = colors.onSurfaceVariant,
                             maxLines = spec.snippetLines,
                             overflow = TextOverflow.Ellipsis,
@@ -395,7 +542,7 @@ private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, 
                 }
             }
         }
-        if ((hovered || selected) && !LocalCompactLayout.current) {
+        if ((hovered || opened) && !selecting && !LocalCompactLayout.current) {
             // Fades the text out under the buttons instead of cutting it off at a hard edge.
             val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
             val fade = listOf(background.copy(alpha = 0f), background, background)
@@ -407,6 +554,31 @@ private fun MailRow(message: MailMessage, account: Account?, selected: Boolean, 
                     .background(Brush.horizontalGradient(if (rtl) fade.reversed() else fade))
                     .padding(start = 24.dp, end = 4.dp),
             )
+        }
+    }
+}
+
+/** The sender's letter, or a check mark once checked; hovering hints that it can be clicked. */
+@Composable
+private fun SelectableAvatar(message: MailMessage, color: Color, checked: Boolean, size: Dp, onToggle: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    Tooltip(stringResource(if (checked) Res.string.selection_uncheck else Res.string.selection_check)) {
+        Box(
+            Modifier.size(size).clip(CircleShape).hoverable(interaction).clickable(onClick = onToggle),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                checked -> Box(Modifier.fillMaxSize().background(colors.primary), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Check, null, Modifier.size(size * 0.55f), tint = colors.onPrimary)
+                }
+                hovered -> Box(
+                    Modifier.fillMaxSize().border(2.dp, colors.primary, CircleShape).background(colors.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Outlined.Check, null, Modifier.size(size * 0.5f), tint = colors.primary) }
+                else -> LetterAvatar(message.sender, color, size = size)
+            }
         }
     }
 }

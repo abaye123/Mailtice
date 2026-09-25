@@ -15,6 +15,7 @@ import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.StorageUsage
 import co.abaye.mailtice.platform.Platform
@@ -152,6 +153,21 @@ class MailRepository(
 
     fun saveBody(accountId: String, messageId: String, body: MailBody) {
         q.upsertBody(Message_body(accountId, messageId, body.text, body.html, encodeAttachments(body.attachments)))
+    }
+
+    /**
+     * The stored conversation [message] belongs to, oldest first: by thread id where the provider
+     * has one (Gmail), otherwise by subject once "Re:"/"Fwd:" prefixes are dropped.
+     */
+    fun threadOf(message: MailMessage): List<MailMessage> {
+        if (message.threadId.isNotBlank() && message.threadId != message.id) {
+            return q.selectThread(message.accountId, message.threadId, ::mapMessage).executeAsList().ifEmpty { listOf(message) }
+        }
+        val base = ThreadExport.baseSubject(message.subject)
+        if (base.isBlank()) return listOf(message)
+        return q.selectBySubject(message.accountId, base, ::mapMessage).executeAsList()
+            .filter { ThreadExport.baseSubject(it.subject).equals(base, ignoreCase = true) }
+            .ifEmpty { listOf(message) }
     }
 
     fun folderIdsOf(accountId: String, messageId: String): List<String> =

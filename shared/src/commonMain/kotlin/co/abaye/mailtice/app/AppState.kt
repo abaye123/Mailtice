@@ -59,6 +59,9 @@ data class InboxFilter(
 
 enum class ComposeMode { New, Reply, ReplyAll, Forward }
 
+/** [Html]: a readable page. [Mail]: .eml for one message, .mbox for a conversation. */
+enum class ExportFormat { Html, Mail }
+
 /**
  * The message being written. Address fields hold what the user typed (comma separated) and are
  * only parsed on send; [invalidAddresses] flags a field that did not parse.
@@ -94,6 +97,10 @@ data class AppState(
     val filter: InboxFilter = InboxFilter(),
     val reader: Reader? = null,
     val compose: ComposeDraft? = null,
+    /** Checked rows ("<accountId>/<messageId>"); non-empty turns the list toolbar into bulk actions. */
+    val selection: Set<String> = emptySet(),
+    /** A download or export is running; the UI shows progress and blocks a second one. */
+    val working: Boolean = false,
     val storage: StorageUsage = StorageUsage(),
     val addAccount: AddAccountStep? = null,
     val signIn: SignInState = SignInState.Idle,
@@ -112,6 +119,8 @@ data class AppState(
 
     /** Accounts that can send, in sidebar order; the compose "from" picker offers these. */
     val sendingAccounts: List<Account> get() = accounts.filter { it.capabilities.send }
+
+    val selectedMessages: List<MailMessage> get() = inbox.filter { it.key in selection }
 
     val needsReauth: List<Account> get() = accounts.filter { status(it.id) == AccountStatus.NeedsReauth }
 }

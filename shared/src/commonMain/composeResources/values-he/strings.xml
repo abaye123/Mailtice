@@ -222,4 +222,30 @@
     <string name="message_send_needs_reauth">השליחה דורשת הרשאה חדשה. התחבר לחשבון הזה מחדש ממסך החשבונות.</string>
     <string name="message_moved_to_trash">הועבר לאשפה</string>
     <string name="message_no_sending_account">אף אחד מהחשבונות המחוברים עדיין לא יכול לשלוח.</string>
+
+    <!-- Sidebar collapse, selection, downloads, export -->
+    <string name="sidebar_collapse">כווץ את סרגל הצד</string>
+    <string name="sidebar_expand">הרחב את סרגל הצד</string>
+    <string name="selection_clear">בטל בחירה</string>
+    <string name="selection_count">%1$d נבחרו</string>
+    <string name="selection_all">בחר הכל</string>
+    <string name="selection_download">הורד את כל הקבצים המצורפים</string>
+    <string name="selection_check">בחר</string>
+    <string name="selection_uncheck">בטל בחירה</string>
+    <string name="reader_download_all">הורד הכל</string>
+    <string name="reader_download_one">הורד את %1$s</string>
+    <string name="reader_download_thread">הורד את כל הקבצים בשרשור</string>
+    <string name="reader_export_html">ייצא את השרשור ל-HTML</string>
+    <string name="reader_export_mail">ייצא כקובץ דואר (EML / MBOX)</string>
+    <string name="reader_more">פעולות נוספות</string>
+    <string name="message_downloading">מוריד…</string>
+    <string name="message_files_saved">נשמר בתיקייה Downloads/Mailtice</string>
+    <string name="message_no_attachments">אין קבצים מצורפים להורדה.</string>
+    <string name="message_download_failed">ההורדה נכשלה. בדוק את החיבור ונסה שוב.</string>
+    <string name="message_exported">יוצא לתיקייה Downloads/Mailtice</string>
+    <string name="export_from">מאת</string>
+    <string name="export_to">אל</string>
+    <string name="export_date">תאריך</string>
+    <string name="export_attachments">קבצים מצורפים</string>
+    <string name="export_exported">%1$d הודעות · יוצא מ-Mailtice</string>
 </resources>

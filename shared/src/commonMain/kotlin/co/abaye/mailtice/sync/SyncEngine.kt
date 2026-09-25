@@ -9,6 +9,7 @@ import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.MailProviders
+import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.ProviderException
 import co.abaye.mailtice.provider.ThreadHeaders
@@ -220,6 +221,16 @@ class SyncEngine(
         check(account.capabilities.send) { "Sending is not available for this account" }
         providers.forAccount(account).send(account, mail, repo.foldersNow(account.id))
         kicks.tryEmit(Unit)
+    }
+
+    suspend fun attachments(message: MailMessage, indices: Set<Int>?): List<AttachmentFile> {
+        val account = repo.account(message.accountId) ?: return emptyList()
+        return providers.forAccount(account).fetchAttachments(account, message, indices)
+    }
+
+    suspend fun rawMessage(message: MailMessage): ByteArray {
+        val account = repo.account(message.accountId) ?: return ByteArray(0)
+        return providers.forAccount(account).rawMessage(account, message)
     }
 
     /** Threading headers for a reply; empty when the server cannot say (the reply still goes out). */

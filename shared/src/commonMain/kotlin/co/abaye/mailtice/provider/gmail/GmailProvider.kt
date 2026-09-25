@@ -9,6 +9,7 @@ import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.FlagChange
 import co.abaye.mailtice.provider.FolderLinkChange
 import co.abaye.mailtice.provider.HtmlText
@@ -132,6 +133,26 @@ class GmailProvider(
         val raw = Base64.UrlSafe.encode(MimeBuilder.build(account.email, mail, Platform.now()).encodeToByteArray())
         withToken(account) { token -> api.send(token, raw, mail.threadId) }
     }
+
+    /** Same walk as [body]: the n-th part with a file name is attachment n. */
+    @OptIn(ExperimentalEncodingApi::class)
+    override suspend fun fetchAttachments(account: Account, message: MailMessage, indices: Set<Int>?): List<AttachmentFile> =
+        withToken(account) { token ->
+            val parts = mutableListOf<MessagePart>()
+            fun walk(part: MessagePart) {
+                if (part.filename.isNotEmpty()) parts += part
+                part.parts.forEach(::walk)
+            }
+            api.message(token, message.id, full = true).payload?.let(::walk)
+            parts.withIndex().filter { indices == null || it.index in indices }.map { (i, part) ->
+                val data = part.body?.data ?: part.body?.attachmentId?.let { api.attachment(token, message.id, it).data }.orEmpty()
+                AttachmentFile(i, part.filename, base64Url.decode(data))
+            }
+        }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    override suspend fun rawMessage(account: Account, message: MailMessage): ByteArray =
+        withToken(account) { token -> base64Url.decode(api.raw(token, message.id).raw) }
 
     override suspend fun threadHeaders(account: Account, message: MailMessage): ThreadHeaders = withToken(account) { token ->
         val headers = api.threadHeaders(token, message.id)

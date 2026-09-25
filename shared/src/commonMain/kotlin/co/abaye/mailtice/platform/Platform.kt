@@ -30,6 +30,23 @@ internal expect object Platform {
 
     /** Shows an HTML mail body in the default browser (desktop). No-op where unsupported. */
     fun openHtml(html: String)
+
+    /**
+     * Saves [bytes] as [fileName] under Downloads/Mailtice/[folder] (the folder may be empty). A name
+     * that already exists gets " (2)", " (3)"... Returns a path or URI for [revealDownload], or null
+     * when the file could not be written.
+     */
+    fun saveDownload(folder: String, fileName: String, bytes: ByteArray): String?
+
+    /** Shows where [location] (from [saveDownload]) was saved: the folder in the file manager. */
+    fun revealDownload(location: String)
+}
+
+/** A file or folder name every OS accepts: no separators or reserved characters, not too long. */
+internal fun safeFileName(raw: String, fallback: String = "Mailtice"): String {
+    val cleaned = raw.map { c -> if (c in "\\/:*?\"<>|" || c.code < 32) '_' else c }.joinToString("")
+        .trim().trimEnd('.').take(80).trim()
+    return cleaned.ifBlank { fallback }
 }
 
 internal fun systemUiLanguage(): UiLanguage = UiLanguage.fromCode(Platform.systemLanguage())

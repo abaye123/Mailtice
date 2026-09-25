@@ -111,6 +111,9 @@ data class MailMessage(
     val sizeBytes: Long,
 ) {
     val sender: String get() = fromName.ifBlank { fromAddress }
+
+    /** Unique across accounts; used for list keys and the selection. */
+    val key: String get() = "$accountId/$id"
 }
 
 @Immutable

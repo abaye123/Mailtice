@@ -18,7 +18,7 @@ import co.abaye.mailtice.domain.PaneStyle
 data class DensitySpec(
     /** Vertical padding inside a message row. */
     val rowPadding: Dp,
-    /** Sender avatar in the list; 0 = no avatar (compact rows show the account stripe only). */
+    /** Sender avatar in the list, which doubles as the row's checkbox. */
     val avatar: Dp,
     /** Lines of preview text under the subject; 0 hides the preview. */
     val snippetLines: Int,
@@ -29,7 +29,7 @@ data class DensitySpec(
 )
 
 fun ListDensity.spec(): DensitySpec = when (this) {
-    ListDensity.Compact -> DensitySpec(rowPadding = 6.dp, avatar = 0.dp, snippetLines = 0, navItem = 40.dp, rowGap = 0.dp)
+    ListDensity.Compact -> DensitySpec(rowPadding = 6.dp, avatar = 28.dp, snippetLines = 0, navItem = 40.dp, rowGap = 0.dp)
     ListDensity.Comfortable -> DensitySpec(rowPadding = 10.dp, avatar = 36.dp, snippetLines = 1, navItem = 48.dp, rowGap = 2.dp)
     ListDensity.Spacious -> DensitySpec(rowPadding = 14.dp, avatar = 40.dp, snippetLines = 2, navItem = 56.dp, rowGap = 4.dp)
 }

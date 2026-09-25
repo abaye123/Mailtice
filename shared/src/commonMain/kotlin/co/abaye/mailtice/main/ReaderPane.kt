@@ -2,6 +2,7 @@ package co.abaye.mailtice.main
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,18 +27,31 @@ import androidx.compose.material.icons.automirrored.outlined.ReplyAll
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Html
+import androidx.compose.material.icons.outlined.Mail
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ComposeMode
+import co.abaye.mailtice.app.ExportFormat
 import co.abaye.mailtice.app.Reader
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
@@ -60,7 +75,13 @@ import mailtice.shared.generated.resources.inbox_mark_unread
 import mailtice.shared.generated.resources.reader_back
 import mailtice.shared.generated.resources.inbox_trash
 import mailtice.shared.generated.resources.reader_body_failed
+import mailtice.shared.generated.resources.reader_download_all
+import mailtice.shared.generated.resources.reader_download_one
+import mailtice.shared.generated.resources.reader_download_thread
+import mailtice.shared.generated.resources.reader_export_html
+import mailtice.shared.generated.resources.reader_export_mail
 import mailtice.shared.generated.resources.reader_forward
+import mailtice.shared.generated.resources.reader_more
 import mailtice.shared.generated.resources.reader_open_html
 import mailtice.shared.generated.resources.reader_open_web
 import mailtice.shared.generated.resources.reader_reply
@@ -72,7 +93,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
     val reader = state.reader ?: return
-    ReaderPane(reader, state.account(reader.message.accountId), onIntent, modifier, showBack = true)
+    ReaderPane(reader, state.account(reader.message.accountId), onIntent, modifier, showBack = true, working = state.working)
 }
 
 /**
@@ -80,12 +101,20 @@ fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modif
  * with an avatar, the body at a comfortable reading width and attachments as cards.
  */
 @Composable
-fun ReaderPane(reader: Reader, account: Account?, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier, showBack: Boolean = false) {
+fun ReaderPane(
+    reader: Reader,
+    account: Account?,
+    onIntent: (AppIntent) -> Unit,
+    modifier: Modifier = Modifier,
+    showBack: Boolean = false,
+    working: Boolean = false,
+) {
     val message = reader.message
     val colors = MaterialTheme.colorScheme
     val cards = cardStyle()
     Column(modifier.fillMaxSize()) {
-        ReaderActions(reader, account, onIntent, showBack)
+        ReaderActions(reader, account, onIntent, showBack, working)
+        if (working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
         if (!cards) HorizontalDivider(color = colors.outlineVariant)
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = if (cards) 32.dp else 24.dp, vertical = 12.dp),
@@ -104,8 +133,20 @@ fun ReaderPane(reader: Reader, account: Account?, onIntent: (AppIntent) -> Unit,
             SenderLine(message, account)
             val body = reader.body
             if (body != null && body.attachments.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    body.attachments.forEach { AttachmentCard(it) }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
+                    body.attachments.forEachIndexed { index, attachment ->
+                        AttachmentCard(attachment, enabled = !working) { onIntent(AppIntent.DownloadAttachments(message, index)) }
+                    }
+                    if (body.attachments.size > 1) {
+                        TextButton(onClick = { onIntent(AppIntent.DownloadAttachments(message)) }, enabled = !working) {
+                            Icon(Icons.Outlined.Download, null, Modifier.size(18.dp))
+                            Text(stringResource(Res.string.reader_download_all), Modifier.padding(start = 6.dp))
+                        }
+                    }
                 }
             }
             if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
@@ -151,7 +192,7 @@ private fun ReplyButtons(message: MailMessage, onIntent: (AppIntent) -> Unit) {
 
 /** Only what this account supports - nothing is offered that would fail. Every icon has a tooltip. */
 @Composable
-private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppIntent) -> Unit, showBack: Boolean) {
+private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppIntent) -> Unit, showBack: Boolean, working: Boolean) {
     val message = reader.message
     val caps = account?.capabilities
     Row(
@@ -184,6 +225,42 @@ private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppInten
         }
         if (caps?.openInWeb == true) {
             TooltipIconButton(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(Res.string.reader_open_web), { onIntent(AppIntent.OpenInWeb(message)) })
+        }
+        MoreActions(message, enabled = !working, onIntent)
+    }
+}
+
+/** Conversation-wide actions: every attachment in the thread, and export. */
+@Composable
+private fun MoreActions(message: MailMessage, enabled: Boolean, onIntent: (AppIntent) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TooltipIconButton(Icons.Outlined.MoreVert, stringResource(Res.string.reader_more), { open = true }, enabled = enabled)
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.reader_download_thread)) },
+                leadingIcon = { Icon(Icons.Outlined.Download, null) },
+                onClick = {
+                    open = false
+                    onIntent(AppIntent.DownloadThreadAttachments(message))
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.reader_export_html)) },
+                leadingIcon = { Icon(Icons.Outlined.Html, null) },
+                onClick = {
+                    open = false
+                    onIntent(AppIntent.ExportThread(message, ExportFormat.Html))
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.reader_export_mail)) },
+                leadingIcon = { Icon(Icons.Outlined.Mail, null) },
+                onClick = {
+                    open = false
+                    onIntent(AppIntent.ExportThread(message, ExportFormat.Mail))
+                },
+            )
         }
     }
 }
@@ -241,15 +318,17 @@ private fun SenderLine(message: MailMessage, account: Account?) {
     }
 }
 
-/** The design's attachment card: a type badge, the name and the size. */
+/** The design's attachment card: a type badge, the name and the size. A click downloads the file. */
 @Composable
-private fun AttachmentCard(attachment: Attachment) {
+private fun AttachmentCard(attachment: Attachment, enabled: Boolean, onDownload: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val extension = attachment.name.substringAfterLast('.', "").take(4).uppercase().ifEmpty { "FILE" }
-    Tooltip(attachment.name) {
+    Tooltip(stringResource(Res.string.reader_download_one, attachment.name)) {
         Row(
             Modifier.widthIn(min = 200.dp, max = 280.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .border(1.dp, colors.outlineVariant, RoundedCornerShape(12.dp))
+                .clickable(enabled = enabled, onClick = onDownload)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -267,6 +346,7 @@ private fun AttachmentCard(attachment: Attachment) {
                 )
                 Text(formatBytes(attachment.size), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
+            Icon(Icons.Outlined.Download, null, Modifier.size(18.dp), tint = colors.onSurfaceVariant)
         }
     }
 }

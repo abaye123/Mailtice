@@ -7,7 +7,9 @@ import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.MailProvider
+import co.abaye.mailtice.provider.MimeBuilder
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.RemoteFolder
 import co.abaye.mailtice.provider.RemoteMessage
@@ -118,6 +120,21 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
             box[message.id] = message
         }
         println("Demo send: ${mail.to.size} to, ${mail.cc.size} cc, ${mail.bcc.size} bcc, reply=${mail.inReplyTo != null}")
+    }
+
+    /** Small text files standing in for the real content, named like the fixture attachments. */
+    override suspend fun fetchAttachments(account: Account, message: MailMessage, indices: Set<Int>?): List<AttachmentFile> {
+        delay(SYNC_LATENCY_MS)
+        val attachments = mutex.withLock { mailbox(account)[message.id]?.body?.attachments }.orEmpty()
+        return attachments.withIndex().filter { indices == null || it.index in indices }.map { (i, a) ->
+            AttachmentFile(i, a.name, "Mailtice demo attachment: ${a.name}\nFrom: ${message.sender}\n".encodeToByteArray())
+        }
+    }
+
+    override suspend fun rawMessage(account: Account, message: MailMessage): ByteArray {
+        val text = mutex.withLock { mailbox(account)[message.id]?.body?.text } ?: message.snippet
+        val mail = OutgoingMail(to = listOf(account.email), subject = message.subject, text = text)
+        return MimeBuilder.build("${message.fromName} <${message.fromAddress}>", mail, message.receivedAt).encodeToByteArray()
     }
 
     override suspend fun threadHeaders(account: Account, message: MailMessage): ThreadHeaders =

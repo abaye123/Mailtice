@@ -71,6 +71,32 @@ internal actual object Platform {
 
     actual fun setLaunchAtLogin(enabled: Boolean): Boolean = false
 
+    /** Android 10+: the shared Downloads collection (no permission needed). Older: the app's own downloads dir. */
+    actual fun saveDownload(folder: String, fileName: String, bytes: ByteArray): String? = runCatching {
+        val name = safeFileName(fileName, "attachment")
+        val sub = safeFileName(folder, "")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+                put(
+                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                    listOf(android.os.Environment.DIRECTORY_DOWNLOADS, "Mailtice", sub).filter { it.isNotEmpty() }.joinToString("/"),
+                )
+            }
+            val resolver = ctx().contentResolver
+            val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return@runCatching null
+            resolver.openOutputStream(uri)?.use { it.write(bytes) } ?: return@runCatching null
+            uri.toString()
+        } else {
+            val base = ctx().getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: ctx().filesDir
+            val dir = File(base, sub).apply { mkdirs() }
+            File(dir, name).apply { writeBytes(bytes) }.absolutePath
+        }
+    }.getOrNull()
+
+    /** The system Downloads app shows new files at the top; nothing to open per file here. */
+    actual fun revealDownload(location: String) = Unit
+
     actual fun openUrl(url: String) {
         runCatching {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))

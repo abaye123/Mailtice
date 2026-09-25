@@ -42,6 +42,9 @@ data class OutgoingMail(
     val threadId: String? = null,
 )
 
+/** One downloaded attachment. [index] is its position in [co.abaye.mailtice.domain.MailBody.attachments]. */
+class AttachmentFile(val index: Int, val name: String, val bytes: ByteArray)
+
 /** The threading headers of a stored message; null when the server did not say. */
 data class ThreadHeaders(val messageId: String? = null, val references: String? = null)
 
@@ -94,6 +97,15 @@ interface MailProvider {
 
     /** Only called when [Capabilities.send] is true. */
     suspend fun send(account: Account, mail: OutgoingMail, folders: List<Folder>)
+
+    /**
+     * Downloads the attachments of [message] whose positions are in [indices] (null = all), in the
+     * order the body parser lists them.
+     */
+    suspend fun fetchAttachments(account: Account, message: MailMessage, indices: Set<Int>?): List<AttachmentFile>
+
+    /** The message exactly as the server holds it (RFC 5322), for .eml / .mbox export. */
+    suspend fun rawMessage(account: Account, message: MailMessage): ByteArray
 
     /** Message-ID and References of [message], read when a reply is started. */
     suspend fun threadHeaders(account: Account, message: MailMessage): ThreadHeaders

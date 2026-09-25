@@ -59,6 +59,9 @@ enum class AccountColor(val color: Color) {
     fun next(): AccountColor = entries[(ordinal + 1) % entries.size]
 }
 
+/** How far the list / reader divider may be dragged. */
+val ListFractionRange: ClosedFloatingPointRange<Float> = 0.25f..0.7f
+
 /** Allowed poll intervals. Gmail quota is generous, but a desktop app has no reason to go faster. */
 val PollIntervals: List<Int> = listOf(30, 60, 120, 300)
 
@@ -68,6 +71,10 @@ data class UserSettings(
     val accent: AccentColor = AccentColor.Flag,
     val density: ListDensity = ListDensity.Comfortable,
     val paneStyle: PaneStyle = PaneStyle.Cards,
+    /** Sidebar reduced to icons. */
+    val sidebarCollapsed: Boolean = false,
+    /** Share of the width the message list takes next to the reader, [ListFractionRange]. */
+    val listFraction: Float = 0.42f,
     val uiLanguage: UiLanguage = UiLanguage.Hebrew,
     /** `true` while the interface follows the OS language rather than an explicit pick (the default). */
     val uiLanguageAuto: Boolean = true,

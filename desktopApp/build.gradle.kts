@@ -28,6 +28,9 @@ dependencies {
     implementation(libs.nucleus.decorated.window.tao)
     implementation(libs.nucleus.decorated.window.material3)
     implementation(libs.nucleus.autolaunch)
+    // Unread count on the taskbar / launcher icon (TaskbarBadge.kt).
+    implementation(libs.nucleus.launcher.windows)
+    implementation(libs.nucleus.launcher.linux)
     implementation(libs.composenativetray)
 }
 

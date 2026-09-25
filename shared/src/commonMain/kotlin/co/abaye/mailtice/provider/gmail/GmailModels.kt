@@ -65,6 +65,12 @@ data class HistoryRecord(
 @Serializable
 data class HistoryList(val history: List<HistoryRecord> = emptyList(), val nextPageToken: String? = null, val historyId: String = "")
 
+@Serializable
+data class AttachmentBody(val size: Long = 0, val data: String = "")
+
+@Serializable
+data class RawMessage(val id: String, val raw: String = "")
+
 /** `raw` is the whole RFC 5322 message in base64url. */
 @Serializable
 data class SendRequest(val raw: String, val threadId: String? = null)

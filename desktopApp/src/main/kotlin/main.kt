@@ -1,3 +1,4 @@
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,6 +61,8 @@ import dev.nucleusframework.window.WindowScaffold
 import dev.nucleusframework.window.macOSLargeCornerRadius
 import dev.nucleusframework.window.material.MaterialDecoratedWindow
 import dev.nucleusframework.window.windowDragArea
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.app_icon
 import mailtice.shared.generated.resources.app_name
@@ -111,6 +115,8 @@ fun main(args: Array<String>) {
         // A second launch (or a click on a summary notification) brings the hidden window back.
         SingleInstanceRestoreEffect { show() }
         LaunchedEffect(vm) { vm?.raiseWindow?.collect { show() } }
+        // Off the UI thread: the Windows and Linux badges go through native calls.
+        LaunchedEffect(unread) { withContext(Dispatchers.IO) { TaskbarBadge.show(unread) } }
 
         // The menu builder is not a composable scope, so labels are resolved here and captured.
         val openLabel = stringResource(Res.string.tray_open)
@@ -195,6 +201,11 @@ private fun DecoratedWindowScope.AppChrome(update: DesktopUpdate, paneStyle: Pan
                 .padding(start = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Image(
+                painterResource(Res.drawable.app_icon),
+                contentDescription = null,
+                modifier = Modifier.padding(end = 8.dp).size(18.dp),
+            )
             Text(
                 stringResource(Res.string.app_name),
                 style = MaterialTheme.typography.labelLarge,

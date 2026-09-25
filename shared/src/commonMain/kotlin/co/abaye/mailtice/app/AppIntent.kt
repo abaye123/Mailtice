@@ -41,6 +41,22 @@ sealed interface AppIntent {
     data class SetAttachmentsOnly(val on: Boolean) : AppIntent
     data class Trash(val message: MailMessage) : AppIntent
 
+    data object ToggleSidebar : AppIntent
+    data class SetListFraction(val fraction: Float) : AppIntent
+
+    data class ToggleSelect(val message: MailMessage) : AppIntent
+    data object SelectAll : AppIntent
+    data object ClearSelection : AppIntent
+    data class BulkSetRead(val read: Boolean) : AppIntent
+    data object BulkArchive : AppIntent
+    data object BulkTrash : AppIntent
+    data object BulkDownloadAttachments : AppIntent
+
+    /** [index] is the attachment's position in the message body; null = every attachment. */
+    data class DownloadAttachments(val message: MailMessage, val index: Int? = null) : AppIntent
+    data class DownloadThreadAttachments(val message: MailMessage) : AppIntent
+    data class ExportThread(val message: MailMessage, val format: ExportFormat) : AppIntent
+
     /** [message] is the one answered or forwarded; null for a new message. */
     data class StartCompose(val mode: ComposeMode, val message: MailMessage? = null) : AppIntent
     data class UpdateCompose(val draft: ComposeDraft) : AppIntent

@@ -21,6 +21,7 @@ import co.abaye.mailtice.domain.AccountColor
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.PollIntervals
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.RetentionOptions
@@ -30,6 +31,9 @@ import co.abaye.mailtice.notify.NotificationAction
 import co.abaye.mailtice.notify.NotificationActions
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.platform.localizedString
+import co.abaye.mailtice.platform.safeFileName
+import co.abaye.mailtice.export.ExportLabels
+import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.platform.systemUiLanguage
 import co.abaye.mailtice.provider.ImapAutoConfig
 import co.abaye.mailtice.provider.ImapBackend
@@ -72,6 +76,11 @@ import mailtice.shared.generated.resources.compose_forward_header
 import mailtice.shared.generated.resources.compose_forward_subject
 import mailtice.shared.generated.resources.compose_forward_to
 import mailtice.shared.generated.resources.compose_quote_header
+import mailtice.shared.generated.resources.export_attachments
+import mailtice.shared.generated.resources.export_date
+import mailtice.shared.generated.resources.export_exported
+import mailtice.shared.generated.resources.export_from
+import mailtice.shared.generated.resources.export_to
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -152,7 +161,12 @@ class AppViewModel(
                 .flatMapLatest { f ->
                     repo.inbox(InboxQuery(f.accountId, f.folderId, f.unreadOnly, attachmentsOnly = f.attachmentsOnly, text = f.query))
                 }
-                .collect { list -> mutate { it.copy(inbox = list) } }
+                .collect { list ->
+                    mutate { s ->
+                        val keys = list.map { it.key }.toSet()
+                        s.copy(inbox = list, selection = s.selection.filterTo(mutableSetOf()) { it in keys })
+                    }
+                }
         }
     }
 
@@ -190,6 +204,29 @@ class AppViewModel(
             is AppIntent.SetUnreadOnly -> mutate { it.copy(filter = it.filter.copy(unreadOnly = intent.on)) }
             is AppIntent.SetAttachmentsOnly -> mutate { it.copy(filter = it.filter.copy(attachmentsOnly = intent.on)) }
             is AppIntent.Trash -> trash(intent.message)
+
+            AppIntent.ToggleSidebar -> settings { it.copy(sidebarCollapsed = !it.sidebarCollapsed) }
+            is AppIntent.SetListFraction -> settings { it.copy(listFraction = intent.fraction.coerceIn(ListFractionRange)) }
+
+            is AppIntent.ToggleSelect -> mutate { s ->
+                val key = intent.message.key
+                s.copy(selection = if (key in s.selection) s.selection - key else s.selection + key)
+            }
+            AppIntent.SelectAll -> mutate { s -> s.copy(selection = s.inbox.map { it.key }.toSet()) }
+            AppIntent.ClearSelection -> mutate { it.copy(selection = emptySet()) }
+            is AppIntent.BulkSetRead -> bulk { m, caps -> if (caps.markRead && m.unread == intent.read) sync.setRead(m, intent.read) }
+            AppIntent.BulkArchive -> bulk(closeReader = true) { m, caps -> if (caps.archive) sync.archive(m) }
+            AppIntent.BulkTrash -> bulk(closeReader = true) { m, caps -> if (caps.trash) sync.trash(m) }
+            AppIntent.BulkDownloadAttachments -> {
+                val messages = _state.value.selectedMessages.filter { it.hasAttachments }
+                downloadAll(messages, folder = "selection-${Platform.now() / 1000}")
+            }
+            is AppIntent.DownloadAttachments -> downloadOne(intent.message, intent.index)
+            is AppIntent.DownloadThreadAttachments -> working {
+                val thread = withContext(io) { repo.threadOf(intent.message) }.filter { it.hasAttachments }
+                saveAttachments(thread, folder = ThreadExport.baseSubject(intent.message.subject))
+            }
+            is AppIntent.ExportThread -> exportThread(intent.message, intent.format)
             is AppIntent.StartCompose -> startCompose(intent.mode, intent.message)
             is AppIntent.UpdateCompose -> mutate { s ->
                 val current = s.compose ?: return@mutate s
@@ -589,6 +626,94 @@ class AppViewModel(
                 println("Trash failed: ${e::class.simpleName}")
                 mutate { it.copy(message = AppMessage.ActionFailed) }
             }
+        }
+    }
+
+    // ---- selection, downloads, export --------------------------------------------------------
+
+    /**
+     * Runs [action] for every selected message whose account allows it, then clears the selection.
+     * Each message is its own optimistic change, so one refusal does not undo the others.
+     */
+    private fun bulk(closeReader: Boolean = false, action: suspend (MailMessage, Capabilities) -> Unit) {
+        val s = _state.value
+        val targets = s.selectedMessages.mapNotNull { m -> s.account(m.accountId)?.let { m to it.capabilities } }
+        if (targets.isEmpty()) return
+        if (closeReader && targets.any { it.first.id == s.reader?.message?.id }) onIntent(AppIntent.CloseReader)
+        mutate { it.copy(selection = emptySet()) }
+        targets.forEach { (m, caps) -> serverAction { action(m, caps) } }
+    }
+
+    /** One download or export at a time; [block] reports its own result message. */
+    private fun working(block: suspend () -> Unit) {
+        if (_state.value.working) return
+        mutate { it.copy(working = true, message = AppMessage.Downloading) }
+        scope.launch {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                println("Download failed: ${e::class.simpleName}")
+                mutate { it.copy(message = AppMessage.DownloadFailed) }
+            } finally {
+                mutate { it.copy(working = false) }
+            }
+        }
+    }
+
+    private fun downloadOne(message: MailMessage, index: Int?) = working {
+        saveAttachments(listOf(message), folder = if (index == null) message.subject else "", index = index)
+    }
+
+    private fun downloadAll(messages: List<MailMessage>, folder: String) = working { saveAttachments(messages, folder) }
+
+    /** Fetches and saves; on desktop the folder opens with the (first) file selected. */
+    private suspend fun saveAttachments(messages: List<MailMessage>, folder: String, index: Int? = null) {
+        val saved = mutableListOf<String>()
+        messages.forEach { m ->
+            val files = withContext(io) { sync.attachments(m, index?.let { setOf(it) }) }
+            files.forEach { f -> withContext(io) { Platform.saveDownload(folder, f.name, f.bytes) }?.let(saved::add) }
+        }
+        if (saved.isEmpty()) {
+            mutate { it.copy(message = if (messages.isEmpty()) AppMessage.NoAttachments else AppMessage.DownloadFailed) }
+            return
+        }
+        Platform.revealDownload(saved.first())
+        mutate { it.copy(message = AppMessage.FilesSaved) }
+    }
+
+    private fun exportThread(message: MailMessage, format: ExportFormat) = working {
+        val thread = withContext(io) { repo.threadOf(message) }
+        val base = safeFileName(ThreadExport.baseSubject(message.subject), "conversation")
+        val location = when (format) {
+            ExportFormat.Html -> {
+                val bodies = thread.map { m -> m to runCatching { withContext(io) { sync.body(m) } }.getOrNull() }
+                val language = _state.value.data.settings.uiLanguage.code
+                val labels = ExportLabels(
+                    from = localizedString(language, Res.string.export_from),
+                    to = localizedString(language, Res.string.export_to),
+                    date = localizedString(language, Res.string.export_date),
+                    attachments = localizedString(language, Res.string.export_attachments),
+                    exported = localizedString(language, Res.string.export_exported, thread.size),
+                )
+                val html = ThreadExport.html(message.subject, bodies, labels) { co.abaye.mailtice.main.formatTime(it, withDate = true) }
+                withContext(io) { Platform.saveDownload("", "$base.html", html.encodeToByteArray()) }
+            }
+            ExportFormat.Mail -> {
+                val raws = thread.map { m -> m to withContext(io) { sync.rawMessage(m) } }
+                if (raws.size == 1) {
+                    withContext(io) { Platform.saveDownload("", "$base.eml", raws.first().second) }
+                } else {
+                    withContext(io) { Platform.saveDownload("", "$base.mbox", ThreadExport.mbox(raws)) }
+                }
+            }
+        }
+        if (location == null) {
+            mutate { it.copy(message = AppMessage.DownloadFailed) }
+        } else {
+            Platform.revealDownload(location)
+            mutate { it.copy(message = AppMessage.Exported) }
         }
     }
 
