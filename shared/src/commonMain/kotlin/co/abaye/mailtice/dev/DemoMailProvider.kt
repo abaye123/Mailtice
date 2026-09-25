@@ -199,10 +199,12 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
 
     private fun String.escapeHtml() = replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    /** Gmail: system labels are upper case ("INBOX"), user labels "Label_…". IMAP: the folder name. */
+    /** Gmail: system labels are upper case ("INBOX", "DRAFT"), user labels "Label_…". IMAP: the folder name. */
     private fun folderId(account: Account, key: String): String = when {
         account.kind != ProviderKind.Gmail -> key
         key == DemoFolders.INBOX || key == DemoFolders.SENT -> key
+        key == DemoFolders.TRASH || key == DemoFolders.SPAM -> key.uppercase()
+        key == DemoFolders.DRAFTS -> "DRAFT"
         else -> "Label_$key"
     }
 }

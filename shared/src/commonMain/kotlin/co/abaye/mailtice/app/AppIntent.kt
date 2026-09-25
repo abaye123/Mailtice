@@ -3,6 +3,7 @@ package co.abaye.mailtice.app
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.PaneStyle
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.ThemeMode
@@ -39,6 +40,7 @@ sealed interface AppIntent {
     data class SetFilterFolder(val folderId: String) : AppIntent
     data class SetUnreadOnly(val on: Boolean) : AppIntent
     data class SetAttachmentsOnly(val on: Boolean) : AppIntent
+    data class SetView(val view: MailView) : AppIntent
     data class Trash(val message: MailMessage) : AppIntent
 
     data object ToggleSidebar : AppIntent

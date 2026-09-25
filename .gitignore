@@ -20,6 +20,8 @@ Pods/
 shared/src/commonMain/composeResources/files/aboutlibraries.json
 # Google OAuth client for local builds. CI writes the same values from repository secrets.
 oauth.local.properties
+# The client JSON Google Cloud downloads; its values go into oauth.local.properties.
+client_secret_*.json
 # Generated from values-he by :shared:mirrorHebrewStringsForAndroid.
 shared/src/commonMain/composeResources/values-iw/
 # Release signing (Android). CI gets the same values from repository secrets.

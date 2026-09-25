@@ -7,7 +7,9 @@ import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.MailBody
+import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.StorageUsage
 import co.abaye.mailtice.provider.ImapLoginException
@@ -51,6 +53,9 @@ sealed interface AddAccountStep {
 @Immutable
 data class InboxFilter(
     val accountId: String = "",
+    /** A standard folder across the accounts in scope. Ignored while [folderId] is set. */
+    val view: MailView = MailView.Inbox,
+    /** One particular folder (a label or custom IMAP folder) of the account in scope. */
     val folderId: String = "",
     val unreadOnly: Boolean = false,
     val attachmentsOnly: Boolean = false,
@@ -93,6 +98,8 @@ data class AppState(
     val folders: Map<String, List<Folder>> = emptyMap(),
     val inbox: List<MailMessage> = emptyList(),
     val unread: Map<String, Long> = emptyMap(),
+    /** accountId -> folderId -> unread, for the counts next to folders. */
+    val unreadByFolder: Map<String, Map<String, Long>> = emptyMap(),
     val statuses: Map<String, AccountStatus> = emptyMap(),
     val filter: InboxFilter = InboxFilter(),
     val reader: Reader? = null,
@@ -121,6 +128,24 @@ data class AppState(
     val sendingAccounts: List<Account> get() = accounts.filter { it.capabilities.send }
 
     val selectedMessages: List<MailMessage> get() = inbox.filter { it.key in selection }
+
+    /** Accounts the list currently covers: the one picked in the sidebar, or all of them. */
+    val scopeAccounts: List<Account> get() = if (filter.accountId.isEmpty()) accounts else accounts.filter { it.id == filter.accountId }
+
+    /** Views some account in scope actually has a folder for (Inbox and Starred always). */
+    val availableViews: List<MailView> get() {
+        val roles = scopeAccounts.flatMap { foldersOf(it.id) }.map { it.role }.toSet()
+        return MailView.entries.filter { it.role == null || it.role == FolderRole.Inbox || it.role in roles }
+    }
+
+    /** Unread in the folders of [view] across the accounts in scope. */
+    fun unreadIn(view: MailView): Long {
+        val role = view.role ?: return 0
+        return scopeAccounts.sumOf { account ->
+            val counts = unreadByFolder[account.id].orEmpty()
+            foldersOf(account.id).filter { it.role == role }.sumOf { counts[it.id] ?: 0L }
+        }
+    }
 
     val needsReauth: List<Account> get() = accounts.filter { status(it.id) == AccountStatus.NeedsReauth }
 }

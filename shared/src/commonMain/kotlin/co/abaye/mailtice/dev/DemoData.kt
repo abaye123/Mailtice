@@ -45,6 +45,8 @@ internal object DemoFolders {
     const val RECEIPTS = "receipts"
     const val NEWSLETTERS = "newsletters"
     const val TRASH = "Trash"
+    const val SPAM = "Spam"
+    const val DRAFTS = "Drafts"
 
     fun of(kind: ProviderKind): List<DemoFolder> = when (kind) {
         ProviderKind.Gmail -> listOf(
@@ -52,6 +54,8 @@ internal object DemoFolders {
             DemoFolder(SENT, "Sent", FolderRole.Sent),
             DemoFolder(WORK, "עבודה", FolderRole.Other),
             DemoFolder(RECEIPTS, "קבלות", FolderRole.Other),
+            DemoFolder(DRAFTS, "Drafts", FolderRole.Drafts),
+            DemoFolder(SPAM, "Spam", FolderRole.Spam),
             DemoFolder(TRASH, "Trash", FolderRole.Trash),
         )
         else -> listOf(
@@ -59,6 +63,8 @@ internal object DemoFolders {
             DemoFolder(SENT, "Sent Items", FolderRole.Sent),
             DemoFolder(ARCHIVE, "Archive", FolderRole.Archive),
             DemoFolder(NEWSLETTERS, "Newsletters", FolderRole.Other),
+            DemoFolder(DRAFTS, "Drafts", FolderRole.Drafts),
+            DemoFolder(SPAM, "Junk Email", FolderRole.Spam),
             DemoFolder(TRASH, "Deleted Items", FolderRole.Trash),
         )
     }
@@ -102,8 +108,8 @@ internal object DemoAccounts {
 
     /** Mail for an account id. Accounts added from the UI in demo mode get the generic mailbox. */
     fun mailFor(accountId: String): List<DemoMail> = when (accountId) {
-        PERSONAL_ID -> personalMail
-        WORK_ID -> workMail
+        PERSONAL_ID -> personalMail + spamAndDrafts
+        WORK_ID -> workMail + spamAndDrafts
         QUIET_ID -> emptyList()
         else -> genericMail
     }
@@ -211,6 +217,25 @@ private val personalMail = listOf(
         "StreamBox", "info@stream.example.com", "New on the watch list this weekend",
         "Three new series and a documentary you might like, based on what you watched.",
         minutesAgo = 21 * DAY, html = true,
+    ),
+)
+
+/** Spam and drafts, shared by the demo accounts so every folder view has something in it. */
+private val spamAndDrafts = listOf(
+    DemoMail(
+        "Prize Center", "winner@lottery.example.net", "Congratulations!!! You have WON 1,000,000",
+        "Claim your prize today by replying with your bank details. This offer expires in 24 hours.",
+        minutesAgo = 3 * HOUR, unread = true, folders = listOf(DemoFolders.SPAM),
+    ),
+    DemoMail(
+        "מבצע בלעדי", "deals@promo.example.org", "רק היום: 90% הנחה על הכל",
+        "לחץ כאן כדי לממש את ההטבה. מספר המקומות מוגבל.",
+        minutesAgo = 1 * DAY, unread = true, folders = listOf(DemoFolders.SPAM),
+    ),
+    DemoMail(
+        "(draft)", "me@example.com", "טיוטה: סיכום פגישה עם הספק",
+        "נקודות לסיכום: מחיר, לוחות זמנים, אחריות. להשלים לפני ששולחים.",
+        minutesAgo = 5 * HOUR, folders = listOf(DemoFolders.DRAFTS),
     ),
 )
 

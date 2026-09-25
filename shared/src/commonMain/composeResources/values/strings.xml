@@ -128,7 +128,6 @@
     <string name="detail_clear_cache">Clear cache</string>
     <string name="detail_clear_cache_desc">Deletes this account\'s stored mail. It is downloaded again on the next sync.</string>
     <string name="detail_clear_cache_confirm">Delete all stored mail of %1$s from this device? Nothing is deleted on the server.</string>
-    <string name="inbox_all_folders">All folders</string>
     <string name="inbox_mark_unread">Mark as unread</string>
     <string name="inbox_select_message">Select a message to read</string>
     <string name="inbox_unread_only">Unread</string>
@@ -167,7 +166,6 @@
     <string name="empty_reader_body">The full message opens here.</string>
 
     <!-- Sidebar, list density, pane style -->
-    <string name="nav_all_inboxes">All inboxes</string>
     <string name="nav_manage_accounts">Manage accounts</string>
     <string name="inbox_search_all">Search all accounts</string>
     <string name="inbox_search_in">Search in %1$s</string>
@@ -248,4 +246,15 @@
     <string name="export_date">Date</string>
     <string name="export_attachments">Attachments</string>
     <string name="export_exported">%1$d messages · exported from Mailtice</string>
+
+    <!-- Mail folders in the sidebar -->
+    <string name="view_inbox">Inbox</string>
+    <string name="view_starred">Starred</string>
+    <string name="view_sent">Sent</string>
+    <string name="view_drafts">Drafts</string>
+    <string name="view_archive">Archive</string>
+    <string name="view_spam">Spam</string>
+    <string name="view_trash">Trash</string>
+    <string name="nav_all_accounts">All accounts</string>
+    <string name="nav_folders_of">Folders in %1$s</string>
 </resources>

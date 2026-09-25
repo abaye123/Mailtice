@@ -177,30 +177,41 @@ SELECT count(*) FROM message_body WHERE accountId = ? AND messageId = ?;
 messageIdsInFolder:
 SELECT messageId FROM message_folder WHERE accountId = ? AND folderId = ?;
 
--- The unified list: every message that sits in at least one synced folder.
--- :accountId / :folderId empty = no filter.
+-- The unified list: messages in a synced folder of the requested role (Inbox, Sent, Spam...) or in
+-- one given folder. :accountId / :folderId / :role empty = no filter on that.
 selectInbox:
 SELECT m.* FROM message m
 WHERE EXISTS (
   SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
   WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.sync = 1
     AND (:folderId = '' OR mf.folderId = :folderId)
+    AND (:role = '' OR f.role = :role)
 )
 AND (:accountId = '' OR m.accountId = :accountId)
 AND (:unreadOnly = 0 OR m.unread = 1)
+AND (:flaggedOnly = 0 OR m.flagged = 1)
 AND (:attachmentsOnly = 0 OR m.hasAttachments = 1)
 AND (:query = '' OR m.subject LIKE '%' || :query || '%' OR m.fromName LIKE '%' || :query || '%'
      OR m.fromAddress LIKE '%' || :query || '%' OR m.snippet LIKE '%' || :query || '%')
 ORDER BY m.receivedAt DESC
 LIMIT :limit;
 
+-- Unread in the inbox only: spam, trash and sent mail never raise the badge.
 unreadCounts:
 SELECT m.accountId, count(*) AS unread FROM message m
 WHERE m.unread = 1 AND EXISTS (
   SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
-  WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.sync = 1
+  WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.sync = 1 AND f.role = 'Inbox'
 )
 GROUP BY m.accountId;
+
+-- Unread per synced folder, for the counts next to each folder in the sidebar.
+unreadByFolder:
+SELECT mf.accountId, mf.folderId, count(*) AS unread FROM message_folder mf
+JOIN message m ON m.accountId = mf.accountId AND m.id = mf.messageId
+JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+WHERE m.unread = 1 AND f.sync = 1
+GROUP BY mf.accountId, mf.folderId;
 
 -- Candidates for a notification: unread, never notified, in a folder with notifications on.
 selectToNotify:

@@ -7,6 +7,7 @@ import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppKey
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.domain.AccountStatus
+import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.ui.EmptyContent
 import co.abaye.mailtice.ui.EmptyState
 import co.abaye.mailtice.ui.Illustration
@@ -50,7 +51,7 @@ private fun AppState.listEmptyReason(): ListEmptyReason {
         statuses.isNotEmpty() && statuses.all { it == AccountStatus.Offline } -> ListEmptyReason.Offline
         f.attachmentsOnly -> ListEmptyReason.Attachments
         f.unreadOnly -> ListEmptyReason.Unread
-        f.folderId.isNotEmpty() -> ListEmptyReason.Folder
+        f.folderId.isNotEmpty() || f.view != MailView.Inbox -> ListEmptyReason.Folder
         f.accountId.isNotEmpty() -> ListEmptyReason.Account
         else -> ListEmptyReason.Inbox
     }
@@ -109,7 +110,7 @@ internal fun MessageListEmptyState(state: AppState, onIntent: (AppIntent) -> Uni
             secondaryAction = stringResource(Res.string.empty_unread_action),
         )
         ListEmptyReason.Folder -> {
-            val folder = state.foldersOf(filter.accountId).firstOrNull { it.id == filter.folderId }?.name.orEmpty()
+            val folder = state.currentFolderName()
             EmptyContent(
                 Illustration.InboxZero,
                 title = stringResource(Res.string.empty_folder_title),

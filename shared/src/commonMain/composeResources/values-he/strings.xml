@@ -128,7 +128,6 @@
     <string name="detail_clear_cache">נקה מטמון</string>
     <string name="detail_clear_cache_desc">מוחק את המיילים השמורים של החשבון. הם יורדו שוב בסנכרון הבא.</string>
     <string name="detail_clear_cache_confirm">למחוק את כל המיילים השמורים של %1$s מהמחשב? הם לא יימחקו מהשרת.</string>
-    <string name="inbox_all_folders">כל התיקיות</string>
     <string name="inbox_mark_unread">סמן כלא נקרא</string>
     <string name="inbox_select_message">בחר מייל לקריאה</string>
     <string name="inbox_unread_only">לא נקראו</string>
@@ -167,7 +166,6 @@
     <string name="empty_reader_body">המייל המלא ייפתח כאן.</string>
 
     <!-- Sidebar, list density, pane style -->
-    <string name="nav_all_inboxes">כל התיבות</string>
     <string name="nav_manage_accounts">ניהול חשבונות</string>
     <string name="inbox_search_all">חיפוש בכל החשבונות</string>
     <string name="inbox_search_in">חיפוש ב-%1$s</string>
@@ -248,4 +246,15 @@
     <string name="export_date">תאריך</string>
     <string name="export_attachments">קבצים מצורפים</string>
     <string name="export_exported">%1$d הודעות · יוצא מ-Mailtice</string>
+
+    <!-- Mail folders in the sidebar -->
+    <string name="view_inbox">דואר נכנס</string>
+    <string name="view_starred">מסומנים בכוכב</string>
+    <string name="view_sent">נשלח</string>
+    <string name="view_drafts">טיוטות</string>
+    <string name="view_archive">ארכיון</string>
+    <string name="view_spam">ספאם</string>
+    <string name="view_trash">אשפה</string>
+    <string name="nav_all_accounts">כל החשבונות</string>
+    <string name="nav_folders_of">תיקיות ב-%1$s</string>
 </resources>

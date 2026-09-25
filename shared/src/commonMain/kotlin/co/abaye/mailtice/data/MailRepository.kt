@@ -31,6 +31,9 @@ data class InboxQuery(
     val folderId: String = "",
     val unreadOnly: Boolean = false,
     val attachmentsOnly: Boolean = false,
+    val flaggedOnly: Boolean = false,
+    /** Folder role name, "" = any synced folder. */
+    val role: String = "",
     val text: String = "",
     val limit: Long = 500,
 )
@@ -133,6 +136,8 @@ class MailRepository(
             accountId = query.accountId,
             unreadOnly = if (query.unreadOnly) 1 else 0,
             attachmentsOnly = if (query.attachmentsOnly) 1 else 0,
+            flaggedOnly = if (query.flaggedOnly) 1 else 0,
+            role = query.role,
             query = query.text.trim(),
             limit = query.limit,
             mapper = ::mapMessage,
@@ -140,6 +145,12 @@ class MailRepository(
 
     val unreadCounts: Flow<Map<String, Long>> =
         q.unreadCounts().asFlow().mapToList(dispatcher).map { rows -> rows.associate { it.accountId to it.unread } }
+
+    /** accountId -> folderId -> unread messages in it (synced folders only). */
+    val unreadByFolder: Flow<Map<String, Map<String, Long>>> =
+        q.unreadByFolder().asFlow().mapToList(dispatcher).map { rows ->
+            rows.groupBy { it.accountId }.mapValues { (_, list) -> list.associate { it.folderId to it.unread } }
+        }
 
     fun message(accountId: String, id: String): MailMessage? = q.selectMessage(accountId, id, ::mapMessage).executeAsOneOrNull()
 

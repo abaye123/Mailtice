@@ -84,6 +84,7 @@ import co.abaye.mailtice.app.ComposeMode
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.platform.ResizeHorizontalIcon
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.ui.LocalDensitySpec
@@ -98,7 +99,6 @@ import mailtice.shared.generated.resources.accounts_reconnect
 import mailtice.shared.generated.resources.compose_new
 import mailtice.shared.generated.resources.empty_search_action
 import mailtice.shared.generated.resources.inbox_all
-import mailtice.shared.generated.resources.inbox_all_folders
 import mailtice.shared.generated.resources.inbox_archive
 import mailtice.shared.generated.resources.inbox_attachments_only
 import mailtice.shared.generated.resources.inbox_mark_read
@@ -405,33 +405,39 @@ private fun Filters(state: AppState, onIntent: (AppIntent) -> Unit) {
             leadingIcon = { Icon(Icons.Outlined.AttachFile, null, Modifier.size(16.dp)) },
             label = { Text(stringResource(Res.string.inbox_attachments_only)) },
         )
-        // Folders only make sense within one account.
-        if (filter.accountId.isNotEmpty()) FolderPicker(state, onIntent)
+        // Wide windows pick the folder in the sidebar.
+        if (compact) FolderPicker(state, onIntent)
     }
 }
 
+/** Phones: the standard folders, plus the chosen account's own folders, in one menu. */
 @Composable
 private fun FolderPicker(state: AppState, onIntent: (AppIntent) -> Unit) {
-    val folders = state.foldersOf(state.filter.accountId).filter { it.sync }
-    if (folders.size < 2) return
     var open by remember { mutableStateOf(false) }
-    val current = folders.firstOrNull { it.id == state.filter.folderId }
+    val custom = state.account(state.filter.accountId)?.let { state.customFolders(it.id) }.orEmpty()
+    val notInbox = state.filter.folderId.isNotEmpty() || state.filter.view != MailView.Inbox
     Box {
         FilterChip(
-            selected = current != null,
+            selected = notInbox,
             onClick = { open = true },
-            label = { Text(current?.name ?: stringResource(Res.string.inbox_all_folders)) },
+            leadingIcon = { Icon(if (state.filter.folderId.isNotEmpty()) FolderIcon else state.filter.view.icon(), null, Modifier.size(16.dp)) },
+            label = { Text(state.currentFolderName()) },
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.inbox_all_folders)) },
-                onClick = {
-                    open = false
-                    onIntent(AppIntent.SetFilterFolder(""))
-                },
-            )
-            folders.forEach { folder ->
+            state.availableViews.forEach { view ->
                 DropdownMenuItem(
+                    leadingIcon = { Icon(view.icon(), null) },
+                    text = { Text(view.label()) },
+                    onClick = {
+                        open = false
+                        onIntent(AppIntent.SetView(view))
+                    },
+                )
+            }
+            if (custom.isNotEmpty()) HorizontalDivider()
+            custom.forEach { folder ->
+                DropdownMenuItem(
+                    leadingIcon = { Icon(FolderIcon, null) },
                     text = { Text(folder.name) },
                     onClick = {
                         open = false

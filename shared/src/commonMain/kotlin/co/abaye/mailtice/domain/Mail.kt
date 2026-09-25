@@ -21,6 +21,21 @@ enum class ImapSecurity { Tls, StartTls }
 enum class FolderRole { Inbox, Sent, Archive, Drafts, Trash, Spam, Other }
 
 /**
+ * The standard folders the sidebar offers, across every account in scope. Each maps to a folder
+ * role; [Starred] is instead every starred message in the synced folders. There is no "Outbox":
+ * a message is handed to the provider the moment it is sent.
+ */
+enum class MailView(val role: FolderRole?) {
+    Inbox(FolderRole.Inbox),
+    Starred(null),
+    Sent(FolderRole.Sent),
+    Drafts(FolderRole.Drafts),
+    Archive(FolderRole.Archive),
+    Spam(FolderRole.Spam),
+    Trash(FolderRole.Trash),
+}
+
+/**
  * What an account can actually do. The UI reads this and never shows an action that is false here,
  * so nothing is offered only to fail.
  */

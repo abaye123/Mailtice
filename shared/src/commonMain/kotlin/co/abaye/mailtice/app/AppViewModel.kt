@@ -21,6 +21,7 @@ import co.abaye.mailtice.domain.AccountColor
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.PollIntervals
 import co.abaye.mailtice.domain.ProviderKind
@@ -156,10 +157,22 @@ class AppViewModel(
             repo.allFolders.collect { folders -> mutate { it.copy(folders = folders.groupBy { f -> f.accountId }) } }
         }
         scope.launch { repo.unreadCounts.collect { counts -> mutate { it.copy(unread = counts) } } }
+        scope.launch { repo.unreadByFolder.collect { counts -> mutate { it.copy(unreadByFolder = counts) } } }
         scope.launch {
             _state.map { it.filter }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MS)
                 .flatMapLatest { f ->
-                    repo.inbox(InboxQuery(f.accountId, f.folderId, f.unreadOnly, attachmentsOnly = f.attachmentsOnly, text = f.query))
+                    val custom = f.folderId.isNotEmpty()
+                    repo.inbox(
+                        InboxQuery(
+                            accountId = f.accountId,
+                            folderId = f.folderId,
+                            unreadOnly = f.unreadOnly,
+                            attachmentsOnly = f.attachmentsOnly,
+                            flaggedOnly = !custom && f.view == MailView.Starred,
+                            role = if (custom) "" else f.view.role?.name.orEmpty(),
+                            text = f.query,
+                        ),
+                    )
                 }
                 .collect { list ->
                     mutate { s ->
@@ -199,8 +212,18 @@ class AppViewModel(
                 _state.value.account(intent.accountId)?.let { sync.refreshFolders(it) }
             }
 
-            is AppIntent.SetFilterAccount -> mutate { it.copy(filter = it.filter.copy(accountId = intent.accountId, folderId = "")) }
-            is AppIntent.SetFilterFolder -> mutate { it.copy(filter = it.filter.copy(folderId = intent.folderId)) }
+            is AppIntent.SetFilterAccount -> {
+                mutate { it.copy(filter = it.filter.copy(accountId = intent.accountId, folderId = ""), selection = emptySet()) }
+                ensureSynced()
+            }
+            is AppIntent.SetFilterFolder -> {
+                mutate { it.copy(filter = it.filter.copy(folderId = intent.folderId), selection = emptySet()) }
+                ensureSynced()
+            }
+            is AppIntent.SetView -> {
+                mutate { it.copy(filter = it.filter.copy(view = intent.view, folderId = ""), selection = emptySet()) }
+                ensureSynced()
+            }
             is AppIntent.SetUnreadOnly -> mutate { it.copy(filter = it.filter.copy(unreadOnly = intent.on)) }
             is AppIntent.SetAttachmentsOnly -> mutate { it.copy(filter = it.filter.copy(attachmentsOnly = intent.on)) }
             is AppIntent.Trash -> trash(intent.message)
@@ -627,6 +650,22 @@ class AppViewModel(
                 mutate { it.copy(message = AppMessage.ActionFailed) }
             }
         }
+    }
+
+    /**
+     * Only the inbox syncs by default. Opening another folder (Sent, Spam, a label...) turns its sync
+     * on for the accounts in scope - quietly, without notifications - and asks for a round, so the
+     * folder fills within seconds and stays up to date from then on.
+     */
+    private fun ensureSynced() {
+        val s = _state.value
+        val f = s.filter
+        val targets = s.scopeAccounts.flatMap { account ->
+            s.foldersOf(account.id).filter { folder ->
+                !folder.sync && if (f.folderId.isNotEmpty()) folder.id == f.folderId else f.view.role != null && folder.role == f.view.role
+            }
+        }
+        targets.forEach { folder -> onIntent(AppIntent.SetFolderPrefs(folder.accountId, folder.id, sync = true, notify = false)) }
     }
 
     // ---- selection, downloads, export --------------------------------------------------------
