@@ -8,7 +8,10 @@ import kotlinx.serialization.Serializable
 data class GmailProfile(val emailAddress: String, val historyId: String = "")
 
 @Serializable
-data class GmailLabel(val id: String, val name: String, val type: String = "user")
+data class LabelColor(val textColor: String = "", val backgroundColor: String = "")
+
+@Serializable
+data class GmailLabel(val id: String, val name: String, val type: String = "user", val color: LabelColor? = null)
 
 @Serializable
 data class LabelList(val labels: List<GmailLabel> = emptyList())

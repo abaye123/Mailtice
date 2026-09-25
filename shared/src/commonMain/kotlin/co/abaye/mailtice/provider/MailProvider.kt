@@ -7,7 +7,8 @@ import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 
-data class RemoteFolder(val id: String, val name: String, val role: FolderRole)
+/** [color] is the label's "#rrggbb" background where the provider has one (Gmail), "" otherwise. */
+data class RemoteFolder(val id: String, val name: String, val role: FolderRole, val color: String = "")
 
 /** A message as the server reports it, ready to insert. */
 data class RemoteMessage(
@@ -68,6 +69,8 @@ data class SyncBatch(
     val cursor: String? = null,
     /** First sync of the account: nothing in it may notify. */
     val initial: Boolean = false,
+    /** Only part of the work fit in this round (a large first sync); run the next one right away. */
+    val more: Boolean = false,
 )
 
 /**

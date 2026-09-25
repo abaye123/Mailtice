@@ -26,10 +26,20 @@ import co.abaye.mailtice.provider.decodeText
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 private const val FETCH_PARALLELISM = 6
+
+/** Metadata is small, so more of it can be in flight at once. */
+private const val METADATA_PARALLELISM = 10
+
+/** Messages stored per round of a first sync; the rest follow in the next rounds. */
+private const val FULL_SYNC_PAGE = 300
+
+/** Attempts per request on a rate limit (429) or a Gmail server error before the round gives up. */
+private const val TRANSIENT_RETRIES = 4
 
 /** Labels that are states, not places - never offered as folders. */
 private val HIDDEN_LABELS = setOf("UNREAD", "STARRED", "IMPORTANT", "CHAT")
@@ -44,7 +54,7 @@ class GmailProvider(
     override suspend fun listFolders(account: Account): List<RemoteFolder> = withToken(account) { token ->
         api.labels(token)
             .filter { it.id !in HIDDEN_LABELS }
-            .map { RemoteFolder(it.id, friendlyName(it), roleOf(it.id)) }
+            .map { RemoteFolder(it.id, friendlyName(it), roleOf(it.id), it.color?.backgroundColor.orEmpty()) }
     }
 
     override suspend fun sync(account: Account, folders: List<Folder>, sinceMillis: Long?, knownIds: Set<String>): SyncBatch =
@@ -62,27 +72,71 @@ class GmailProvider(
             }
         }
 
+    /**
+     * The first sync (or a resync). It lists what the synced labels hold, then stores it a page at a
+     * time, inbox first and newest first, returning [SyncBatch.more] until everything is in - so a
+     * big mailbox fills in steadily and a hiccup costs one page, not the whole download. Only
+     * metadata is fetched here; a body is downloaded when the message is opened. The history cursor
+     * is saved with the last page, which ends the first sync.
+     */
     private suspend fun fullSync(token: String, account: Account, folders: List<Folder>, since: Long?, known: Set<String>): SyncBatch {
-        val profile = api.profile(token)
+        val profile = retrying { api.profile(token) }
         val after = since?.let { it / 1000 }
-        val membership = mutableMapOf<String, MutableSet<String>>()
-        folders.forEach { folder ->
-            api.messageIds(token, folder.id, after).forEach { ref -> membership.getOrPut(ref.id) { mutableSetOf() } += folder.id }
+        val membership = linkedMapOf<String, MutableSet<String>>()
+        folders.sortedBy { if (it.role == FolderRole.Inbox) 0 else 1 }.forEach { folder ->
+            retrying { api.messageIds(token, folder.id, after) }.forEach { ref -> membership.getOrPut(ref.id) { mutableSetOf() } += folder.id }
         }
-        val unread = api.messageIds(token, LABEL_UNREAD, after).map { it.id }.toSet()
-        val starred = api.messageIds(token, LABEL_STARRED, after).map { it.id }.toSet()
+        val unread = retrying { api.messageIds(token, LABEL_UNREAD, after) }.map { it.id }.toSet()
+        val starred = retrying { api.messageIds(token, LABEL_STARRED, after) }.map { it.id }.toSet()
+        // Metadata carries no MIME parts, so which messages have files comes from a search.
+        val withFiles = retrying { api.messageIds(token, null, after, query = "has:attachment") }.map { it.id }.toSet()
 
         val fresh = membership.keys.filter { it !in known }
-        val newMessages = fetchFull(token, fresh).map { it.toRemote(membership[it.id].orEmpty()) }
+        val page = fresh.take(FULL_SYNC_PAGE)
+        val more = fresh.size > page.size
+        val newMessages = fetchMetadata(token, page).map { m ->
+            m.toRemote(membership[m.id].orEmpty(), withBody = false).copy(hasAttachments = m.id in withFiles)
+        }
         val existing = membership.keys.filter { it in known }
+        if (more) println("Gmail: first sync stored ${known.size + newMessages.size} of ${membership.size}, continuing")
         return SyncBatch(
             newMessages = newMessages,
             flagChanges = existing.map { FlagChange(it, unread = it in unread, flagged = it in starred) },
             linkChanges = existing.flatMap { id -> membership.getValue(id).map { FolderLinkChange(id, it, linked = true) } },
             resetFolders = folders.map { it.id }.toSet(),
-            cursor = profile.historyId,
+            cursor = if (more) null else profile.historyId,
             initial = account.syncCursor.isEmpty(),
+            more = more,
         )
+    }
+
+    /** Headers, labels and snippet only; a message deleted in between is skipped. */
+    private suspend fun fetchMetadata(token: String, ids: List<String>): List<GmailMessage> = coroutineScope {
+        ids.chunked(METADATA_PARALLELISM).flatMap { chunk ->
+            chunk.map { id ->
+                async {
+                    try {
+                        retrying { api.message(token, id, full = false) }
+                    } catch (e: ProviderException.NotFound) {
+                        null
+                    }
+                }
+            }.awaitAll().filterNotNull()
+        }
+    }
+
+    /** Gmail answers bursts with 429 and occasional 5xx: wait a little longer each time and try again. */
+    private suspend fun <T> retrying(block: suspend () -> T): T {
+        var wait = 1_000L
+        repeat(TRANSIENT_RETRIES - 1) {
+            try {
+                return block()
+            } catch (e: ProviderException.Transient) {
+                delay(wait)
+                wait *= 2
+            }
+        }
+        return block()
     }
 
     private suspend fun incremental(token: String, account: Account, folders: List<Folder>, since: Long?, known: Set<String>): SyncBatch {
@@ -171,7 +225,7 @@ class GmailProvider(
             chunk.map { id ->
                 async {
                     try {
-                        api.message(token, id, full = true)
+                        retrying { api.message(token, id, full = true) }
                     } catch (e: ProviderException.NotFound) {
                         null
                     }
@@ -190,7 +244,7 @@ class GmailProvider(
         }
     }
 
-    private fun GmailMessage.toRemote(folderIds: Set<String>): RemoteMessage {
+    private fun GmailMessage.toRemote(folderIds: Set<String>, withBody: Boolean = true): RemoteMessage {
         val body = body()
         val (name, address) = splitAddress(header("From"))
         return RemoteMessage(
@@ -208,7 +262,7 @@ class GmailProvider(
             hasAttachments = body.attachments.isNotEmpty(),
             sizeBytes = sizeEstimate,
             folderIds = folderIds,
-            body = body,
+            body = body.takeIf { withBody },
         )
     }
 

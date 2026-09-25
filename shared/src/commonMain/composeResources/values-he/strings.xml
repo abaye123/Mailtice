@@ -17,8 +17,6 @@
     <string name="inbox_archive">העבר לארכיון</string>
 
     <string name="accounts_add">הוסף חשבון</string>
-    <string name="accounts_waiting">השלם את ההתחברות בחלון שנפתח…</string>
-    <string name="accounts_cancel_sign_in">ביטול</string>
     <string name="accounts_empty">הוסף חשבון כדי להתחיל.</string>
     <string name="accounts_label">כינוי (לא חובה)</string>
     <string name="accounts_notify">התראות מהחשבון הזה</string>
@@ -257,4 +255,20 @@
     <string name="view_trash">אשפה</string>
     <string name="nav_all_accounts">כל החשבונות</string>
     <string name="nav_folders_of">תיקיות ב-%1$s</string>
+
+    <!-- Sign-in dialog, close button -->
+    <string name="close_to_mail">חזרה לדואר</string>
+    <string name="signin_browser_title">ממשיכים בדפדפן</string>
+    <string name="signin_browser_body">דף ההתחברות של %1$s נפתח בדפדפן. אשר שם את הגישה, והחלון הזה יתעדכן לבד.</string>
+    <string name="signin_connecting_title">מחבר את החשבון</string>
+    <string name="signin_connecting_body">משלים את החיבור עם %1$s…</string>
+    <string name="signin_done_title">החשבון חובר</string>
+    <string name="signin_reconnected_title">החשבון חובר מחדש</string>
+    <string name="signin_done_body">הדואר מתחיל להגיע. בתיבה גדולה זה עשוי לקחת כמה דקות.</string>
+    <string name="signin_failed_title">ההתחברות לא הושלמה</string>
+    <string name="signin_failed_body">ההתחברות ל-%1$s בוטלה או לא הסתיימה. אפשר לנסות שוב.</string>
+    <string name="signin_retry">נסה שוב</string>
+    <string name="signin_back">חזרה</string>
+    <string name="signin_close">סגור</string>
+    <string name="signin_open_mail">מעבר לדואר</string>
 </resources>

@@ -24,6 +24,12 @@ sealed interface AppIntent {
     data class Reconnect(val accountId: String) : AppIntent
     data object CancelSignIn : AppIntent
 
+    /** From the "sign-in failed" screen: the same provider (and account, when reconnecting) again. */
+    data object RetrySignIn : AppIntent
+
+    /** From the "connected" screen: close the dialog and show the new account's mail. */
+    data class OpenAccount(val accountId: String) : AppIntent
+
     // Account settings
     data class RemoveAccount(val accountId: String) : AppIntent
     data class SetAccountLabel(val accountId: String, val label: String) : AppIntent

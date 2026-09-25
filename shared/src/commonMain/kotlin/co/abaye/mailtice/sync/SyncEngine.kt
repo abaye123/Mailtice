@@ -60,6 +60,14 @@ class SyncEngine(
     private val locks = mutableMapOf<String, Mutex>()
     private val lastFolderRefresh = mutableMapOf<String, Long>()
     private val kicks = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Accounts whose last round left work for the next one (a first sync in pages). */
+    private val pending = mutableSetOf<String>()
+
+    private val _errors = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    /** Why the last round of an account failed ("" once a round succeeds), for the UI and the log. */
+    val errors: StateFlow<Map<String, String>> = _errors.asStateFlow()
     private var intervalMs = 60_000L
 
     // ---- loops ------------------------------------------------------------------------------
@@ -104,6 +112,8 @@ class SyncEngine(
                 val fresh = syncOnce(account)
                 if (fresh.isNotEmpty()) _newMail.emit(NewMail(account, fresh))
                 failures = 0
+                // A first sync in pages goes straight on to the next page.
+                if (pending.remove(accountId)) continue
                 withTimeoutOrNull(intervalMs) { kicks.first() }
             } catch (e: CancellationException) {
                 throw e
@@ -112,7 +122,7 @@ class SyncEngine(
                 return
             } catch (e: Exception) {
                 failures++
-                println("Sync: round failed (${e::class.simpleName}), attempt $failures")
+                println("Sync: round failed, attempt $failures: ${describe(e)}")
                 val backoff = (BACKOFF_BASE_MS shl (failures - 1).coerceAtMost(4)).coerceAtMost(BACKOFF_MAX_MS)
                 withTimeoutOrNull(backoff) { kicks.first() }
             }
@@ -141,7 +151,10 @@ class SyncEngine(
             val batch = provider.sync(current, synced, since, repo.knownIds(account.id, synced.map { it.id }))
             repo.applyBatch(account.id, batch)
             repo.prune(current)
-            setStatus(account.id, AccountStatus.Ok)
+            if (batch.more) pending += account.id
+            // Still "syncing" while a first sync has pages left, so the UI keeps saying so.
+            setStatus(account.id, if (batch.more) AccountStatus.Syncing else AccountStatus.Ok)
+            _errors.update { it - account.id }
 
             val pending = repo.toNotify(account.id)
             repo.markNotified(account.id, pending.map { it.id })
@@ -153,9 +166,14 @@ class SyncEngine(
             throw e
         } catch (e: Exception) {
             setStatus(account.id, AccountStatus.Offline)
+            _errors.update { it + (account.id to describe(e)) }
             throw e
         }
     }
+
+    /** Exception type and message, trimmed; provider messages carry the HTTP status and Google's reason. */
+    private fun describe(e: Throwable): String =
+        listOfNotNull(e::class.simpleName, e.message?.lineSequence()?.firstOrNull()?.take(240)).joinToString(": ")
 
     /** Background worker entry point: every account once, failures isolated per account. */
     suspend fun syncAllOnce(): List<NewMail> = repo.accountsNow().mapNotNull { account ->

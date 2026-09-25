@@ -1,0 +1,5 @@
+-- 1 -> 2: label colours, and every folder syncs (full sync). Notifications stay as they were:
+-- only folders that had them (the inbox, by default) announce new mail.
+ALTER TABLE folder ADD COLUMN color TEXT NOT NULL DEFAULT '';
+
+UPDATE folder SET sync = 1;

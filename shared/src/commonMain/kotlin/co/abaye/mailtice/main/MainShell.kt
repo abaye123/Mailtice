@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,11 +28,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuOpen
 import androidx.compose.material.icons.outlined.AllInbox
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -70,6 +73,7 @@ import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.app_name
+import mailtice.shared.generated.resources.close_to_mail
 import mailtice.shared.generated.resources.compose_new
 import mailtice.shared.generated.resources.nav_accounts
 import mailtice.shared.generated.resources.nav_all_accounts
@@ -107,7 +111,7 @@ fun MainShell(
                     if (!LocalHostHasTitleBar.current) BrandBar()
                     Row(Modifier.weight(1f).fillMaxWidth()) {
                         Sidebar(state, destination, onIntent)
-                        ContentArea(destination, Modifier.weight(1f).fillMaxHeight(), content)
+                        ContentArea(destination, onIntent, Modifier.weight(1f).fillMaxHeight(), content)
                     }
                 }
             }
@@ -120,7 +124,7 @@ fun MainShell(
  * out its own list and reader cards) sits on one rounded pane with a margin around it.
  */
 @Composable
-private fun ContentArea(destination: AppKey, modifier: Modifier, content: @Composable () -> Unit) {
+private fun ContentArea(destination: AppKey, onIntent: (AppIntent) -> Unit, modifier: Modifier, content: @Composable () -> Unit) {
     val cards = cardPanes()
     val splitsItself = destination == AppKey.Inbox || destination == AppKey.Reader
     Box(
@@ -131,7 +135,21 @@ private fun ContentArea(destination: AppKey, modifier: Modifier, content: @Compo
         if (splitsItself) {
             content()
         } else {
-            Pane(rounded = cards, modifier = Modifier.fillMaxSize()) { content() }
+            Pane(rounded = cards, modifier = Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize()) {
+                    // Settings, accounts and about lay over the mail; this pill goes straight back to it.
+                    // It has a row of its own at the leading edge, so it never covers a screen's title.
+                    Button(
+                        onClick = { onIntent(AppIntent.Navigate(AppKey.Inbox)) },
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 18.dp),
+                    ) {
+                        Icon(Icons.Outlined.Close, null, Modifier.size(18.dp))
+                        Text(stringResource(Res.string.close_to_mail), Modifier.padding(start = 8.dp))
+                    }
+                    Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+                }
+            }
         }
     }
 }
@@ -282,6 +300,7 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
                 AccountSidebarItem(
                     account = account,
                     status = state.status(account.id),
+                    error = state.syncErrors[account.id],
                     unread = state.unread[account.id]?.toInt() ?: 0,
                     selected = inInbox && filtered == account.id,
                     collapsed = collapsed,
@@ -302,7 +321,8 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
                         selected = inInbox && state.filter.folderId == folder.id,
                         collapsed = collapsed,
                         count = (counts[folder.id] ?: 0L).toInt(),
-                        leading = { tint -> Icon(FolderIcon, null, tint = tint) },
+                        // The label's own colour where the provider has one (Gmail), like its web client.
+                        leading = { tint -> Icon(FolderIcon, null, tint = folder.labelColor() ?: tint) },
                     ) {
                         onIntent(AppIntent.Navigate(AppKey.Inbox))
                         onIntent(AppIntent.SetFilterFolder(folder.id))
@@ -361,6 +381,7 @@ private fun SidebarSection(title: String, collapsed: Boolean) {
 private fun AccountSidebarItem(
     account: Account,
     status: AccountStatus,
+    error: String?,
     unread: Int,
     selected: Boolean,
     collapsed: Boolean,
@@ -372,7 +393,8 @@ private fun AccountSidebarItem(
         else -> null
     }
     // The full address on hover: the label may be a nickname, or the address cut short.
-    val hint = listOfNotNull(if (collapsed) account.displayName else null, account.email, problem).distinct().joinToString("\n")
+    val detail = error?.takeIf { status == AccountStatus.Offline }
+    val hint = listOfNotNull(if (collapsed) account.displayName else null, account.email, problem, detail).distinct().joinToString("\n")
     Tooltip(hint) {
         SidebarItem(
             label = account.displayName,

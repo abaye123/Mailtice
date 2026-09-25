@@ -24,16 +24,20 @@ class GmailApi(private val http: HttpClient) {
 
     suspend fun labels(token: String): List<GmailLabel> = http.get("$BASE/labels") { bearerAuth(token) }.parsed<LabelList>().labels
 
-    /** Ids in [labelId] received after [afterEpochSeconds] (null = all), newest first, paged. */
-    suspend fun messageIds(token: String, labelId: String, afterEpochSeconds: Long?, max: Int = 2000): List<MessageRef> {
+    /**
+     * Ids in [labelId] (null = any label) received after [afterEpochSeconds] (null = all) and matching
+     * the Gmail search [query], newest first, paged.
+     */
+    suspend fun messageIds(token: String, labelId: String?, afterEpochSeconds: Long?, max: Int = 2000, query: String? = null): List<MessageRef> {
         val out = mutableListOf<MessageRef>()
         var pageToken: String? = null
         var pages = 0
         do {
             val page = http.get("$BASE/messages") {
                 bearerAuth(token)
-                parameter("labelIds", labelId)
-                afterEpochSeconds?.let { parameter("q", "after:$it") }
+                labelId?.let { parameter("labelIds", it) }
+                val q = listOfNotNull(afterEpochSeconds?.let { "after:$it" }, query).joinToString(" ")
+                if (q.isNotEmpty()) parameter("q", q)
                 parameter("maxResults", 500)
                 pageToken?.let { parameter("pageToken", it) }
             }.parsed<MessageList>()

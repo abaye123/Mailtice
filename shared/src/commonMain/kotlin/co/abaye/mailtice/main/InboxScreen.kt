@@ -82,6 +82,7 @@ import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ComposeMode
 import co.abaye.mailtice.domain.Account
+import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailView
@@ -165,7 +166,7 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
                 if (reader == null) {
                     ReaderEmptyState()
                 } else {
-                    ReaderPane(reader, state.account(reader.message.accountId), onIntent, working = state.working)
+                    ReaderPane(reader, state.account(reader.message.accountId), onIntent, working = state.working, labels = state.labelsOf(reader.message))
                 }
             }
         }
@@ -237,6 +238,7 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
                 opened = state.reader?.message?.id == message.id,
                 checked = message.key in state.selection,
                 selecting = state.selection.isNotEmpty(),
+                labels = state.labelsOf(message),
                 onIntent = onIntent,
             )
             if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -472,6 +474,7 @@ private fun MailRow(
     opened: Boolean,
     checked: Boolean,
     selecting: Boolean,
+    labels: List<Folder>,
     onIntent: (AppIntent) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -525,15 +528,18 @@ private fun MailRow(
                             color = if (message.unread) colors.primary else colors.onSurfaceVariant,
                         )
                     }
-                    Text(
-                        message.subject,
-                        Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
-                        textAlign = align,
-                        fontWeight = weight,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            message.subject,
+                            Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
+                            textAlign = align,
+                            fontWeight = weight,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        LabelChips(labels, max = 2)
+                    }
                     if (spec.snippetLines > 0) {
                         Text(
                             message.snippet,

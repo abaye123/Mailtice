@@ -136,6 +136,7 @@ class AppViewModel(
             NotificationActions.events.collect(::onNotificationAction)
         }
         scope.launch { sync.statuses.collect { s -> mutate { it.copy(statuses = s) } } }
+        scope.launch { sync.errors.collect { e -> mutate { it.copy(syncErrors = e) } } }
         refreshStorage()
     }
 
@@ -196,10 +197,27 @@ class AppViewModel(
             AppIntent.SubmitImapForm -> submitImap()
             AppIntent.CloseAddAccount -> {
                 signInJob?.cancel()
-                mutate { it.copy(addAccount = null, signIn = SignInState.Idle) }
+                mutate { it.copy(addAccount = null) }
             }
             is AppIntent.Reconnect -> reconnect(intent.accountId)
-            AppIntent.CancelSignIn -> signInJob?.cancel()
+            AppIntent.CancelSignIn -> {
+                signInJob?.cancel()
+                // Adding: back to the provider list. Reconnecting: there is nothing to go back to.
+                mutate { s ->
+                    val step = s.addAccount as? AddAccountStep.SignIn
+                    s.copy(addAccount = if (step?.reconnectId != null) null else AddAccountStep.ChooseProvider)
+                }
+            }
+            AppIntent.RetrySignIn -> {
+                val step = _state.value.addAccount as? AddAccountStep.SignIn ?: return
+                val existing = step.reconnectId?.let { _state.value.account(it) }
+                if (DemoMode.enabled && existing == null) addDemoAccount(step.kind) else signInOAuth(step.kind, existing)
+            }
+            is AppIntent.OpenAccount -> {
+                mutate { it.copy(addAccount = null) }
+                navigate(AppKey.Inbox)
+                onIntent(AppIntent.SetFilterAccount(intent.accountId))
+            }
 
             is AppIntent.RemoveAccount -> mutate { it.copy(dialog = AppDialog.ConfirmRemove(intent.accountId)) }
             is AppIntent.ClearAccountCache -> mutate { it.copy(dialog = AppDialog.ConfirmClearCache(intent.accountId)) }
@@ -376,10 +394,20 @@ class AppViewModel(
             capabilities = if (kind == ProviderKind.Gmail) Capabilities.Gmail else DemoAccounts.imapCapabilities(),
             imap = oauthServer(kind),
         )
-        background {
-            repo.addAccount(account)
-            mutate { it.copy(addAccount = null, message = AppMessage.AccountAdded) }
+        signInJob?.cancel()
+        signInJob = scope.launch {
+            signInStep(AddAccountStep.SignIn(kind, SignInPhase.Browser))
+            delay(1_500)
+            signInStep(AddAccountStep.SignIn(kind, SignInPhase.Connecting))
+            delay(700)
+            withContext(io) { repo.addAccount(account) }
+            signInStep(AddAccountStep.SignIn(kind, SignInPhase.Done, accountId = account.id, email = account.email))
         }
+    }
+
+    /** Moves the dialog to [step], unless the user closed it in the meantime. */
+    private fun signInStep(step: AddAccountStep.SignIn) = mutate { s ->
+        if (s.addAccount == null && step.phase != SignInPhase.Browser) s else s.copy(addAccount = step)
     }
 
     private fun signInOAuth(kind: ProviderKind, existing: Account?) {
@@ -393,10 +421,12 @@ class AppViewModel(
             return
         }
         signInJob?.cancel()
+        val reconnectId = existing?.id
         signInJob = scope.launch {
-            mutate { it.copy(signIn = SignInState.Waiting) }
+            signInStep(AddAccountStep.SignIn(kind, SignInPhase.Browser, reconnectId))
             try {
                 val code = authorizer.authorize(provider, loginHint = existing?.email)
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Connecting, reconnectId))
                 val tokens = auth.exchange(provider, code)
                 val email = when (kind) {
                     ProviderKind.Gmail -> gmail.profile(tokens.accessToken).emailAddress
@@ -421,21 +451,15 @@ class AppViewModel(
                     }
                 }
                 if (known != null) sync.restart(scope, known.id)
-                mutate {
-                    it.copy(
-                        signIn = SignInState.Idle,
-                        addAccount = null,
-                        message = if (known == null) AppMessage.AccountAdded else AppMessage.AccountReconnected,
-                    )
-                }
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Done, reconnectId, accountId = id, email = email))
             } catch (e: CancellationException) {
-                mutate { it.copy(signIn = SignInState.Idle) }
                 throw e
             } catch (e: AuthCancelledException) {
-                mutate { it.copy(signIn = SignInState.Idle) }
+                // Closed the browser tab or denied consent: offer the same provider again.
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId))
             } catch (e: Exception) {
                 println("Sign-in failed: ${e::class.simpleName}")
-                mutate { it.copy(signIn = SignInState.Idle, message = AppMessage.SignInFailed) }
+                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId))
             }
         }
     }
@@ -520,7 +544,11 @@ class AppViewModel(
                 }
                 if (form.reconnectId != null) sync.restart(scope, id)
                 mutate {
-                    it.copy(addAccount = null, message = if (form.reconnectId == null) AppMessage.AccountAdded else AppMessage.AccountReconnected)
+                    it.copy(
+                        addAccount = AddAccountStep.SignIn(
+                            ProviderKind.Imap, SignInPhase.Done, form.reconnectId, accountId = id, email = form.email.trim(),
+                        ),
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e

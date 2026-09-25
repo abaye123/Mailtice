@@ -27,6 +27,7 @@ CREATE TABLE folder (
   uidValidity INTEGER NOT NULL DEFAULT 0,
   uidNext INTEGER NOT NULL DEFAULT 0,
   highestModSeq INTEGER NOT NULL DEFAULT 0,
+  color TEXT NOT NULL DEFAULT '',      -- "#rrggbb" background colour the provider gives the label, '' = none
   PRIMARY KEY (accountId, id)
 );
 
@@ -112,10 +113,10 @@ SELECT * FROM folder;
 
 -- No UPSERT anywhere: Android 8-10 ship SQLite 3.18/3.22, which predate it (3.24).
 insertFolderIfMissing:
-INSERT OR IGNORE INTO folder(accountId, id, name, role, sync, notify) VALUES (?, ?, ?, ?, ?, ?);
+INSERT OR IGNORE INTO folder(accountId, id, name, role, sync, notify, color) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 renameFolder:
-UPDATE folder SET name = ?, role = ? WHERE accountId = ? AND id = ?;
+UPDATE folder SET name = ?, role = ?, color = ? WHERE accountId = ? AND id = ?;
 
 setFolderPrefs:
 UPDATE folder SET sync = ?, notify = ? WHERE accountId = ? AND id = ?;
@@ -180,7 +181,11 @@ SELECT messageId FROM message_folder WHERE accountId = ? AND folderId = ?;
 -- The unified list: messages in a synced folder of the requested role (Inbox, Sent, Spam...) or in
 -- one given folder. :accountId / :folderId / :role empty = no filter on that.
 selectInbox:
-SELECT m.* FROM message m
+SELECT m.*, (
+  SELECT group_concat(mf2.folderId, char(31)) FROM message_folder mf2
+  WHERE mf2.accountId = m.accountId AND mf2.messageId = m.id
+) AS folderIds
+FROM message m
 WHERE EXISTS (
   SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
   WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.sync = 1

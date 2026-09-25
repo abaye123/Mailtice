@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppKey
 import co.abaye.mailtice.app.AppState
-import co.abaye.mailtice.app.SignInState
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.ProviderKind
@@ -39,12 +37,10 @@ import co.abaye.mailtice.ui.Illustration
 import co.abaye.mailtice.ui.formatBytes
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.accounts_add
-import mailtice.shared.generated.resources.accounts_cancel_sign_in
 import mailtice.shared.generated.resources.accounts_empty
 import mailtice.shared.generated.resources.accounts_reconnect
 import mailtice.shared.generated.resources.accounts_subtitle
 import mailtice.shared.generated.resources.accounts_title
-import mailtice.shared.generated.resources.accounts_waiting
 import mailtice.shared.generated.resources.empty_welcome_body
 import mailtice.shared.generated.resources.provider_gmail
 import mailtice.shared.generated.resources.provider_imap
@@ -63,8 +59,11 @@ fun AccountsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
         Column(Modifier.widthIn(max = 720.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(stringResource(Res.string.accounts_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             Text(stringResource(Res.string.accounts_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SignInRow(state.signIn, onIntent)
-            if (state.accounts.isEmpty() && state.signIn == SignInState.Idle) NoAccountsCard(onIntent)
+            Button(onClick = { onIntent(AppIntent.StartAddAccount) }) {
+                Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
+                Text(stringResource(Res.string.accounts_add), Modifier.padding(start = 8.dp))
+            }
+            if (state.accounts.isEmpty()) NoAccountsCard(onIntent)
             state.accounts.forEach { account ->
                 AccountRow(
                     account,
@@ -105,26 +104,6 @@ private fun NoAccountsCard(onIntent: (AppIntent) -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-        }
-    }
-}
-
-@Composable
-private fun SignInRow(signIn: SignInState, onIntent: (AppIntent) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        when (signIn) {
-            SignInState.Idle -> Button(onClick = { onIntent(AppIntent.StartAddAccount) }) {
-                Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
-                Text(stringResource(Res.string.accounts_add), Modifier.padding(start = 8.dp))
-            }
-
-            SignInState.Waiting -> {
-                CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
-                Text(stringResource(Res.string.accounts_waiting), Modifier.weight(1f, fill = false))
-                TextButton(onClick = { onIntent(AppIntent.CancelSignIn) }) {
-                    Text(stringResource(Res.string.accounts_cancel_sign_in))
-                }
-            }
         }
     }
 }

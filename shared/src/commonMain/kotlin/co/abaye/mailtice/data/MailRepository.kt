@@ -113,8 +113,9 @@ class MailRepository(
             val local = foldersNow(accountId).associateBy { it.id }
             remote.forEach { f ->
                 val inbox = f.role == FolderRole.Inbox
-                q.insertFolderIfMissing(accountId, f.id, f.name, f.role.name, if (inbox) 1 else 0, if (inbox) 1 else 0)
-                if (f.id in local) q.renameFolder(f.name, f.role.name, accountId, f.id)
+                // Every folder syncs; only the inbox notifies until the user says otherwise.
+                q.insertFolderIfMissing(accountId, f.id, f.name, f.role.name, 1, if (inbox) 1 else 0, f.color)
+                if (f.id in local) q.renameFolder(f.name, f.role.name, f.color, accountId, f.id)
             }
             val remoteIds = remote.map { it.id }.toSet()
             (local.keys - remoteIds).forEach { gone ->
@@ -140,7 +141,7 @@ class MailRepository(
             role = query.role,
             query = query.text.trim(),
             limit = query.limit,
-            mapper = ::mapMessage,
+            mapper = ::mapInboxMessage,
         ).asFlow().mapToList(dispatcher)
 
     val unreadCounts: Flow<Map<String, Long>> =
@@ -309,11 +310,21 @@ class MailRepository(
     @Suppress("LongParameterList")
     private fun mapFolder(
         accountId: String, id: String, name: String, role: String, sync: Long, notify: Long,
-        uidValidity: Long, uidNext: Long, highestModSeq: Long,
+        uidValidity: Long, uidNext: Long, highestModSeq: Long, color: String,
     ) = Folder(
         accountId, id, name, FolderRole.entries.firstOrNull { it.name == role } ?: FolderRole.Other,
-        sync != 0L, notify != 0L, uidValidity, uidNext, highestModSeq,
+        sync != 0L, notify != 0L, uidValidity, uidNext, highestModSeq, color,
     )
+
+    @Suppress("LongParameterList")
+    private fun mapInboxMessage(
+        accountId: String, id: String, threadId: String, uid: Long, fromName: String, fromAddress: String,
+        toLine: String, subject: String, snippet: String, receivedAt: Long, unread: Long, flagged: Long,
+        hasAttachments: Long, sizeBytes: Long, notifiedAt: Long?, folderIds: String?,
+    ) = mapMessage(
+        accountId, id, threadId, uid, fromName, fromAddress, toLine, subject, snippet, receivedAt, unread, flagged,
+        hasAttachments, sizeBytes, notifiedAt,
+    ).copy(folderIds = folderIds?.split('\u001F')?.filter { it.isNotEmpty() }.orEmpty())
 
     @Suppress("LongParameterList")
     private fun mapMessage(

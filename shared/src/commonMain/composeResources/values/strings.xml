@@ -17,8 +17,6 @@
     <string name="inbox_archive">Archive</string>
 
     <string name="accounts_add">Add account</string>
-    <string name="accounts_waiting">Finish signing in in the window that opened…</string>
-    <string name="accounts_cancel_sign_in">Cancel</string>
     <string name="accounts_empty">Add an account to start.</string>
     <string name="accounts_label">Name (optional)</string>
     <string name="accounts_notify">Notifications for this account</string>
@@ -257,4 +255,20 @@
     <string name="view_trash">Trash</string>
     <string name="nav_all_accounts">All accounts</string>
     <string name="nav_folders_of">Folders in %1$s</string>
+
+    <!-- Sign-in dialog, close button -->
+    <string name="close_to_mail">Back to mail</string>
+    <string name="signin_browser_title">Continue in your browser</string>
+    <string name="signin_browser_body">The %1$s sign-in page opened in your browser. Approve access there and this window updates by itself.</string>
+    <string name="signin_connecting_title">Connecting the account</string>
+    <string name="signin_connecting_body">Finishing the connection with %1$s…</string>
+    <string name="signin_done_title">Account connected</string>
+    <string name="signin_reconnected_title">Account reconnected</string>
+    <string name="signin_done_body">Your mail is starting to arrive. A large mailbox can take a few minutes.</string>
+    <string name="signin_failed_title">Sign-in did not complete</string>
+    <string name="signin_failed_body">The %1$s sign-in was cancelled or did not finish. You can try again.</string>
+    <string name="signin_retry">Try again</string>
+    <string name="signin_back">Back</string>
+    <string name="signin_close">Close</string>
+    <string name="signin_open_mail">Go to the mail</string>
 </resources>

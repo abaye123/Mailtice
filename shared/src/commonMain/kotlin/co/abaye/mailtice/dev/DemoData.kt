@@ -19,7 +19,7 @@ private const val HOUR = 60 * MINUTE
 private const val DAY = 24 * HOUR
 
 /** A folder of a demo mailbox. [key] is the stable part of the folder id. */
-internal data class DemoFolder(val key: String, val name: String, val role: FolderRole)
+internal data class DemoFolder(val key: String, val name: String, val role: FolderRole, val color: String = "")
 
 /** One fixture message. [minutesAgo] is relative to the moment the mailbox is first synced. */
 internal data class DemoMail(
@@ -52,8 +52,8 @@ internal object DemoFolders {
         ProviderKind.Gmail -> listOf(
             DemoFolder(INBOX, "Inbox", FolderRole.Inbox),
             DemoFolder(SENT, "Sent", FolderRole.Sent),
-            DemoFolder(WORK, "עבודה", FolderRole.Other),
-            DemoFolder(RECEIPTS, "קבלות", FolderRole.Other),
+            DemoFolder(WORK, "עבודה", FolderRole.Other, color = "#16a765"),
+            DemoFolder(RECEIPTS, "קבלות", FolderRole.Other, color = "#ffad47"),
             DemoFolder(DRAFTS, "Drafts", FolderRole.Drafts),
             DemoFolder(SPAM, "Spam", FolderRole.Spam),
             DemoFolder(TRASH, "Trash", FolderRole.Trash),

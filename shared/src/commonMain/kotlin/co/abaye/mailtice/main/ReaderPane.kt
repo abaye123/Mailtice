@@ -63,6 +63,7 @@ import co.abaye.mailtice.app.ExportFormat
 import co.abaye.mailtice.app.Reader
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
+import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.ui.AutoLinkedText
@@ -93,7 +94,10 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
     val reader = state.reader ?: return
-    ReaderPane(reader, state.account(reader.message.accountId), onIntent, modifier, showBack = true, working = state.working)
+    ReaderPane(
+        reader, state.account(reader.message.accountId), onIntent, modifier,
+        showBack = true, working = state.working, labels = state.labelsOf(reader.message),
+    )
 }
 
 /**
@@ -108,6 +112,7 @@ fun ReaderPane(
     modifier: Modifier = Modifier,
     showBack: Boolean = false,
     working: Boolean = false,
+    labels: List<Folder> = emptyList(),
 ) {
     val message = reader.message
     val colors = MaterialTheme.colorScheme
@@ -128,7 +133,14 @@ fun ReaderPane(
                         fontWeight = FontWeight.Normal,
                     )
                 }
-                if (account != null) AccountChip(account)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (account != null) AccountChip(account)
+                    labels.forEach { LabelChip(it, small = false) }
+                }
             }
             SenderLine(message, account)
             val body = reader.body

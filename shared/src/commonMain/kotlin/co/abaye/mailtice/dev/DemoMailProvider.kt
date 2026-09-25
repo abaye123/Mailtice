@@ -44,7 +44,7 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
         if (account.kind == ProviderKind.Gmail) Capabilities.Gmail else DemoAccounts.imapCapabilities()
 
     override suspend fun listFolders(account: Account): List<RemoteFolder> =
-        DemoFolders.of(account.kind).map { RemoteFolder(folderId(account, it.key), it.name, it.role) }
+        DemoFolders.of(account.kind).map { RemoteFolder(folderId(account, it.key), it.name, it.role, it.color) }
 
     override suspend fun sync(account: Account, folders: List<Folder>, sinceMillis: Long?, knownIds: Set<String>): SyncBatch {
         delay(SYNC_LATENCY_MS)

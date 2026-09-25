@@ -105,6 +105,8 @@ data class Folder(
     val uidValidity: Long = 0,
     val uidNext: Long = 0,
     val highestModSeq: Long = 0,
+    /** "#rrggbb" the provider paints the label with (Gmail); "" = no colour of its own. */
+    val color: String = "",
 )
 
 /** A row in the unified list. */
@@ -124,6 +126,8 @@ data class MailMessage(
     val flagged: Boolean,
     val hasAttachments: Boolean,
     val sizeBytes: Long,
+    /** Folders / labels holding the message; filled for list rows (label chips). */
+    val folderIds: List<String> = emptyList(),
 ) {
     val sender: String get() = fromName.ifBlank { fromAddress }
 

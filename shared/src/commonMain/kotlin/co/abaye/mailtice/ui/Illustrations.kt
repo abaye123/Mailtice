@@ -51,6 +51,15 @@ enum class Illustration {
 
     /** Every relevant account is offline: a cloud with a broken link. */
     Offline,
+
+    /** Sign-in continues in the browser: a browser window with a padlock. */
+    Browser,
+
+    /** An account was connected: an envelope with a check badge and confetti. */
+    Connected,
+
+    /** Sign-in did not complete: a padlock with an "x" badge. */
+    SignInFailed,
 }
 
 /**
@@ -88,6 +97,9 @@ fun EmptyIllustration(illustration: Illustration, modifier: Modifier = Modifier,
                 Illustration.SelectMessage -> selectMessage(p)
                 Illustration.Syncing -> syncing(p, turn)
                 Illustration.Offline -> offline(p)
+                Illustration.Browser -> browser(p)
+                Illustration.Connected -> connected(p)
+                Illustration.SignInFailed -> signInFailed(p)
             }
         }
     }
@@ -311,4 +323,58 @@ private fun DrawScope.offline(p: IllustrationPalette) {
     polyline(p.line, 3.5f, 112f, 90f, 120f, 90f, 112f, 98f, 120f, 98f)
     sparkle(p.accent, 162f, 60f, 8f)
     drawCircle(p.ink.copy(alpha = 0.5f), radius = 3.5f, center = Offset(36f, 70f))
+}
+
+/** A padlock centred on ([cx], [cy]), body [w] wide. */
+private fun DrawScope.padlock(p: IllustrationPalette, cx: Float, cy: Float, w: Float) {
+    val h = w * 0.78f
+    drawArc(
+        p.ink, startAngle = 180f, sweepAngle = 180f, useCenter = false,
+        topLeft = Offset(cx - w * 0.3f, cy - h * 0.5f - w * 0.34f), size = Size(w * 0.6f, w * 0.68f), style = stroke(w * 0.11f),
+    )
+    drawRoundRect(p.ink, Offset(cx - w / 2, cy - h * 0.5f), Size(w, h), CornerRadius(w * 0.16f))
+    drawCircle(p.onInk, radius = w * 0.1f, center = Offset(cx, cy - h * 0.06f))
+    drawLine(p.onInk, Offset(cx, cy - h * 0.06f), Offset(cx, cy + h * 0.2f), strokeWidth = w * 0.08f, cap = StrokeCap.Round)
+}
+
+private fun DrawScope.browser(p: IllustrationPalette) {
+    // Window with its title bar and three dots.
+    drawRoundRect(p.paper, Offset(38f, 56f), Size(124f, 94f), CornerRadius(12f))
+    drawRoundRect(p.soft, Offset(38f, 56f), Size(124f, 20f), CornerRadius(12f))
+    drawRoundRect(p.ink, Offset(38f, 56f), Size(124f, 94f), CornerRadius(12f), style = stroke(4f))
+    drawLine(p.ink, Offset(38f, 76f), Offset(162f, 76f), strokeWidth = 3f)
+    listOf(52f, 62f, 72f).forEach { drawCircle(p.ink, radius = 3f, center = Offset(it, 66f)) }
+    // The address bar and the sign-in form lines.
+    drawRoundRect(p.line, Offset(84f, 61f), Size(64f, 10f), CornerRadius(5f))
+    padlock(p, 100f, 112f, 34f)
+    textLine(p.line, 70f, 130f, 140f, width = 4f)
+    sparkle(p.accent, 34f, 48f, 9f)
+    sparkle(p.ink.copy(alpha = 0.5f), 168f, 150f, 6f)
+    drawCircle(p.accent, radius = 3.5f, center = Offset(170f, 60f))
+}
+
+private fun DrawScope.connected(p: IllustrationPalette) {
+    polyline(p.ink, 4f, 46f, 80f, 46f, 148f, 154f, 148f, 154f, 80f, fill = p.paper)
+    polyline(p.ink, 4f, 46f, 82f, 100f, 120f, 154f, 82f)
+    badge(p, 150f, 76f, r = 22f)
+    check(p.onInk, 150f, 77f, 10f, 5f)
+    // Confetti.
+    sparkle(p.accent, 40f, 56f, 10f)
+    sparkle(p.ink.copy(alpha = 0.55f), 92f, 50f, 7f)
+    drawCircle(p.accent, radius = 4f, center = Offset(118f, 44f))
+    drawCircle(p.ink.copy(alpha = 0.5f), radius = 3f, center = Offset(34f, 120f))
+    drawLine(p.accent, Offset(168f, 118f), Offset(176f, 126f), strokeWidth = 4f, cap = StrokeCap.Round)
+    drawLine(p.ink.copy(alpha = 0.5f), Offset(60f, 164f), Offset(70f, 160f), strokeWidth = 4f, cap = StrokeCap.Round)
+}
+
+private fun DrawScope.signInFailed(p: IllustrationPalette) {
+    drawCircle(p.paper, radius = 46f, center = Offset(96f, 108f))
+    drawCircle(p.line, radius = 46f, center = Offset(96f, 108f), style = stroke(3f))
+    padlock(p, 96f, 116f, 44f)
+    drawCircle(p.paper, radius = 22f, center = Offset(142f, 70f))
+    drawCircle(p.accent, radius = 18f, center = Offset(142f, 70f))
+    drawLine(p.onInk, Offset(135f, 63f), Offset(149f, 77f), strokeWidth = 4.5f, cap = StrokeCap.Round)
+    drawLine(p.onInk, Offset(149f, 63f), Offset(135f, 77f), strokeWidth = 4.5f, cap = StrokeCap.Round)
+    sparkle(p.ink.copy(alpha = 0.5f), 40f, 60f, 7f)
+    drawCircle(p.accent, radius = 3.5f, center = Offset(40f, 150f))
 }

@@ -22,11 +22,19 @@ sealed interface AppDialog {
     data class ConfirmClearCache(val accountId: String) : AppDialog
 }
 
-enum class SignInState {
-    Idle,
+/** Where a sign-in stands; the add-account dialog shows one screen per phase. */
+enum class SignInPhase {
+    /** The provider's page is open in the browser (or Play services); waiting for the redirect. */
+    Browser,
 
-    /** The browser (or Play services) is open and the app waits for the redirect. */
-    Waiting,
+    /** The code came back; exchanging it and reading the account address. */
+    Connecting,
+
+    /** The account is connected. */
+    Done,
+
+    /** Something went wrong; the user can try again. */
+    Failed,
 }
 
 /** The IMAP form, also used to enter a new password for an existing account. */
@@ -48,6 +56,18 @@ data class ImapForm(
 sealed interface AddAccountStep {
     data object ChooseProvider : AddAccountStep
     data class Imap(val form: ImapForm) : AddAccountStep
+
+    /**
+     * The sign-in in progress, shown inside the same dialog. [reconnectId] is set when an existing
+     * account signs in again; [accountId] and [email] are filled once the account is known.
+     */
+    data class SignIn(
+        val kind: ProviderKind,
+        val phase: SignInPhase,
+        val reconnectId: String? = null,
+        val accountId: String = "",
+        val email: String = "",
+    ) : AddAccountStep
 }
 
 @Immutable
@@ -101,6 +121,8 @@ data class AppState(
     /** accountId -> folderId -> unread, for the counts next to folders. */
     val unreadByFolder: Map<String, Map<String, Long>> = emptyMap(),
     val statuses: Map<String, AccountStatus> = emptyMap(),
+    /** Why an account's last sync round failed; shown next to its "offline" status. */
+    val syncErrors: Map<String, String> = emptyMap(),
     val filter: InboxFilter = InboxFilter(),
     val reader: Reader? = null,
     val compose: ComposeDraft? = null,
@@ -110,7 +132,6 @@ data class AppState(
     val working: Boolean = false,
     val storage: StorageUsage = StorageUsage(),
     val addAccount: AddAccountStep? = null,
-    val signIn: SignInState = SignInState.Idle,
     /** Providers the build has credentials for and this platform can sign in to. */
     val availableProviders: List<ProviderKind> = ProviderKind.entries,
     val dialog: AppDialog = AppDialog.Hidden,
