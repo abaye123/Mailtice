@@ -52,8 +52,11 @@ import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.domain.AccentColor
+import co.abaye.mailtice.domain.AppFont
+import co.abaye.mailtice.theme.fontFamily
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.PaneStyle
+import co.abaye.mailtice.domain.ReadingPane
 import co.abaye.mailtice.domain.PollIntervals
 import co.abaye.mailtice.domain.ThemeMode
 import co.abaye.mailtice.domain.UiLanguage
@@ -74,9 +77,15 @@ import mailtice.shared.generated.resources.density_spacious
 import mailtice.shared.generated.resources.pane_cards
 import mailtice.shared.generated.resources.pane_lines
 import mailtice.shared.generated.resources.settings_density
+import mailtice.shared.generated.resources.settings_font
+import mailtice.shared.generated.resources.settings_font_desc
 import mailtice.shared.generated.resources.settings_density_desc
 import mailtice.shared.generated.resources.settings_pane_style
 import mailtice.shared.generated.resources.settings_pane_style_desc
+import mailtice.shared.generated.resources.reading_off
+import mailtice.shared.generated.resources.reading_split
+import mailtice.shared.generated.resources.settings_reading_pane
+import mailtice.shared.generated.resources.settings_reading_pane_desc
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.language_system
 import mailtice.shared.generated.resources.poll_minutes
@@ -125,8 +134,19 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
             SettingBlock(stringResource(Res.string.settings_density), subtitle = stringResource(Res.string.settings_density_desc)) {
                 ChoicePicker(ListDensity.entries, settings.density, { it.label() }) { onIntent(AppIntent.SetDensity(it)) }
             }
+            SettingBlock(stringResource(Res.string.settings_font), subtitle = stringResource(Res.string.settings_font_desc)) {
+                FontPicker(settings.font) { onIntent(AppIntent.SetFont(it)) }
+            }
             SettingBlock(stringResource(Res.string.settings_pane_style), subtitle = stringResource(Res.string.settings_pane_style_desc)) {
                 ChoicePicker(PaneStyle.entries, settings.paneStyle, { it.label() }) { onIntent(AppIntent.SetPaneStyle(it)) }
+            }
+            SettingBlock(stringResource(Res.string.settings_reading_pane), subtitle = stringResource(Res.string.settings_reading_pane_desc)) {
+                ChoicePicker(ReadingPane.entries, settings.readingPane, {
+                    when (it) {
+                        ReadingPane.Split -> stringResource(Res.string.reading_split)
+                        ReadingPane.Off -> stringResource(Res.string.reading_off)
+                    }
+                }) { onIntent(AppIntent.SetReadingPane(it)) }
             }
             SettingRow(stringResource(Res.string.settings_language)) {
                 LanguagePicker(
@@ -187,6 +207,23 @@ private fun <T> ChoicePicker(options: List<T>, current: T, label: @Composable (T
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) {
                 Text(label(option), maxLines = 1, softWrap = false)
+            }
+        }
+    }
+}
+
+/** Like [ChoicePicker], but each name is written in its own face so the choice can be seen. */
+@Composable
+private fun FontPicker(current: AppFont, onPick: (AppFont) -> Unit) {
+    val options = AppFont.entries
+    SingleChoiceSegmentedButtonRow(Modifier.widthIn(max = 420.dp).fillMaxWidth()) {
+        options.forEachIndexed { index, font ->
+            SegmentedButton(
+                selected = current == font,
+                onClick = { onPick(font) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+            ) {
+                Text(font.displayName, fontFamily = fontFamily(font), maxLines = 1, softWrap = false)
             }
         }
     }

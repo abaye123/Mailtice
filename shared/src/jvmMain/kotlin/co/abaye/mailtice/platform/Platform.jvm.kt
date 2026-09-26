@@ -1,6 +1,12 @@
 package co.abaye.mailtice.platform
 
 import co.abaye.mailtice.dev.DemoMode
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.dialogs.FileKitDialogParent
+import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
+import io.github.vinceglb.filekit.dialogs.FileKitMode
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.openFilePicker
 import dev.nucleusframework.autolaunch.AutoLaunch
 import dev.nucleusframework.autolaunch.AutoLaunchResult
 import dev.nucleusframework.core.runtime.NucleusApp
@@ -135,21 +141,35 @@ internal actual object Platform {
 
     actual val canPickFiles: Boolean = true
 
-    actual fun pickFiles(title: String): List<PickedFile> = runCatching {
-        // A hidden owner frame: the window itself is not AWT (Tao), and FileDialog wants a Frame.
-        val owner = java.awt.Frame()
-        try {
-            val dialog = java.awt.FileDialog(owner, title, java.awt.FileDialog.LOAD).apply { isMultipleMode = true }
-            dialog.isVisible = true
-            dialog.files.orEmpty().filter { it.isFile }.map { f ->
-                val mime = runCatching { java.nio.file.Files.probeContentType(f.toPath()) }.getOrNull()
-                    ?: java.net.URLConnection.guessContentTypeFromName(f.name) ?: "application/octet-stream"
-                PickedFile(f.name, mime, f.readBytes())
-            }
-        } finally {
-            owner.dispose()
+    /**
+     * The native dialog (FileKit): IFileOpenDialog on Windows - the current Windows 11 one - NSOpenPanel
+     * on macOS, the XDG portal on Linux. On Windows it is owned by the app's window (the foreground
+     * one: the user just clicked "attach" in it), so it opens in front of the app, never behind it.
+     */
+    actual suspend fun pickFiles(title: String): List<PickedFile> = runCatching {
+        val parent = if (osLabel == "Windows") {
+            runCatching {
+                val hwnd = com.sun.jna.platform.win32.User32.INSTANCE.GetForegroundWindow()
+                FileKitDialogParent.windows(com.sun.jna.Pointer.nativeValue(hwnd.pointer))
+            }.getOrNull()
+        } else {
+            null
         }
+        val picked = FileKit.openFilePicker(
+            type = FileKitType.File(),
+            mode = FileKitMode.Multiple(),
+            dialogSettings = FileKitDialogSettings(title = title, parent = parent),
+        )
+        picked.orEmpty().mapNotNull { readPicked(it.file) }
     }.getOrDefault(emptyList())
+
+    /** A file from the dialog or a drop, with its type guessed from the name / content. */
+    fun readPicked(f: File): PickedFile? {
+        if (!f.isFile) return null
+        val mime = runCatching { java.nio.file.Files.probeContentType(f.toPath()) }.getOrNull()
+            ?: java.net.URLConnection.guessContentTypeFromName(f.name) ?: "application/octet-stream"
+        return PickedFile(f.name, mime, f.readBytes())
+    }
 
     actual fun setLaunchAtLogin(enabled: Boolean): Boolean = runCatching {
         val result = if (enabled) AutoLaunch.enable() else AutoLaunch.disable()

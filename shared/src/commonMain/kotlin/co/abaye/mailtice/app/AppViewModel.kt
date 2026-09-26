@@ -21,6 +21,7 @@ import co.abaye.mailtice.domain.AccountColor
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.PollIntervals
@@ -73,6 +74,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -94,6 +97,9 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private const val SEARCH_DEBOUNCE_MS = 200L
+
+/** Quiet time after the last keystroke before the draft is saved. */
+private const val DRAFT_SAVE_DELAY_MS = 2_000L
 
 /** How often the scheduled-send queue is checked. */
 private const val SCHEDULE_TICK_MS = 20_000L
@@ -178,6 +184,13 @@ class AppViewModel(
         scope.launch { repo.unreadCounts.collect { counts -> mutate { it.copy(unread = counts) } } }
         scope.launch { repo.unreadByFolder.collect { counts -> mutate { it.copy(unreadByFolder = counts) } } }
         scope.launch { repo.scheduled.collect { queue -> mutate { it.copy(scheduled = queue) } } }
+        // Drafts save themselves two seconds after the typing stops.
+        scope.launch {
+            _state.map { s -> s.compose?.let { it.draftId to it.draftSignature() } }
+                .distinctUntilChanged()
+                .debounce(DRAFT_SAVE_DELAY_MS)
+                .collect { saveDraft() }
+        }
         // The scheduled-send queue goes out from here while the app runs (tray included).
         scope.launch {
             while (true) {
@@ -331,6 +344,10 @@ class AppViewModel(
                         attachments = current.attachments,
                         scheduledId = current.scheduledId,
                         initialHtml = current.initialHtml,
+                        draftHandle = current.draftHandle,
+                        draftAccountId = current.draftAccountId,
+                        draftSave = current.draftSave,
+                        savedSignature = current.savedSignature,
                         invalidAddresses = false,
                     ),
                 )
@@ -339,6 +356,7 @@ class AppViewModel(
             is AppIntent.ComposeWindow -> mutate { s -> s.copy(compose = s.compose?.copy(window = intent.mode)) }
             is AppIntent.ComposeSuggest -> suggestContacts(intent.query)
             AppIntent.ComposeAttach -> attachFiles()
+            is AppIntent.ComposeAddFiles -> addFiles(intent.files)
             is AppIntent.ComposeRemoveAttachment -> mutate { s ->
                 s.copy(compose = s.compose?.let { d -> d.copy(attachments = d.attachments.filter { it.id != intent.id }) })
             }
@@ -353,7 +371,8 @@ class AppViewModel(
             }
             is AppIntent.EditScheduled -> editScheduled(intent.id)
             AppIntent.SendCompose -> sendCompose()
-            AppIntent.CloseCompose -> mutate { if (it.compose?.sending == true) it else it.copy(compose = null) }
+            AppIntent.CloseCompose -> closeCompose(discard = false)
+            AppIntent.DiscardCompose -> closeCompose(discard = true)
             is AppIntent.SetSearchQuery -> mutate { it.copy(filter = it.filter.copy(query = intent.query)) }
             is AppIntent.OpenMail -> openMail(intent.message)
             AppIntent.CloseReader -> {
@@ -374,7 +393,12 @@ class AppViewModel(
             is AppIntent.SetTheme -> settings { it.copy(theme = intent.mode) }
             is AppIntent.SetAccent -> settings { it.copy(accent = intent.accent) }
             is AppIntent.SetDensity -> settings { it.copy(density = intent.density) }
+            is AppIntent.SetFont -> settings { it.copy(font = intent.font) }
             is AppIntent.SetPaneStyle -> settings { it.copy(paneStyle = intent.style) }
+            is AppIntent.SetReadingPane -> settings { it.copy(readingPane = intent.pane) }
+            is AppIntent.SetFolderHidden -> settings {
+                it.copy(hiddenFolders = if (intent.hidden) it.hiddenFolders + intent.key else it.hiddenFolders - intent.key)
+            }
             is AppIntent.SetUiLanguage -> settings {
                 it.copy(uiLanguage = intent.language ?: systemUiLanguage(), uiLanguageAuto = intent.language == null)
             }
@@ -731,6 +755,10 @@ class AppViewModel(
     // ---- inbox & reader ---------------------------------------------------------------------
 
     private fun openMail(message: MailMessage) {
+        if (isDraft(message)) {
+            openDraft(message)
+            return
+        }
         mutate { it.copy(reader = Reader(message)) }
         if (!Platform.isDesktop) navigate(AppKey.Reader)
         scope.launch {
@@ -1065,6 +1093,7 @@ class AppViewModel(
             try {
                 withContext(io) { sync.send(account, mail) }
                 draft.scheduledId?.let { id -> withContext(io) { repo.unschedule(id) } }
+                dropServerDraft(latestDraftFor(draft))
                 mutate { it.copy(compose = null, message = AppMessage.Sent) }
             } catch (e: CancellationException) {
                 throw e
@@ -1082,17 +1111,21 @@ class AppViewModel(
     private fun attachFiles() {
         scope.launch {
             val title = localizedString(_state.value.data.settings.uiLanguage.code, Res.string.compose_attach)
-            val picked = withContext(io) { Platform.pickFiles(title) }
-            if (picked.isEmpty()) return@launch
-            mutate { s ->
-                val draft = s.compose ?: return@mutate s
-                val added = picked.map { DraftAttachment(newId(), it.name, it.mimeType, it.bytes) }
-                val total = (draft.attachments + added).sumOf { it.size }
-                if (total > MAX_ATTACHMENTS_BYTES) {
-                    s.copy(message = AppMessage.AttachmentsTooLarge)
-                } else {
-                    s.copy(compose = draft.copy(attachments = draft.attachments + added))
-                }
+            addFiles(withContext(io) { Platform.pickFiles(title) })
+        }
+    }
+
+    /** Adds files to the open draft, within Gmail's 25 MB for a message. */
+    private fun addFiles(picked: List<co.abaye.mailtice.platform.PickedFile>) {
+        if (picked.isEmpty()) return
+        mutate { s ->
+            val draft = s.compose ?: return@mutate s
+            val added = picked.map { DraftAttachment(newId(), it.name, it.mimeType, it.bytes) }
+            val total = (draft.attachments + added).sumOf { it.size }
+            if (total > MAX_ATTACHMENTS_BYTES) {
+                s.copy(message = AppMessage.AttachmentsTooLarge)
+            } else {
+                s.copy(compose = draft.copy(attachments = draft.attachments + added))
             }
         }
     }
@@ -1118,6 +1151,7 @@ class AppViewModel(
         val item = ScheduledMail(id = draft.scheduledId ?: newId(), accountId = draft.accountId, sendAt = sendAt, mail = mail)
         background {
             repo.schedule(item)
+            dropServerDraft(latestDraftFor(draft))
             mutate { it.copy(compose = null, message = AppMessage.Scheduled) }
         }
     }
@@ -1170,6 +1204,116 @@ class AppViewModel(
                 withContext(io) { repo.scheduledFailed(item.id, why, Platform.now() + wait) }
             }
         }
+    }
+
+    // ---- drafts on the server ---------------------------------------------------------------
+
+    private val draftMutex = Mutex()
+
+    /** The newest state of [draft] (a save may have finished since it was read). */
+    private fun latestDraftFor(draft: ComposeDraft): ComposeDraft =
+        _state.value.compose?.takeIf { it.draftId == draft.draftId } ?: draft
+
+    /**
+     * Saves the open draft when it changed since the last save. Addresses are taken as typed (a draft
+     * may hold a half-written one). Switching the "from" account moves the draft to that account.
+     */
+    private suspend fun saveDraft(snapshot: ComposeDraft? = _state.value.compose): ComposeDraft? = draftMutex.withLock {
+        val draft = snapshot?.let(::latestDraftFor) ?: return@withLock null
+        if (draft.sending || draft.isBlank || draft.draftSignature() == draft.savedSignature) return@withLock draft
+        val account = _state.value.account(draft.accountId)?.takeIf { it.capabilities.drafts } ?: return@withLock draft
+        val signature = draft.draftSignature()
+        fun tokens(s: String) = s.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }
+        val mail = OutgoingMail(
+            to = tokens(draft.to), cc = tokens(draft.cc), bcc = tokens(draft.bcc),
+            subject = draft.subject,
+            text = draft.body + draft.quote.orEmpty(),
+            html = draft.html?.let { "<div dir=\"auto\">$it</div>" + draft.quoteHtml.orEmpty() },
+            attachments = draft.attachments.map { OutgoingAttachment(it.name, it.mimeType, it.bytes) },
+            inReplyTo = draft.inReplyTo, references = draft.references, threadId = draft.threadId,
+        )
+        markDraft(draft.draftId) { it.copy(draftSave = DraftSave.Saving) }
+        try {
+            val sameAccount = draft.draftAccountId == account.id
+            val handle = withContext(io) { sync.saveDraft(account, mail, draft.draftHandle.takeIf { sameAccount }) }
+            if (!sameAccount) {
+                val old = draft.draftAccountId?.let { _state.value.account(it) }
+                if (old != null && draft.draftHandle != null) runCatching { withContext(io) { sync.deleteDraft(old, draft.draftHandle) } }
+            }
+            markDraft(draft.draftId) { it.copy(draftHandle = handle, draftAccountId = account.id, draftSave = DraftSave.Saved, savedSignature = signature) }
+            draft.copy(draftHandle = handle, draftAccountId = account.id, savedSignature = signature)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            println("Draft save failed: ${e::class.simpleName}")
+            markDraft(draft.draftId) { it.copy(draftSave = DraftSave.Failed) }
+            draft
+        }
+    }
+
+    private fun markDraft(draftId: Long, change: (ComposeDraft) -> ComposeDraft) = mutate { s ->
+        val d = s.compose?.takeIf { it.draftId == draftId } ?: return@mutate s
+        s.copy(compose = change(d))
+    }
+
+    /** Deletes the server copy of [draft], if it has one (sent, scheduled or discarded). */
+    private suspend fun dropServerDraft(draft: ComposeDraft) {
+        val handle = draft.draftHandle ?: return
+        val account = draft.draftAccountId?.let { _state.value.account(it) } ?: return
+        runCatching { withContext(io) { sync.deleteDraft(account, handle) } }
+    }
+
+    /**
+     * Closing keeps the draft: whatever changed since the last save is saved now. The trash icon
+     * ([discard]) deletes it from the server instead.
+     */
+    private fun closeCompose(discard: Boolean) {
+        val draft = _state.value.compose ?: return
+        if (draft.sending) return
+        mutate { it.copy(compose = null, contactSuggestions = emptyList()) }
+        scope.launch {
+            if (discard) {
+                draftMutex.withLock { dropServerDraft(draft) }
+                if (draft.draftHandle != null) mutate { it.copy(message = AppMessage.DraftDiscarded) }
+                return@launch
+            }
+            val canSave = _state.value.account(draft.accountId)?.capabilities?.drafts == true
+            if (draft.isBlank || !canSave) return@launch
+            val saved = saveDraft(draft)
+            if (saved?.draftHandle != null) mutate { it.copy(message = AppMessage.DraftSaved) }
+        }
+    }
+
+    /** A message in Drafts opens in the compose window, carrying on the same server draft. */
+    private fun openDraft(message: MailMessage) {
+        val account = _state.value.account(message.accountId)?.takeIf { it.capabilities.send } ?: return
+        scope.launch {
+            val body = runCatching { withContext(io) { sync.body(message) } }.getOrNull()
+            val handle = withContext(io) { sync.draftHandle(message) }
+            val html = body?.html?.takeIf { it.isNotBlank() }
+            val draft = ComposeDraft(
+                draftId = Platform.now(),
+                accountId = account.id,
+                to = message.toLine.split(',').map { it.trim() }.filter { it.isNotEmpty() }.joinToString("") { "$it, " },
+                subject = message.subject,
+                body = body?.text.orEmpty(),
+                html = html,
+                initialHtml = html ?: body?.text.orEmpty().lines().joinToString("<br>") {
+                    it.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                },
+                draftHandle = handle,
+                draftAccountId = account.id,
+                draftSave = DraftSave.Saved,
+            )
+            mutate { it.copy(compose = draft.copy(savedSignature = draft.draftSignature())) }
+        }
+    }
+
+    private fun isDraft(message: MailMessage): Boolean {
+        val s = _state.value
+        val draftFolders = s.foldersOf(message.accountId).filter { it.role == FolderRole.Drafts }.map { it.id }.toSet()
+        return message.folderIds.any { it in draftFolders } ||
+            (s.filter.folderId.isEmpty() && s.filter.view == MailView.Drafts)
     }
 
     private fun openInWeb(message: MailMessage) {

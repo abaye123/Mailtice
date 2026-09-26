@@ -100,9 +100,11 @@ import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ComposeDraft
 import co.abaye.mailtice.app.ComposeMode
 import co.abaye.mailtice.app.ComposeWindowMode
+import co.abaye.mailtice.app.DraftSave
 import co.abaye.mailtice.data.Contact
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.platform.fileDropTarget
 import co.abaye.mailtice.provider.parseAddressList
 import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
@@ -128,6 +130,7 @@ import mailtice.shared.generated.resources.compose_bcc
 import mailtice.shared.generated.resources.compose_cc
 import mailtice.shared.generated.resources.compose_close
 import mailtice.shared.generated.resources.compose_delete_draft
+import mailtice.shared.generated.resources.compose_drop_hint
 import mailtice.shared.generated.resources.compose_formatting
 import mailtice.shared.generated.resources.compose_forward_title
 import mailtice.shared.generated.resources.compose_from
@@ -144,6 +147,9 @@ import mailtice.shared.generated.resources.compose_show_quote
 import mailtice.shared.generated.resources.compose_subject
 import mailtice.shared.generated.resources.compose_to
 import mailtice.shared.generated.resources.dialog_cancel
+import mailtice.shared.generated.resources.draft_failed
+import mailtice.shared.generated.resources.draft_saved
+import mailtice.shared.generated.resources.draft_saving
 import mailtice.shared.generated.resources.fmt_bold
 import mailtice.shared.generated.resources.fmt_bullets
 import mailtice.shared.generated.resources.fmt_italic
@@ -199,14 +205,15 @@ fun ComposeWindow(state: AppState, onIntent: (AppIntent) -> Unit) {
                     color = MaterialTheme.colorScheme.surface,
                 ) { ComposeSheet(draft, state, onIntent, docked = false) }
             }
+            // Floating a little above the bottom edge, rounded all round, rather than glued to it.
             draft.window == ComposeWindowMode.Minimized -> Surface(
-                Modifier.align(Alignment.BottomEnd).padding(end = 24.dp).width(320.dp),
-                shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+                Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 16.dp).width(320.dp),
+                shape = RoundedCornerShape(12.dp),
                 shadowElevation = 12.dp,
             ) { ComposeHeader(draft, onIntent) }
             else -> Surface(
-                Modifier.align(Alignment.BottomEnd).padding(end = 24.dp).width(560.dp).height(minOf(640.dp, maxH - 24.dp)),
-                shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+                Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 16.dp).width(560.dp).height(minOf(640.dp, maxH - 40.dp)),
+                shape = RoundedCornerShape(16.dp),
                 shadowElevation = 12.dp,
                 color = MaterialTheme.colorScheme.surface,
             ) { ComposeSheet(draft, state, onIntent, docked = true) }
@@ -230,14 +237,29 @@ private fun ComposeHeader(draft: ComposeDraft, onIntent: (AppIntent) -> Unit) {
             .padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            title,
-            Modifier.weight(1f),
-            style = MaterialTheme.typography.titleSmall.merge(ContentDirection),
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall.merge(ContentDirection),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // Gmail's quiet "Draft saved" under the title.
+            val status = when (draft.draftSave) {
+                DraftSave.Saving -> stringResource(Res.string.draft_saving)
+                DraftSave.Saved -> stringResource(Res.string.draft_saved)
+                DraftSave.Failed -> stringResource(Res.string.draft_failed)
+                DraftSave.None -> null
+            }
+            if (status != null && !minimized) {
+                Text(
+                    status,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (draft.draftSave == DraftSave.Failed) colors.error else colors.onSurfaceVariant,
+                )
+            }
+        }
         if (!LocalCompactLayout.current) {
             TooltipIconButton(
                 if (minimized) Icons.Outlined.ExpandMore else Icons.Outlined.Remove,
@@ -270,6 +292,9 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
     var formatting by remember { mutableStateOf(false) }
     var showQuote by remember(draft.draftId) { mutableStateOf(draft.mode == ComposeMode.Forward) }
     var linkDialog by remember { mutableStateOf(false) }
+    // A file dragged over the body or the bottom bar: both attach it (images included, as files).
+    var dropHover by remember { mutableStateOf(false) }
+    val onDropped: (List<co.abaye.mailtice.platform.PickedFile>) -> Unit = { onIntent(AppIntent.ComposeAddFiles(it)) }
     val enabled = !draft.sending
     val colors = MaterialTheme.colorScheme
 
@@ -313,7 +338,8 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
             LineField(stringResource(Res.string.compose_subject), draft.subject, enabled) { v -> update { it.copy(subject = v) } }
         }
         // The body: editor, the folded quote, then the attached files.
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Box(Modifier.weight(1f).fillMaxWidth().fileDropTarget(onHover = { dropHover = it }, onFiles = onDropped)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)) {
             BasicRichTextEditor(
                 state = rich,
                 modifier = Modifier.fillMaxWidth().heightIn(min = if (docked) 160.dp else 280.dp),
@@ -365,6 +391,8 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
                 }
             }
         }
+            if (dropHover) DropHint()
+        }
         if (draft.invalidAddresses) {
             Text(
                 stringResource(Res.string.compose_invalid_address),
@@ -374,15 +402,33 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
             )
         }
         if (formatting) FormattingBar(rich, onLink = { linkDialog = true })
-        BottomBar(
-            draft = draft,
-            formatting = formatting,
-            onToggleFormatting = { formatting = !formatting },
-            onLink = { linkDialog = true },
-            onIntent = onIntent,
-        )
+        Box(Modifier.fileDropTarget(onHover = { dropHover = it }, onFiles = onDropped)) {
+            BottomBar(
+                draft = draft,
+                formatting = formatting,
+                onToggleFormatting = { formatting = !formatting },
+                onLink = { linkDialog = true },
+                onIntent = onIntent,
+            )
+        }
     }
     if (linkDialog) LinkDialog(rich) { linkDialog = false }
+}
+
+/** Over the body while a file is dragged across it. */
+@Composable
+private fun DropHint() {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        Modifier.fillMaxSize().padding(8.dp).clip(RoundedCornerShape(12.dp))
+            .background(colors.primaryContainer.copy(alpha = 0.85f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Outlined.AttachFile, null, tint = colors.onPrimaryContainer)
+            Text(stringResource(Res.string.compose_drop_hint), color = colors.onPrimaryContainer, style = MaterialTheme.typography.titleSmall)
+        }
+    }
 }
 
 @Composable
@@ -640,7 +686,7 @@ private fun BottomBar(
         }
         TooltipIconButton(Icons.Outlined.Link, stringResource(Res.string.fmt_link), onLink, enabled = enabled)
         Spacer(Modifier.weight(1f))
-        TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.compose_delete_draft), { onIntent(AppIntent.CloseCompose) }, enabled = enabled)
+        TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.compose_delete_draft), { onIntent(AppIntent.DiscardCompose) }, enabled = enabled)
     }
 }
 

@@ -41,8 +41,8 @@ internal expect object Platform {
     /** Shows where [location] (from [saveDownload]) was saved: the folder in the file manager. */
     fun revealDownload(location: String)
 
-    /** The OS "open files" dialog, several files at once; empty when cancelled or unsupported. Blocks. */
-    fun pickFiles(title: String): List<PickedFile>
+    /** The OS "open files" dialog, several files at once; empty when cancelled or unsupported. */
+    suspend fun pickFiles(title: String): List<PickedFile>
 
     /** False where [pickFiles] has no dialog yet (Android): the compose window hides "attach". */
     val canPickFiles: Boolean

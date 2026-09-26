@@ -168,6 +168,8 @@
     <string name="inbox_search_all">חיפוש בכל החשבונות</string>
     <string name="inbox_search_in">חיפוש ב-%1$s</string>
     <string name="settings_density">צפיפות הרשימה</string>
+    <string name="settings_font">גופן</string>
+    <string name="settings_font_desc">הגופן של כל הממשק.</string>
     <string name="settings_density_desc">כמה מקום תופס כל מייל ברשימה.</string>
     <string name="density_compact">קומפקטית</string>
     <string name="density_comfortable">נוחה</string>
@@ -192,7 +194,7 @@
     <string name="reader_reply">השב</string>
     <string name="reader_reply_all">השב לכולם</string>
     <string name="reader_forward">העבר</string>
-    <string name="compose_new">כתיבה</string>
+    <string name="compose_new">אימייל חדש</string>
     <string name="compose_new_title">הודעה חדשה</string>
     <string name="compose_reply_title">תשובה</string>
     <string name="compose_forward_title">העברה</string>
@@ -343,4 +345,25 @@
     <string name="message_scheduled_sent">הודעה מתוזמנת נשלחה</string>
     <string name="message_schedule_cancelled">התזמון בוטל</string>
     <string name="message_attachments_too_large">הקבצים גדולים מדי: עד 25MB להודעה.</string>
+
+    <!-- Folder visibility, reading pane -->
+    <string name="sidebar_more">עוד</string>
+    <string name="sidebar_less">פחות</string>
+    <string name="sidebar_edit">הצגה והסתרה של תיקיות</string>
+    <string name="sidebar_edit_done">סיום</string>
+    <string name="sidebar_hide">הסתרה מהרשימה</string>
+    <string name="sidebar_show">הצגה ברשימה</string>
+    <string name="settings_reading_pane">חלונית קריאה</string>
+    <string name="settings_reading_pane_desc">לצד הרשימה, או ללא: הודעה שנפתחת תופסת את מקום הרשימה.</string>
+    <string name="reading_split">לצד הרשימה</string>
+    <string name="reading_off">ללא</string>
+
+    <!-- Drafts -->
+    <string name="draft_saving">שומר…</string>
+    <string name="draft_saved">הטיוטה נשמרה</string>
+    <string name="draft_failed">הטיוטה לא נשמרה</string>
+    <string name="message_draft_saved">הטיוטה נשמרה בתיקיית הטיוטות</string>
+    <string name="message_draft_discarded">הטיוטה נמחקה</string>
+    <string name="compose_new_hint">כתיבת הודעה חדשה</string>
+    <string name="compose_drop_hint">שחרר כדי לצרף</string>
 </resources>

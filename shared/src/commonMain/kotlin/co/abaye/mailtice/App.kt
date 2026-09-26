@@ -51,7 +51,7 @@ fun App(
     onLayoutDirectionChange(language.rtl)
     val direction = if (language.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
     ProvideAppLocale(language.code) {
-        AppTheme(accent = settings.accent, isDark = isDark) {
+        AppTheme(accent = settings.accent, isDark = isDark, font = settings.font) {
             CompositionLocalProvider(LocalLayoutDirection provides direction) {
                 RootScreen(state = state, backStack = vm.backStack, onIntent = vm::onIntent)
             }

@@ -27,7 +27,8 @@ object MimeBuilder {
             append(name).append(": ").append(value).append("\r\n")
         }
         header("From", encodeAddress(from))
-        header("To", mail.to.joinToString(", ") { encodeAddress(it) })
+        // A draft may not have a recipient yet.
+        if (mail.to.isNotEmpty()) header("To", mail.to.joinToString(", ") { encodeAddress(it) })
         if (mail.cc.isNotEmpty()) header("Cc", mail.cc.joinToString(", ") { encodeAddress(it) })
         // The Gmail API reads Bcc from the raw message, delivers to it and strips the header.
         if (mail.bcc.isNotEmpty()) header("Bcc", mail.bcc.joinToString(", ") { encodeAddress(it) })

@@ -148,6 +148,9 @@ kotlin {
 
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
+            // The OS file dialog for attachments (native, not AWT's legacy one).
+            implementation(libs.filekit.dialogs)
+            implementation(libs.jna.platform)
             implementation(libs.sqlDelight.driver.sqlite)
             implementation(libs.sqlite.jdbc)
             implementation(libs.kotlinx.coroutines.swing)

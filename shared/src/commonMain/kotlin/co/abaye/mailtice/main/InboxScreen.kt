@@ -83,7 +83,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
@@ -94,6 +99,7 @@ import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailView
+import co.abaye.mailtice.domain.ReadingPane
 import co.abaye.mailtice.platform.ResizeHorizontalIcon
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.ui.LocalDensitySpec
@@ -156,6 +162,10 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
     }
     val compact = LocalCompactLayout.current
     val cards = cardPanes()
+    if (!compact && state.data.settings.readingPane == ReadingPane.Off) {
+        FullWidthInbox(state, onIntent, cards, modifier)
+        return
+    }
     val saved = state.data.settings.listFraction
     // Local while dragging (smooth), written to the settings once the drag ends.
     var fraction by remember(saved) { mutableFloatStateOf(saved) }
@@ -192,6 +202,33 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
                     ReaderEmptyState()
                 } else {
                     ReaderPane(reader, state.account(reader.message.accountId), onIntent, working = state.working, labels = state.labelsOf(reader.message))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Gmail's default layout: the list across the whole pane, an opened message in its place with a
+ * back arrow. The list stays composed underneath, so going back returns to the same scroll spot.
+ */
+@Composable
+private fun FullWidthInbox(state: AppState, onIntent: (AppIntent) -> Unit, cards: Boolean, modifier: Modifier) {
+    Pane(rounded = cards, modifier = modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) { MessageList(state, onIntent) }
+            val reader = state.reader
+            if (reader != null) {
+                Surface(
+                    Modifier.fillMaxSize()
+                        // Swallows clicks, so nothing reaches the list underneath.
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    ReaderPane(
+                        reader, state.account(reader.message.accountId), onIntent,
+                        showBack = true, working = state.working, labels = state.labelsOf(reader.message),
+                    )
                 }
             }
         }
@@ -354,20 +391,18 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
                 if (query.isNotEmpty()) {
                     TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.empty_search_action), { onIntent(AppIntent.SetSearchQuery("")) })
                 }
-                Box {
-                    TooltipIconButton(Icons.Outlined.Tune, stringResource(Res.string.search_options), { optionsOpen = true })
-                    DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
-                        SearchOptions(query, onSearch = { onIntent(AppIntent.SetSearchQuery(it)) }, onDismiss = { optionsOpen = false })
-                    }
-                }
+                TooltipIconButton(Icons.Outlined.Tune, stringResource(Res.string.search_options), { optionsOpen = !optionsOpen })
             }
         }
+        // Gmail's search options hang from the search field itself: same width, right under it.
+        var fieldSize by remember { mutableStateOf(IntSize.Zero) }
+        Box(Modifier.weight(1f).onSizeChanged { fieldSize = it }) {
         if (cards) {
             // The design's search pill: filled, fully rounded, no underline.
             TextField(
                 value = query,
                 onValueChange = { onIntent(AppIntent.SetSearchQuery(it)) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(28.dp),
                 placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -384,12 +419,30 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
             OutlinedTextField(
                 value = query,
                 onValueChange = { onIntent(AppIntent.SetSearchQuery(it)) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 trailingIcon = clear,
             )
+        }
+            if (optionsOpen) {
+                val density = LocalDensity.current
+                Popup(
+                    offset = IntOffset(0, fieldSize.height + with(density) { 4.dp.roundToPx() }),
+                    onDismissRequest = { optionsOpen = false },
+                    properties = PopupProperties(focusable = true),
+                ) {
+                    Surface(
+                        Modifier.width(with(density) { fieldSize.width.toDp() }),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shadowElevation = 8.dp,
+                    ) {
+                        SearchOptions(query, onSearch = { onIntent(AppIntent.SetSearchQuery(it)) }, onDismiss = { optionsOpen = false })
+                    }
+                }
+            }
         }
         TooltipIconButton(Icons.Outlined.Refresh, stringResource(Res.string.inbox_refresh), { onIntent(AppIntent.RefreshNow) })
     }

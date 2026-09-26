@@ -1,17 +1,23 @@
 package co.abaye.mailtice.main
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,7 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.search.MailSearch
@@ -38,7 +48,6 @@ import mailtice.shared.generated.resources.search_last_month
 import mailtice.shared.generated.resources.search_last_week
 import mailtice.shared.generated.resources.search_last_year
 import mailtice.shared.generated.resources.search_older_year
-import mailtice.shared.generated.resources.search_options
 import mailtice.shared.generated.resources.search_subject
 import mailtice.shared.generated.resources.search_to
 import mailtice.shared.generated.resources.search_unread
@@ -84,26 +93,44 @@ internal fun SearchOptions(current: String, onSearch: (String) -> Unit, onDismis
         if (unread) add("is:unread")
     }.joinToString(" ")
 
-    Column(Modifier.width(440.dp).padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(Res.string.search_options), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    // As wide as the search field it hangs from; each line a label column and an underlined field.
+    Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Field(stringResource(Res.string.search_from), from) { from = it }
         Field(stringResource(Res.string.search_to), to) { to = it }
         Field(stringResource(Res.string.search_subject), subject) { subject = it }
         Field(stringResource(Res.string.search_words), words) { words = it }
         Field(stringResource(Res.string.search_exclude), exclude) { exclude = it }
-        Text(stringResource(Res.string.search_date), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            DateRange.entries.forEach { r ->
-                FilterChip(selected = range == r, onClick = { range = r }, label = { Text(r.label()) })
+        // One line with a menu, like Gmail's "Date within", instead of a block of chips.
+        LabeledRow(stringResource(Res.string.search_date)) {
+            var open by remember { mutableStateOf(false) }
+            Box {
+                Column(Modifier.fillMaxWidth().clickable { open = true }) {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(range.label(), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Icon(Icons.Outlined.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    DateRange.entries.forEach { r ->
+                        DropdownMenuItem(
+                            text = { Text(r.label()) },
+                            onClick = {
+                                range = r
+                                open = false
+                            },
+                        )
+                    }
+                }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = attachment, onCheckedChange = { attachment = it })
-            Text(stringResource(Res.string.search_has_attachment), Modifier.weight(1f))
+            Text(stringResource(Res.string.search_has_attachment), Modifier.padding(end = 16.dp))
             Checkbox(checked = unread, onCheckedChange = { unread = it })
-            Text(stringResource(Res.string.search_unread), Modifier.weight(1f))
+            Text(stringResource(Res.string.search_unread))
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
             TextButton(onClick = {
                 onSearch("")
                 onDismiss()
@@ -116,16 +143,43 @@ internal fun SearchOptions(current: String, onSearch: (String) -> Unit, onDismis
     }
 }
 
+/** The label in a fixed column at the leading edge, the content filling the rest. */
+@Composable
+private fun LabeledRow(label: String, content: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            Modifier.width(130.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Box(Modifier.weight(1f)) { content() }
+    }
+}
+
+/** Gmail's plain line: text on an underline that turns to the accent colour while focused. */
 @Composable
 private fun Field(label: String, value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text(label) },
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
-    )
+    var focused by remember { mutableStateOf(false) }
+    val colors = MaterialTheme.colorScheme
+    // Aligned to the layout (right in Hebrew) even when the text itself is English.
+    val align = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.Right else TextAlign.Left
+    LabeledRow(label) {
+        Column {
+            BasicTextField(
+                value = value,
+                onValueChange = onChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.merge(ContentDirection).copy(color = colors.onSurface, textAlign = align),
+                cursorBrush = SolidColor(colors.primary),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp).onFocusChanged { focused = it.isFocused },
+            )
+            HorizontalDivider(
+                thickness = if (focused) 2.dp else 1.dp,
+                color = if (focused) colors.primary else colors.outlineVariant,
+            )
+        }
+    }
 }
 
 @Composable

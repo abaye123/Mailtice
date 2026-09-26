@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import co.abaye.mailtice.domain.AccentColor
+import co.abaye.mailtice.domain.AppFont
 import com.materialkolor.rememberDynamicColorScheme
 
 /**
@@ -18,8 +19,7 @@ import com.materialkolor.rememberDynamicColorScheme
  * Exposed on its own so the desktop window can paint its title bar with the same scheme the
  * content uses - the chrome lives outside [AppTheme]'s composition.
  *
- * Typography is Material 3 default on Android and desktop. The web actual swaps in Noto Sans
- * Hebrew so the Skiko canvas has a face for that script (the Noto downloader is Compose 1.12).
+ * Typography is the bundled face the user picked ([AppFont], Rubik by default), see [appTypography].
  */
 @Composable
 fun rememberAppColorScheme(accent: AccentColor = AccentColor.Flag, isDark: Boolean = isSystemInDarkTheme()): ColorScheme {
@@ -28,10 +28,16 @@ fun rememberAppColorScheme(accent: AccentColor = AccentColor.Flag, isDark: Boole
 }
 
 @Composable
-fun AppTheme(accent: AccentColor, isDark: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+fun AppTheme(
+    accent: AccentColor,
+    isDark: Boolean,
+    modifier: Modifier = Modifier,
+    font: AppFont = AppFont.Rubik,
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
         colorScheme = rememberAppColorScheme(accent, isDark),
-        typography = appTypography(),
+        typography = appTypography(font),
     ) {
         Surface(modifier = modifier, content = content)
     }

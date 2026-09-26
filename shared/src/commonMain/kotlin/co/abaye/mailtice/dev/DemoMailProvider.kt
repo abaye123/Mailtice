@@ -184,6 +184,32 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
         return MimeBuilder.build("${message.fromName} <${message.fromAddress}>", mail, message.receivedAt).encodeToByteArray()
     }
 
+    /** Drafts land in the demo Drafts folder, replacing the previous version, like on a server. */
+    override suspend fun saveDraft(account: Account, mail: OutgoingMail, folders: List<Folder>, previous: String?): String {
+        delay(SYNC_LATENCY_MS)
+        return mutex.withLock {
+            val box = mailbox(account)
+            previous?.let { box.remove(it) }
+            val draft = DemoMail(
+                fromName = account.displayName,
+                fromAddress = account.email,
+                subject = mail.subject,
+                text = mail.text,
+                minutesAgo = 0,
+                folders = listOf(DemoFolders.DRAFTS),
+            )
+            val message = remote(account, draft, receivedAt = clock()).copy(toLine = mail.to.joinToString(", "))
+            box[message.id] = message
+            message.id
+        }
+    }
+
+    override suspend fun deleteDraft(account: Account, handle: String) {
+        mutex.withLock { mailbox(account).remove(handle) }
+    }
+
+    override suspend fun draftHandle(account: Account, message: MailMessage): String? = message.id
+
     override suspend fun threadHeaders(account: Account, message: MailMessage): ThreadHeaders =
         ThreadHeaders(messageId = "<${message.id}@demo.mailtice>")
 

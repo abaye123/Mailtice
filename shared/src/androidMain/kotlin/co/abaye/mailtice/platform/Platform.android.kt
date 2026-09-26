@@ -97,7 +97,7 @@ internal actual object Platform {
     actual val canPickFiles: Boolean = false
 
     // Picking needs an activity-result launcher wired through the Activity; not there yet.
-    actual fun pickFiles(title: String): List<PickedFile> = emptyList()
+    actual suspend fun pickFiles(title: String): List<PickedFile> = emptyList()
 
     /** The system Downloads app shows new files at the top; nothing to open per file here. */
     actual fun revealDownload(location: String) = Unit

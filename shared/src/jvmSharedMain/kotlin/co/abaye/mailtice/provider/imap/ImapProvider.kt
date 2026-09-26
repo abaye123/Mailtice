@@ -320,6 +320,41 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         headers
     }
 
+    // ---- drafts -----------------------------------------------------------------------------
+
+    /** APPEND to the Drafts folder with \Draft, then remove the previous version; the handle is "<folder>/<uid>". */
+    override suspend fun saveDraft(account: Account, mail: OutgoingMail, folders: List<Folder>, previous: String?): String {
+        val drafts = folders.firstOrNull { it.role == FolderRole.Drafts } ?: error("No drafts folder")
+        val message = io { mimeMessage(account, mail).apply { setFlag(Flags.Flag.DRAFT, true); setFlag(Flags.Flag.SEEN, true) } }
+        val handle = withStore(account) { store ->
+            val folder = store.getFolder(drafts.id) as IMAPFolder
+            val uid = folder.appendUIDMessages(arrayOf(message)).firstOrNull()?.uid
+            if (uid != null) "${folder.fullName}/$uid" else "${folder.fullName}/"
+        }
+        if (previous != null && previous != handle) runCatching { deleteDraft(account, previous) }
+        return handle
+    }
+
+    override suspend fun deleteDraft(account: Account, handle: String) {
+        val folderName = handle.substringBeforeLast('/')
+        val uid = handle.substringAfterLast('/').toLongOrNull() ?: return
+        withStore(account) { store ->
+            val folder = store.getFolder(folderName) as IMAPFolder
+            folder.open(JFolder.READ_WRITE)
+            try {
+                folder.getMessageByUID(uid)?.let { m ->
+                    m.setFlag(Flags.Flag.DELETED, true)
+                    folder.expunge(arrayOf(m))
+                }
+            } finally {
+                runCatching { folder.close(false) }
+            }
+        }
+    }
+
+    /** A draft's own id already says where it lives. */
+    override suspend fun draftHandle(account: Account, message: MailMessage): String? = message.id
+
     // ---- sending ----------------------------------------------------------------------------
 
     /**
@@ -423,7 +458,7 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
     private fun mimeMessage(account: Account, mail: OutgoingMail): MimeMessage =
         MimeMessage(Session.getInstance(Properties())).apply {
             setFrom(InternetAddress(account.email))
-            setRecipients(Message.RecipientType.TO, addresses(mail.to))
+            if (mail.to.isNotEmpty()) setRecipients(Message.RecipientType.TO, addresses(mail.to))
             if (mail.cc.isNotEmpty()) setRecipients(Message.RecipientType.CC, addresses(mail.cc))
             if (mail.bcc.isNotEmpty()) setRecipients(Message.RecipientType.BCC, addresses(mail.bcc))
             setSubject(mail.subject, "UTF-8")
@@ -581,6 +616,7 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         archive = folders.any { it.role == FolderRole.Archive },
         send = true,
         trash = folders.any { it.role == FolderRole.Trash },
+        drafts = folders.any { it.role == FolderRole.Drafts },
         labels = false,
         openInWeb = false,
         incremental = store.hasCapability("CONDSTORE"),

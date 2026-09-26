@@ -1,10 +1,12 @@
 package co.abaye.mailtice.app
 
 import co.abaye.mailtice.domain.AccentColor
+import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.PaneStyle
+import co.abaye.mailtice.domain.ReadingPane
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.ThemeMode
 import co.abaye.mailtice.domain.UiLanguage
@@ -75,13 +77,20 @@ sealed interface AppIntent {
     data class StartCompose(val mode: ComposeMode, val message: MailMessage? = null) : AppIntent
     data class UpdateCompose(val draft: ComposeDraft) : AppIntent
     data object SendCompose : AppIntent
+    /** Closes the window; a draft with content stays saved on the server (Gmail's behaviour). */
     data object CloseCompose : AppIntent
+
+    /** The trash icon: closes the window and deletes the saved draft. */
+    data object DiscardCompose : AppIntent
 
     /** The rich editor changed: its plain text and HTML. */
     data class ComposeBody(val text: String, val html: String) : AppIntent
     data class ComposeWindow(val mode: ComposeWindowMode) : AppIntent
     data class ComposeSuggest(val query: String) : AppIntent
     data object ComposeAttach : AppIntent
+
+    /** Files dropped onto the compose window. */
+    data class ComposeAddFiles(val files: List<co.abaye.mailtice.platform.PickedFile>) : AppIntent
     data class ComposeRemoveAttachment(val id: String) : AppIntent
 
     /** Queue the draft to go out at [sendAt] (epoch millis). */
@@ -102,7 +111,12 @@ sealed interface AppIntent {
     data class SetTheme(val mode: ThemeMode) : AppIntent
     data class SetAccent(val accent: AccentColor) : AppIntent
     data class SetDensity(val density: ListDensity) : AppIntent
+    data class SetFont(val font: AppFont) : AppIntent
     data class SetPaneStyle(val style: PaneStyle) : AppIntent
+    data class SetReadingPane(val pane: ReadingPane) : AppIntent
+
+    /** Shows or hides a sidebar entry (see [co.abaye.mailtice.domain.UserSettings.hiddenFolders]). */
+    data class SetFolderHidden(val key: String, val hidden: Boolean) : AppIntent
 
     /** `null` follows the OS language. */
     data class SetUiLanguage(val language: UiLanguage?) : AppIntent

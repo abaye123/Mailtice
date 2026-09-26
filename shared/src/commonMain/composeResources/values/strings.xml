@@ -168,6 +168,8 @@
     <string name="inbox_search_all">Search all accounts</string>
     <string name="inbox_search_in">Search in %1$s</string>
     <string name="settings_density">List density</string>
+    <string name="settings_font">Font</string>
+    <string name="settings_font_desc">The typeface of the whole interface.</string>
     <string name="settings_density_desc">How much room each message takes in the list.</string>
     <string name="density_compact">Compact</string>
     <string name="density_comfortable">Comfortable</string>
@@ -192,7 +194,7 @@
     <string name="reader_reply">Reply</string>
     <string name="reader_reply_all">Reply all</string>
     <string name="reader_forward">Forward</string>
-    <string name="compose_new">Compose</string>
+    <string name="compose_new">New email</string>
     <string name="compose_new_title">New message</string>
     <string name="compose_reply_title">Reply</string>
     <string name="compose_forward_title">Forward</string>
@@ -343,4 +345,25 @@
     <string name="message_scheduled_sent">A scheduled message was sent</string>
     <string name="message_schedule_cancelled">Scheduled send cancelled</string>
     <string name="message_attachments_too_large">The files are too large: up to 25 MB per message.</string>
+
+    <!-- Folder visibility, reading pane -->
+    <string name="sidebar_more">More</string>
+    <string name="sidebar_less">Less</string>
+    <string name="sidebar_edit">Show or hide folders</string>
+    <string name="sidebar_edit_done">Done</string>
+    <string name="sidebar_hide">Hide from the list</string>
+    <string name="sidebar_show">Show in the list</string>
+    <string name="settings_reading_pane">Reading pane</string>
+    <string name="settings_reading_pane_desc">Next to the list, or none: an opened message replaces the list.</string>
+    <string name="reading_split">Next to the list</string>
+    <string name="reading_off">None</string>
+
+    <!-- Drafts -->
+    <string name="draft_saving">Saving…</string>
+    <string name="draft_saved">Draft saved</string>
+    <string name="draft_failed">Draft not saved</string>
+    <string name="message_draft_saved">Draft saved to Drafts</string>
+    <string name="message_draft_discarded">Draft discarded</string>
+    <string name="compose_new_hint">Write a new message</string>
+    <string name="compose_drop_hint">Drop to attach</string>
 </resources>

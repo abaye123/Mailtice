@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,8 +49,10 @@ fun MessageBar(message: AppMessage?, onDismiss: () -> Unit, modifier: Modifier =
         modifier = modifier,
     ) {
         val shown = message
+        // As wide as its text needs, between a minimum that keeps short notices from looking
+        // cramped and a maximum past which it wraps - never the whole width of the window.
         Surface(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(16.dp).widthIn(min = 280.dp, max = 560.dp),
             color = MaterialTheme.colorScheme.inverseSurface,
             contentColor = MaterialTheme.colorScheme.inverseOnSurface,
             shape = MaterialTheme.shapes.medium,
@@ -61,14 +64,11 @@ fun MessageBar(message: AppMessage?, onDismiss: () -> Unit, modifier: Modifier =
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // The weight is what keeps the button readable. A Row hands every unweighted child
-                // the full width it asks for, in order, and the stream error is a whole sentence:
-                // on a phone it claimed the entire row and left the button a few pixels, which
-                // Compose fills by breaking the label one character per line. Weighted, the text
-                // gets whatever the button did not take and wraps on word boundaries instead.
+                // Weighted without filling: a long sentence wraps on word boundaries and leaves the
+                // button its room, a short one keeps the toast as narrow as the text.
                 Text(
                     shown?.text().orEmpty(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 TextButton(onClick = onDismiss) {

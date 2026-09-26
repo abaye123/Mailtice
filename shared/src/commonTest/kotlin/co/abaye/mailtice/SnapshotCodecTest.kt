@@ -2,11 +2,13 @@ package co.abaye.mailtice
 
 import co.abaye.mailtice.data.decodeSnapshot
 import co.abaye.mailtice.data.encodeSnapshot
+import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.PaneStyle
+import co.abaye.mailtice.domain.ReadingPane
 import co.abaye.mailtice.domain.ThemeMode
 import co.abaye.mailtice.domain.UiLanguage
 import co.abaye.mailtice.domain.UserSettings
@@ -21,8 +23,9 @@ class SnapshotCodecTest {
     fun settingsRoundTrip() {
         val data = AppData(
             UserSettings(
-                theme = ThemeMode.Dark, accent = AccentColor.Teal, density = ListDensity.Spacious, paneStyle = PaneStyle.Lines,
+                theme = ThemeMode.Dark, accent = AccentColor.Teal, density = ListDensity.Spacious, font = AppFont.Heebo, paneStyle = PaneStyle.Lines,
                 uiLanguage = UiLanguage.English, pollSeconds = 120,
+                readingPane = ReadingPane.Off, hiddenFolders = setOf("view:Spam", "acc-1/Label_7"),
             ),
         )
         assertEquals(data, decodeSnapshot(encodeSnapshot(data)))

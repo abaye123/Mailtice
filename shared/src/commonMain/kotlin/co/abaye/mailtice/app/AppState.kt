@@ -92,6 +92,9 @@ data class InboxFilter(
 
 enum class ComposeMode { New, Reply, ReplyAll, Forward }
 
+/** Where the draft's copy on the server stands, for the compose window's title bar. */
+enum class DraftSave { None, Saving, Saved, Failed }
+
 /** The compose window's size: docked at the bottom corner, just its title bar, or large and centred. */
 enum class ComposeWindowMode { Normal, Minimized, Maximized }
 
@@ -132,6 +135,12 @@ data class ComposeDraft(
     val window: ComposeWindowMode = ComposeWindowMode.Normal,
     /** Set while editing a message from the scheduled queue; sending or rescheduling replaces it. */
     val scheduledId: String? = null,
+    /** The draft saved on the server ([co.abaye.mailtice.provider.MailProvider.saveDraft]), and in which account. */
+    val draftHandle: String? = null,
+    val draftAccountId: String? = null,
+    val draftSave: DraftSave = DraftSave.None,
+    /** [draftSignature] of what was last saved, so an unchanged draft is not saved again. */
+    val savedSignature: Int? = null,
     val inReplyTo: String? = null,
     val references: String? = null,
     val threadId: String? = null,
@@ -154,6 +163,14 @@ data class OlderMail(
 
 /** Stored rows the list reads at first; reaching the end reads [LocalPage] more before asking the server. */
 const val LocalPage: Long = 500
+
+/** Everything that makes a draft worth saving again when it changes. */
+fun ComposeDraft.draftSignature(): Int =
+    listOf(accountId, to, cc, bcc, subject, body, html, attachments.joinToString { it.id }).hashCode()
+
+/** Nothing typed yet: not worth a draft on the server. */
+val ComposeDraft.isBlank: Boolean
+    get() = to.isBlank() && cc.isBlank() && bcc.isBlank() && subject.isBlank() && body.isBlank() && attachments.isEmpty()
 
 @Immutable
 data class Reader(val message: MailMessage, val body: MailBody? = null, val failed: Boolean = false)

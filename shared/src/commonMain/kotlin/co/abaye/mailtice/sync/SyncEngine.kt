@@ -257,6 +257,19 @@ class SyncEngine(
             )
         }
 
+    suspend fun saveDraft(account: Account, mail: OutgoingMail, previous: String?): String =
+        providers.forAccount(account).saveDraft(account, mail, repo.foldersNow(account.id), previous)
+
+    suspend fun deleteDraft(account: Account, handle: String) {
+        providers.forAccount(account).deleteDraft(account, handle)
+        kicks.tryEmit(Unit)
+    }
+
+    suspend fun draftHandle(message: MailMessage): String? {
+        val account = repo.account(message.accountId) ?: return null
+        return runCatching { providers.forAccount(account).draftHandle(account, message) }.getOrNull()
+    }
+
     suspend fun rawMessage(message: MailMessage): ByteArray {
         val account = repo.account(message.accountId) ?: return ByteArray(0)
         return providers.forAccount(account).rawMessage(account, message)

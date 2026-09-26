@@ -40,6 +40,11 @@ stability-analyzer = "0.12.0"
 aboutLibraries = "15.0.4"
 # 1.1.0 is built on Compose 1.11.1 / material3 1.11.0-alpha07; 1.2.0 moves to Compose 1.12.
 richeditor = "1.1.0"
+# Native file dialogs (the modern Windows 11 one via IFileOpenDialog). 0.15.0 is on Kotlin 2.4.10 /
+# coroutines 1.11.0; 0.16.0 needs kotlin-stdlib 2.4.20.
+filekit = "0.15.0"
+# Same as FileKit's; used directly to find the app window's handle for the file dialog.
+jna = "5.19.1"
 
 [libraries]
 
@@ -96,6 +101,8 @@ composenativetray = { module = "dev.nucleusframework:composenativetray", version
 structured-coroutines-annotations = { module = "io.github.santimattius:structured-coroutines-annotations", version.ref = "structured-coroutines" }
 detekt-compose-rules = { module = "io.nlopez.compose.rules:detekt", version.ref = "compose-rules" }
 ktlint-compose-rules = { module = "io.nlopez.compose.rules:ktlint", version.ref = "compose-rules" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+filekit-dialogs = { module = "io.github.vinceglb:filekit-dialogs", version.ref = "filekit" }
 richeditor = { module = "com.mohamedrejeb.richeditor:richeditor-compose", version.ref = "richeditor" }
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutLibraries" }
 

@@ -57,18 +57,22 @@ data class Capabilities(
     val send: Boolean = false,
     /** Move to the provider's trash (Gmail trash, or an IMAP folder with the Trash role). */
     val trash: Boolean = false,
+    /** Drafts saved on the server (Gmail drafts, or an IMAP folder with the Drafts role). */
+    val drafts: Boolean = false,
 ) {
-    fun encode(): String = listOf(markRead, archive, labels, openInWeb, incremental, idle, send, trash)
+    fun encode(): String = listOf(markRead, archive, labels, openInWeb, incremental, idle, send, trash, drafts)
         .joinToString("") { if (it) "1" else "0" }
 
     companion object {
-        val Gmail = Capabilities(markRead = true, archive = true, labels = true, openInWeb = true, incremental = true, send = true, trash = true)
+        val Gmail = Capabilities(
+            markRead = true, archive = true, labels = true, openInWeb = true, incremental = true, send = true, trash = true, drafts = true,
+        )
 
         /** Older snapshots have fewer digits; the missing capabilities read as false until the next refresh. */
         fun decode(raw: String): Capabilities {
             fun at(i: Int) = raw.getOrNull(i) == '1'
             if (raw.isEmpty()) return Capabilities()
-            return Capabilities(at(0), at(1), at(2), at(3), at(4), at(5), at(6), at(7))
+            return Capabilities(at(0), at(1), at(2), at(3), at(4), at(5), at(6), at(7), at(8))
         }
     }
 }

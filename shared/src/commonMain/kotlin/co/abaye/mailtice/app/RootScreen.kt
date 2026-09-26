@@ -8,21 +8,26 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import co.abaye.mailtice.main.AboutScreen
 import co.abaye.mailtice.main.AccountDetailScreen
-import co.abaye.mailtice.main.ReaderScreen
 import co.abaye.mailtice.main.AccountsScreen
 import co.abaye.mailtice.main.ComposeWindow
 import co.abaye.mailtice.main.InboxScreen
+import co.abaye.mailtice.main.LocalCompactLayout
 import co.abaye.mailtice.main.MainShell
+import co.abaye.mailtice.main.ReaderScreen
 import co.abaye.mailtice.main.SettingsScreen
 import co.abaye.mailtice.ui.AppDialogHost
 import co.abaye.mailtice.ui.LocalDensitySpec
@@ -45,10 +50,26 @@ fun RootScreen(state: AppState, backStack: NavBackStack<AppKey>, onIntent: (AppI
         MessageBar(
             message = state.message,
             onDismiss = remember(onIntent) { { onIntent(AppIntent.DismissMessage) } },
-            modifier = Modifier.align(Alignment.BottomCenter),
+            // Bottom left, whatever the language direction: away from the sidebar in Hebrew and
+            // where Gmail puts its own notices in English. A compose window docked in that corner
+            // (Hebrew) keeps its place; the notice moves out beside it.
+            modifier = Modifier.align(AbsoluteAlignment.BottomLeft).padding(start = toastInset(state)),
         )
         AppDialogHost(state = state, onIntent = onIntent)
         ComposeWindow(state = state, onIntent = onIntent)
+    }
+}
+
+/** How far the notice moves right to clear a compose window docked at the bottom left (RTL only). */
+@Composable
+private fun toastInset(state: AppState): androidx.compose.ui.unit.Dp {
+    val compose = state.compose ?: return 0.dp
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    if (!rtl || LocalCompactLayout.current) return 0.dp
+    return when (compose.window) {
+        ComposeWindowMode.Normal -> 24.dp + 560.dp
+        ComposeWindowMode.Minimized -> 24.dp + 320.dp
+        ComposeWindowMode.Maximized -> 0.dp
     }
 }
 

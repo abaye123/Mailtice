@@ -240,6 +240,27 @@ class GmailProvider(
     override suspend fun rawMessage(account: Account, message: MailMessage): ByteArray =
         withToken(account) { token -> base64Url.decode(api.raw(token, message.id).raw) }
 
+    @OptIn(ExperimentalEncodingApi::class)
+    override suspend fun saveDraft(account: Account, mail: OutgoingMail, folders: List<Folder>, previous: String?): String {
+        val bytes = MimeBuilder.build(account.email, mail, Platform.now()).encodeToByteArray()
+        val large = bytes.size > JSON_SEND_LIMIT
+        return withToken(account) { token ->
+            try {
+                api.saveDraft(token, previous, bytes, if (large) "" else Base64.UrlSafe.encode(bytes), mail.threadId, large)
+            } catch (e: ProviderException.NotFound) {
+                // The old draft was sent or deleted elsewhere: start a new one.
+                api.saveDraft(token, null, bytes, if (large) "" else Base64.UrlSafe.encode(bytes), mail.threadId, large)
+            }
+        }
+    }
+
+    override suspend fun deleteDraft(account: Account, handle: String) {
+        withToken(account) { token -> api.deleteDraft(token, handle) }
+    }
+
+    override suspend fun draftHandle(account: Account, message: MailMessage): String? =
+        withToken(account) { token -> api.draftIdOf(token, message.id) }
+
     override suspend fun threadHeaders(account: Account, message: MailMessage): ThreadHeaders = withToken(account) { token ->
         val headers = api.threadHeaders(token, message.id)
         ThreadHeaders(

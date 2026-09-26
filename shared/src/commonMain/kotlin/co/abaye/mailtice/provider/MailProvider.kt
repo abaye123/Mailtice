@@ -140,6 +140,18 @@ interface MailProvider {
     /** The message exactly as the server holds it (RFC 5322), for .eml / .mbox export. */
     suspend fun rawMessage(account: Account, message: MailMessage): ByteArray
 
+    /**
+     * Only called when [Capabilities.drafts] is true. Saves [mail] as a draft on the server, replacing
+     * [previous] (a handle this returned earlier) when given, and returns the handle of the new one.
+     */
+    suspend fun saveDraft(account: Account, mail: OutgoingMail, folders: List<Folder>, previous: String?): String
+
+    /** Removes a draft saved by [saveDraft] (the message was sent, scheduled or discarded). */
+    suspend fun deleteDraft(account: Account, handle: String)
+
+    /** The [saveDraft] handle of a draft already on the server, opened from the Drafts folder; null if unknown. */
+    suspend fun draftHandle(account: Account, message: MailMessage): String?
+
     /** Message-ID and References of [message], read when a reply is started. */
     suspend fun threadHeaders(account: Account, message: MailMessage): ThreadHeaders
 

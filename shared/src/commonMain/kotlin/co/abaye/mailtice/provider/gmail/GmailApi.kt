@@ -4,9 +4,11 @@ import co.abaye.mailtice.provider.ProviderException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -123,6 +125,51 @@ class GmailApi(private val http: HttpClient) {
             contentType(ContentType("message", "rfc822"))
             setBody(raw)
         }.parsed<MessageRef>()
+    }
+
+    /** Creates a draft ([id] null) or replaces one; returns the draft id. Big ones go through the upload endpoint. */
+    suspend fun saveDraft(token: String, id: String?, raw: ByteArray, rawBase64Url: String, threadId: String?, large: Boolean): String {
+        val response = if (large) {
+            val url = "https://gmail.googleapis.com/upload/gmail/v1/users/me/drafts" + (id?.let { "/$it" } ?: "")
+            val block: io.ktor.client.request.HttpRequestBuilder.() -> Unit = {
+                bearerAuth(token)
+                parameter("uploadType", "media")
+                contentType(ContentType("message", "rfc822"))
+                setBody(raw)
+            }
+            if (id == null) http.post(url, block) else http.put(url, block)
+        } else {
+            val block: io.ktor.client.request.HttpRequestBuilder.() -> Unit = {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(DraftRequest(DraftMessage(rawBase64Url, threadId)))
+            }
+            if (id == null) http.post("$BASE/drafts", block) else http.put("$BASE/drafts/$id", block)
+        }
+        return response.parsed<DraftRef>().id
+    }
+
+    suspend fun deleteDraft(token: String, id: String) {
+        val response = http.delete("$BASE/drafts/$id") { bearerAuth(token) }
+        // Already gone is fine: it was sent or deleted elsewhere.
+        if (!response.status.isSuccess() && response.status.value != 404) throw ProviderException.of(response.status.value, response.bodyAsText())
+    }
+
+    /** The draft id that holds message [messageId], searching the drafts list (a few pages at most). */
+    suspend fun draftIdOf(token: String, messageId: String): String? {
+        var pageToken: String? = null
+        var pages = 0
+        do {
+            val page = http.get("$BASE/drafts") {
+                bearerAuth(token)
+                parameter("maxResults", 500)
+                pageToken?.let { parameter("pageToken", it) }
+            }.parsed<DraftList>()
+            page.drafts.firstOrNull { it.message?.id == messageId }?.let { return it.id }
+            pageToken = page.nextPageToken
+            pages++
+        } while (pageToken != null && pages < 5)
+        return null
     }
 
     /** Only the headers a reply needs to thread correctly. */

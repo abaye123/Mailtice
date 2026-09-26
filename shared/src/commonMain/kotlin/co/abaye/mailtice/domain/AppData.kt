@@ -8,11 +8,20 @@ enum class ThemeMode { System, Light, Dark }
 /** How much room each message row and sidebar entry takes. */
 enum class ListDensity { Compact, Comfortable, Spacious }
 
+/** The interface typeface. All three are bundled and cover Hebrew and Latin; Rubik is the default. */
+enum class AppFont(val displayName: String) { Rubik("Rubik"), Heebo("Heebo"), Noto("Noto Sans") }
+
 /**
  * How the panes are set apart. [Cards]: rounded surfaces floating on a tinted background, no lines
  * (the approved design). [Lines]: flat panes separated by dividers, rows by hairlines.
  */
 enum class PaneStyle { Cards, Lines }
+
+/**
+ * Where an opened message shows on a wide window. [Split]: beside the list. [Off]: Gmail's default,
+ * the list takes the whole width and an opened message replaces it until "back".
+ */
+enum class ReadingPane { Split, Off }
 
 enum class UiLanguage(val code: String, val label: String, val rtl: Boolean) {
     Hebrew("he", "עברית", true),
@@ -70,11 +79,18 @@ data class UserSettings(
     val theme: ThemeMode = ThemeMode.System,
     val accent: AccentColor = AccentColor.Flag,
     val density: ListDensity = ListDensity.Comfortable,
+    val font: AppFont = AppFont.Rubik,
     val paneStyle: PaneStyle = PaneStyle.Cards,
     /** Sidebar reduced to icons. */
     val sidebarCollapsed: Boolean = false,
     /** Share of the width the message list takes next to the reader, [ListFractionRange]. */
     val listFraction: Float = 0.42f,
+    val readingPane: ReadingPane = ReadingPane.Split,
+    /**
+     * Sidebar entries the user hid (they move under "More"): "view:<MailView>" for a standard folder,
+     * "<accountId>/<folderId>" for a label or custom folder.
+     */
+    val hiddenFolders: Set<String> = emptySet(),
     /** The browser profile picked for the last sign-in ([co.abaye.mailtice.auth.BrowserProfile.key]), "" = default browser. */
     val browserProfile: String = "",
     val uiLanguage: UiLanguage = UiLanguage.Hebrew,

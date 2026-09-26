@@ -74,6 +74,18 @@ data class AttachmentBody(val size: Long = 0, val data: String = "")
 @Serializable
 data class RawMessage(val id: String, val raw: String = "")
 
+@Serializable
+data class DraftMessage(val raw: String, val threadId: String? = null)
+
+@Serializable
+data class DraftRequest(val message: DraftMessage)
+
+@Serializable
+data class DraftRef(val id: String, val message: MessageRef? = null)
+
+@Serializable
+data class DraftList(val drafts: List<DraftRef> = emptyList(), val nextPageToken: String? = null)
+
 /** `raw` is the whole RFC 5322 message in base64url. */
 @Serializable
 data class SendRequest(val raw: String, val threadId: String? = null)
