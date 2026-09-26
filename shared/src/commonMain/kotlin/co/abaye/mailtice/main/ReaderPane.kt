@@ -1,5 +1,6 @@
 package co.abaye.mailtice.main
 
+import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -320,7 +321,7 @@ private fun SenderLine(message: MailMessage, account: Account?) {
             }
             val to = if (message.toLine.isNotBlank()) "${stringResource(Res.string.reader_to)} ${message.toLine} · " else ""
             Text(
-                to + formatTime(message.receivedAt, withDate = true),
+                to + dateLabel(message.receivedAt, withDate = true),
                 style = MaterialTheme.typography.bodySmall.merge(ContentDirection),
                 color = colors.onSurfaceVariant,
                 maxLines = 1,

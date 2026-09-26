@@ -1,5 +1,20 @@
 package co.abaye.mailtice.main
 
+import androidx.compose.material.icons.outlined.ArrowDropDown
+import mailtice.shared.generated.resources.settings_hebrew_date
+import mailtice.shared.generated.resources.settings_hebrew_date_desc
+import mailtice.shared.generated.resources.settings_hebrew_turn
+import mailtice.shared.generated.resources.settings_hebrew_turn_desc
+import mailtice.shared.generated.resources.hebrew_turn_sunset
+import mailtice.shared.generated.resources.hebrew_turn_midnight
+import mailtice.shared.generated.resources.settings_sunset_city
+import mailtice.shared.generated.resources.city_jerusalem
+import mailtice.shared.generated.resources.city_tel_aviv
+import mailtice.shared.generated.resources.city_haifa
+import mailtice.shared.generated.resources.city_beer_sheva
+import mailtice.shared.generated.resources.city_eilat
+import mailtice.shared.generated.resources.city_new_york
+import mailtice.shared.generated.resources.city_london
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +70,7 @@ import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.theme.fontFamily
 import co.abaye.mailtice.domain.ListDensity
+import co.abaye.mailtice.domain.SunsetCity
 import co.abaye.mailtice.domain.PaneStyle
 import co.abaye.mailtice.domain.ReadingPane
 import co.abaye.mailtice.domain.PollIntervals
@@ -148,6 +164,21 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                     }
                 }) { onIntent(AppIntent.SetReadingPane(it)) }
             }
+            SettingRow(stringResource(Res.string.settings_hebrew_date), subtitle = stringResource(Res.string.settings_hebrew_date_desc)) {
+                Switch(checked = settings.showHebrewDate, onCheckedChange = { onIntent(AppIntent.SetShowHebrewDate(it)) })
+            }
+            if (settings.showHebrewDate) {
+                SettingBlock(stringResource(Res.string.settings_hebrew_turn), subtitle = stringResource(Res.string.settings_hebrew_turn_desc)) {
+                    ChoicePicker(listOf(true, false), settings.hebrewDateAtSunset, {
+                        stringResource(if (it) Res.string.hebrew_turn_sunset else Res.string.hebrew_turn_midnight)
+                    }) { onIntent(AppIntent.SetHebrewDateAtSunset(it)) }
+                }
+                if (settings.hebrewDateAtSunset) {
+                    SettingRow(stringResource(Res.string.settings_sunset_city)) {
+                        CityPicker(settings.sunsetCity) { onIntent(AppIntent.SetSunsetCity(it)) }
+                    }
+                }
+            }
             SettingRow(stringResource(Res.string.settings_language)) {
                 LanguagePicker(
                     language = if (settings.uiLanguageAuto) null else settings.uiLanguage,
@@ -211,6 +242,42 @@ private fun <T> ChoicePicker(options: List<T>, current: T, label: @Composable (T
         }
     }
 }
+
+/** The city sunset is computed for, as a button that opens the list. */
+@Composable
+private fun CityPicker(current: SunsetCity, onPick: (SunsetCity) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { open = true }) {
+            Text(current.label())
+            Icon(Icons.Outlined.ArrowDropDown, null)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            SunsetCity.entries.forEach { city ->
+                DropdownMenuItem(
+                    text = { Text(city.label()) },
+                    onClick = {
+                        onPick(city)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SunsetCity.label(): String = stringResource(
+    when (this) {
+        SunsetCity.Jerusalem -> Res.string.city_jerusalem
+        SunsetCity.TelAviv -> Res.string.city_tel_aviv
+        SunsetCity.Haifa -> Res.string.city_haifa
+        SunsetCity.BeerSheva -> Res.string.city_beer_sheva
+        SunsetCity.Eilat -> Res.string.city_eilat
+        SunsetCity.NewYork -> Res.string.city_new_york
+        SunsetCity.London -> Res.string.city_london
+    },
+)
 
 /** Like [ChoicePicker], but each name is written in its own face so the choice can be seen. */
 @Composable

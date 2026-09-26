@@ -8,6 +8,17 @@ enum class ThemeMode { System, Light, Dark }
 /** How much room each message row and sidebar entry takes. */
 enum class ListDensity { Compact, Comfortable, Spacious }
 
+/** Where sunset is computed for the Hebrew date; a few minutes apart across Israel, far apart abroad. */
+enum class SunsetCity(val latitude: Double, val longitude: Double, val zoneId: String) {
+    Jerusalem(31.7683, 35.2137, "Asia/Jerusalem"),
+    TelAviv(32.0853, 34.7818, "Asia/Jerusalem"),
+    Haifa(32.7940, 34.9896, "Asia/Jerusalem"),
+    BeerSheva(31.2518, 34.7913, "Asia/Jerusalem"),
+    Eilat(29.5577, 34.9519, "Asia/Jerusalem"),
+    NewYork(40.7128, -74.0060, "America/New_York"),
+    London(51.5074, -0.1278, "Europe/London"),
+}
+
 /** The interface typeface. All three are bundled and cover Hebrew and Latin; Rubik is the default. */
 enum class AppFont(val displayName: String) { Rubik("Rubik"), Heebo("Heebo"), Noto("Noto Sans") }
 
@@ -80,6 +91,11 @@ data class UserSettings(
     val accent: AccentColor = AccentColor.Flag,
     val density: ListDensity = ListDensity.Comfortable,
     val font: AppFont = AppFont.Rubik,
+    /** The Hebrew date next to the civil one, in the list and the reader. */
+    val showHebrewDate: Boolean = true,
+    /** The Hebrew date turns at sunset in [sunsetCity]; otherwise at midnight with the civil date. */
+    val hebrewDateAtSunset: Boolean = true,
+    val sunsetCity: SunsetCity = SunsetCity.Jerusalem,
     val paneStyle: PaneStyle = PaneStyle.Cards,
     /** Sidebar reduced to icons. */
     val sidebarCollapsed: Boolean = false,

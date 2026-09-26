@@ -11,11 +11,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.abaye.mailtice.app.AppViewModel
+import co.abaye.mailtice.calendar.HebrewDateStyle
+import co.abaye.mailtice.calendar.LocalHebrewDate
 import co.abaye.mailtice.app.RootScreen
 import co.abaye.mailtice.di.AppGraph
 import co.abaye.mailtice.di.createAppGraph
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.ThemeMode
+import co.abaye.mailtice.domain.UiLanguage
 import co.abaye.mailtice.platform.ProvideAppLocale
 import co.abaye.mailtice.theme.AppTheme
 
@@ -52,7 +55,14 @@ fun App(
     val direction = if (language.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
     ProvideAppLocale(language.code) {
         AppTheme(accent = settings.accent, isDark = isDark, font = settings.font) {
-            CompositionLocalProvider(LocalLayoutDirection provides direction) {
+            val hebrewDate = remember(settings.showHebrewDate, settings.hebrewDateAtSunset, settings.sunsetCity, language) {
+                if (!settings.showHebrewDate) {
+                    null
+                } else {
+                    HebrewDateStyle(settings.hebrewDateAtSunset, settings.sunsetCity, hebrewLetters = language == UiLanguage.Hebrew)
+                }
+            }
+            CompositionLocalProvider(LocalLayoutDirection provides direction, LocalHebrewDate provides hebrewDate) {
                 RootScreen(state = state, backStack = vm.backStack, onIntent = vm::onIntent)
             }
         }

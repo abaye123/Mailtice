@@ -1,5 +1,6 @@
 package co.abaye.mailtice.main
 
+import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -684,7 +685,7 @@ private fun MailRow(
                             }
                         }
                         Text(
-                            formatTime(message.receivedAt),
+                            dateLabel(message.receivedAt),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = weight,
                             color = if (message.unread) colors.primary else colors.onSurfaceVariant,

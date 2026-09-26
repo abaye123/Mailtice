@@ -366,4 +366,18 @@
     <string name="message_draft_discarded">Draft discarded</string>
     <string name="compose_new_hint">Write a new message</string>
     <string name="compose_drop_hint">Drop to attach</string>
+    <string name="settings_hebrew_date">Hebrew date</string>
+    <string name="settings_hebrew_date_desc">Shown next to the date in the list and in the message.</string>
+    <string name="settings_hebrew_turn">Hebrew date changes</string>
+    <string name="settings_hebrew_turn_desc">At sunset, as in the Hebrew calendar, or at midnight together with the regular date.</string>
+    <string name="hebrew_turn_sunset">At sunset</string>
+    <string name="hebrew_turn_midnight">At midnight</string>
+    <string name="settings_sunset_city">Sunset in</string>
+    <string name="city_jerusalem">Jerusalem</string>
+    <string name="city_tel_aviv">Tel Aviv</string>
+    <string name="city_haifa">Haifa</string>
+    <string name="city_beer_sheva">Beer Sheva</string>
+    <string name="city_eilat">Eilat</string>
+    <string name="city_new_york">New York</string>
+    <string name="city_london">London</string>
 </resources>

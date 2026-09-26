@@ -1,5 +1,6 @@
 package co.abaye.mailtice.main
 
+import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -96,7 +97,7 @@ private fun ScheduledRow(item: ScheduledMail, account: co.abaye.mailtice.domain.
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Icon(Icons.Outlined.Schedule, null, Modifier.size(14.dp), tint = colors.primary)
                 Text(
-                    stringResource(Res.string.scheduled_at, formatTime(item.sendAt, withDate = true)),
+                    stringResource(Res.string.scheduled_at, dateLabel(item.sendAt, withDate = true)),
                     style = MaterialTheme.typography.labelMedium,
                     color = colors.primary,
                 )

@@ -4,6 +4,7 @@ import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.ListDensity
+import co.abaye.mailtice.domain.SunsetCity
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.PaneStyle
 import co.abaye.mailtice.domain.PollIntervals
@@ -23,6 +24,9 @@ private const val KEY_THEME = "theme"
 private const val KEY_ACCENT = "accent"
 private const val KEY_DENSITY = "density"
 private const val KEY_FONT = "font"
+private const val KEY_HEBREW_DATE = "hebrewDate"
+private const val KEY_HEBREW_AT_SUNSET = "hebrewDateAtSunset"
+private const val KEY_SUNSET_CITY = "sunsetCity"
 private const val KEY_PANE_STYLE = "paneStyle"
 private const val KEY_SIDEBAR_COLLAPSED = "sidebarCollapsed"
 private const val KEY_LIST_FRACTION = "listFraction"
@@ -46,6 +50,9 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_ACCENT=${s.accent.name}")
         add("$KEY_DENSITY=${s.density.name}")
         add("$KEY_FONT=${s.font.name}")
+        add("$KEY_HEBREW_DATE=${s.showHebrewDate}")
+        add("$KEY_HEBREW_AT_SUNSET=${s.hebrewDateAtSunset}")
+        add("$KEY_SUNSET_CITY=${s.sunsetCity.name}")
         add("$KEY_PANE_STYLE=${s.paneStyle.name}")
         add("$KEY_SIDEBAR_COLLAPSED=${s.sidebarCollapsed}")
         add("$KEY_LIST_FRACTION=${s.listFraction}")
@@ -77,6 +84,9 @@ fun decodeSnapshot(raw: String): AppData {
         accent = map[KEY_ACCENT]?.let { name -> AccentColor.entries.firstOrNull { it.name == name } } ?: defaults.accent,
         density = map[KEY_DENSITY]?.let { name -> ListDensity.entries.firstOrNull { it.name == name } } ?: defaults.density,
         font = map[KEY_FONT]?.let { name -> AppFont.entries.firstOrNull { it.name == name } } ?: defaults.font,
+        showHebrewDate = flag(KEY_HEBREW_DATE, defaults.showHebrewDate),
+        hebrewDateAtSunset = flag(KEY_HEBREW_AT_SUNSET, defaults.hebrewDateAtSunset),
+        sunsetCity = map[KEY_SUNSET_CITY]?.let { name -> SunsetCity.entries.firstOrNull { it.name == name } } ?: defaults.sunsetCity,
         paneStyle = map[KEY_PANE_STYLE]?.let { name -> PaneStyle.entries.firstOrNull { it.name == name } } ?: defaults.paneStyle,
         sidebarCollapsed = flag(KEY_SIDEBAR_COLLAPSED, defaults.sidebarCollapsed),
         listFraction = map[KEY_LIST_FRACTION]?.toFloatOrNull()?.takeIf { it in ListFractionRange } ?: defaults.listFraction,

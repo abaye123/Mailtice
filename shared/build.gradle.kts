@@ -64,7 +64,7 @@ val oauthKeys = listOf(
     "YAHOO_REDIRECT_URI",
 )
 
-val generateOAuthSecrets by tasks.registering(GenerateOAuthSecrets::class) {
+val generateOAuthSecrets = tasks.register<GenerateOAuthSecrets>("generateOAuthSecrets") {
     oauthKeys.forEach { key -> values.put(key, oauthValue(key)) }
     outputDir.set(layout.buildDirectory.dir("generated/oauth/kotlin"))
 }
@@ -86,7 +86,7 @@ kotlin {
     sourceSets {
         // Desktop and Android are both JVMs: the IMAP stack (Angus Mail) and everything built on
         // it lives once, here, instead of twice.
-        val jvmSharedMain by creating {
+        val jvmSharedMain = create("jvmSharedMain") {
             dependsOn(commonMain.get())
         }
         jvmMain.get().dependsOn(jvmSharedMain)
@@ -107,9 +107,11 @@ kotlin {
             api(libs.compose.ui)
             api(libs.compose.foundation)
             api(libs.compose.resources)
+            // Hebrew calendar and sunset times (KosherJava ported to Kotlin Multiplatform).
+            implementation(libs.kosherkotlin)
             api(libs.compose.ui.tooling.preview)
             api(libs.compose.material3)
-            implementation(compose.materialIconsExtended)
+            implementation(libs.compose.material.icons.extended)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.structured.coroutines.annotations)
             // api: AppViewModel extends ViewModel and is used directly by desktopApp/androidApp.
@@ -211,7 +213,7 @@ aboutLibraries {
  * "iw" for Hebrew there. Publish the Hebrew bundle a second time under that code (same fix as in
  * MusicRadio); generated, not committed, so the translation keeps a single source.
  */
-val mirrorHebrewStringsForAndroid by tasks.registering(Copy::class) {
+val mirrorHebrewStringsForAndroid = tasks.register<Copy>("mirrorHebrewStringsForAndroid") {
     val resources = layout.projectDirectory.dir("src/commonMain/composeResources")
     from(resources.dir("values-he"))
     into(resources.dir("values-iw"))

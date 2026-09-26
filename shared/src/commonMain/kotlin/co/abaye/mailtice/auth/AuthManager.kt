@@ -1,5 +1,6 @@
 package co.abaye.mailtice.auth
 
+import kotlin.io.encoding.Base64
 import co.abaye.mailtice.data.SecretStore
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.platform.Platform
@@ -10,7 +11,6 @@ import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
 import io.ktor.http.isSuccess
-import io.ktor.util.decodeBase64String
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
@@ -72,8 +72,10 @@ class AuthManager(
      */
     fun emailFromIdToken(idToken: String?): String? {
         val payload = idToken?.split('.')?.getOrNull(1) ?: return null
-        val padded = payload.replace('-', '+').replace('_', '/').let { it + "=".repeat((4 - it.length % 4) % 4) }
-        val claims = runCatching { json.parseToJsonElement(padded.decodeBase64String()) as JsonObject }.getOrNull() ?: return null
+        // JWT segments are unpadded base64url.
+        val decoded = runCatching { Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(payload).decodeToString() }
+            .getOrNull() ?: return null
+        val claims = runCatching { json.parseToJsonElement(decoded) as JsonObject }.getOrNull() ?: return null
         return listOf("email", "preferred_username")
             .firstNotNullOfOrNull { key -> claims[key]?.jsonPrimitive?.content?.takeIf { '@' in it } }
     }

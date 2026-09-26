@@ -1,5 +1,6 @@
 package co.abaye.mailtice.main
 
+import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -33,7 +34,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FormatBold
 import androidx.compose.material.icons.outlined.FormatItalic
-import androidx.compose.material.icons.outlined.FormatListBulleted
+import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.FormatListNumbered
 import androidx.compose.material.icons.outlined.FormatStrikethrough
 import androidx.compose.material.icons.outlined.FormatUnderlined
@@ -636,7 +637,7 @@ private fun FormattingBar(rich: RichTextState, onLink: () -> Unit) {
         FormatButton(Icons.Outlined.FormatStrikethrough, stringResource(Res.string.fmt_strike), decoration.contains(TextDecoration.LineThrough)) {
             rich.toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
         }
-        FormatButton(Icons.Outlined.FormatListBulleted, stringResource(Res.string.fmt_bullets), rich.isUnorderedList) { rich.toggleUnorderedList() }
+        FormatButton(Icons.AutoMirrored.Outlined.FormatListBulleted, stringResource(Res.string.fmt_bullets), rich.isUnorderedList) { rich.toggleUnorderedList() }
         FormatButton(Icons.Outlined.FormatListNumbered, stringResource(Res.string.fmt_numbers), rich.isOrderedList) { rich.toggleOrderedList() }
         if (rich.isLink) {
             FormatButton(Icons.Outlined.LinkOff, stringResource(Res.string.fmt_unlink), true) { rich.removeLink() }
@@ -733,7 +734,7 @@ private fun SendButton(draft: ComposeDraft, onIntent: (AppIntent) -> Unit) {
                         text = {
                             Column {
                                 Text(label)
-                                Text(formatTime(at, withDate = true), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                                Text(dateLabel(at, withDate = true), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                             }
                         },
                         onClick = {

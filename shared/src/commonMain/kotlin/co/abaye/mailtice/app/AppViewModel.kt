@@ -394,6 +394,9 @@ class AppViewModel(
             is AppIntent.SetAccent -> settings { it.copy(accent = intent.accent) }
             is AppIntent.SetDensity -> settings { it.copy(density = intent.density) }
             is AppIntent.SetFont -> settings { it.copy(font = intent.font) }
+            is AppIntent.SetShowHebrewDate -> settings { it.copy(showHebrewDate = intent.show) }
+            is AppIntent.SetHebrewDateAtSunset -> settings { it.copy(hebrewDateAtSunset = intent.atSunset) }
+            is AppIntent.SetSunsetCity -> settings { it.copy(sunsetCity = intent.city) }
             is AppIntent.SetPaneStyle -> settings { it.copy(paneStyle = intent.style) }
             is AppIntent.SetReadingPane -> settings { it.copy(readingPane = intent.pane) }
             is AppIntent.SetFolderHidden -> settings {

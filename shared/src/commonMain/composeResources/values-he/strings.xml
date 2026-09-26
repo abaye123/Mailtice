@@ -366,4 +366,18 @@
     <string name="message_draft_discarded">הטיוטה נמחקה</string>
     <string name="compose_new_hint">כתיבת הודעה חדשה</string>
     <string name="compose_drop_hint">שחרר כדי לצרף</string>
+    <string name="settings_hebrew_date">תאריך עברי</string>
+    <string name="settings_hebrew_date_desc">מוצג לצד התאריך ברשימה ובמייל עצמו.</string>
+    <string name="settings_hebrew_turn">התאריך העברי מתחלף</string>
+    <string name="settings_hebrew_turn_desc">בשקיעה, כמו בלוח העברי, או בחצות יחד עם התאריך הלועזי.</string>
+    <string name="hebrew_turn_sunset">בשקיעה</string>
+    <string name="hebrew_turn_midnight">בחצות</string>
+    <string name="settings_sunset_city">שקיעה לפי</string>
+    <string name="city_jerusalem">ירושלים</string>
+    <string name="city_tel_aviv">תל אביב</string>
+    <string name="city_haifa">חיפה</string>
+    <string name="city_beer_sheva">באר שבע</string>
+    <string name="city_eilat">אילת</string>
+    <string name="city_new_york">ניו יורק</string>
+    <string name="city_london">לונדון</string>
 </resources>

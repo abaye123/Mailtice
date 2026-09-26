@@ -3,6 +3,7 @@ package co.abaye.mailtice.app
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.ListDensity
+import co.abaye.mailtice.domain.SunsetCity
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.PaneStyle
@@ -112,6 +113,9 @@ sealed interface AppIntent {
     data class SetAccent(val accent: AccentColor) : AppIntent
     data class SetDensity(val density: ListDensity) : AppIntent
     data class SetFont(val font: AppFont) : AppIntent
+    data class SetShowHebrewDate(val show: Boolean) : AppIntent
+    data class SetHebrewDateAtSunset(val atSunset: Boolean) : AppIntent
+    data class SetSunsetCity(val city: SunsetCity) : AppIntent
     data class SetPaneStyle(val style: PaneStyle) : AppIntent
     data class SetReadingPane(val pane: ReadingPane) : AppIntent
 
