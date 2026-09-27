@@ -1,5 +1,6 @@
 package co.abaye.mailtice.provider
 
+import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
@@ -50,6 +51,9 @@ data class OutgoingMail(
     val references: String? = null,
     /** Gmail conversation id: keeps a reply in the original thread there. */
     val threadId: String? = null,
+    /** "Name <address>" to send from (a send-as alias); null = the account's own address. */
+    val from: String? = null,
+    val replyTo: String? = null,
 )
 
 /** One downloaded attachment. [index] is its position in [co.abaye.mailtice.domain.MailBody.attachments]. */
@@ -161,6 +165,9 @@ interface MailProvider {
 
     /** Releases connections held for [account]. */
     suspend fun close(account: Account) = Unit
+
+    /** The addresses the account may send from; empty = only its own (the default). */
+    suspend fun identities(account: Account): List<SenderIdentity> = emptyList()
 
     /** A new label (Gmail) or folder (IMAP) named [name]. Only when [Capabilities.manageLabels]. */
     suspend fun createLabel(account: Account, name: String, color: LabelColors?): Unit =

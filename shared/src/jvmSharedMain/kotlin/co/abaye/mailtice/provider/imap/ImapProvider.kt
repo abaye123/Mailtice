@@ -484,7 +484,8 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
 
     private fun mimeMessage(account: Account, mail: OutgoingMail): MimeMessage =
         MimeMessage(Session.getInstance(Properties())).apply {
-            setFrom(InternetAddress(account.email))
+            setFrom(InternetAddress(mail.from ?: account.email))
+            mail.replyTo?.let { replyTo = arrayOf(InternetAddress(it)) }
             if (mail.to.isNotEmpty()) setRecipients(Message.RecipientType.TO, addresses(mail.to))
             if (mail.cc.isNotEmpty()) setRecipients(Message.RecipientType.CC, addresses(mail.cc))
             if (mail.bcc.isNotEmpty()) setRecipients(Message.RecipientType.BCC, addresses(mail.bcc))

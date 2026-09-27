@@ -151,6 +151,24 @@ val LabelPalette: List<LabelColors> = listOf(
  */
 val Folder.isUserLabel: Boolean get() = role == FolderRole.Other && !id.startsWith("CATEGORY_")
 
+/**
+ * An address the account may send from: its own, or an alias set up under Gmail's "Send mail as",
+ * with the name, reply-to address and signature Gmail keeps for it.
+ */
+@Immutable
+data class SenderIdentity(
+    val accountId: String,
+    val email: String,
+    val name: String = "",
+    val replyTo: String = "",
+    /** HTML, "" = none. */
+    val signature: String = "",
+    val isDefault: Boolean = false,
+) {
+    /** "Name <address>", or the bare address. */
+    val formatted: String get() = if (name.isBlank()) email else "$name <$email>"
+}
+
 /** A row in the unified list. */
 @Immutable
 data class MailMessage(

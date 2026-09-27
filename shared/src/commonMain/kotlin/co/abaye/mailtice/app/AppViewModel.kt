@@ -1,5 +1,7 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.provider.HtmlText
+import co.abaye.mailtice.domain.SenderIdentity
 import kotlinx.datetime.TimeZone
 import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.sync.ActionQueuedException
@@ -210,6 +212,7 @@ class AppViewModel(
             }
         }
         scope.launch { sync.lastSynced.collect { t -> mutate { it.copy(lastSynced = t) } } }
+        scope.launch { repo.identities.collect { ids -> mutate { it.copy(identities = ids) } } }
         // Rounds that bring nothing new change no count; the dashboard still wants "checked" and the week fresh.
         scope.launch {
             while (true) {
@@ -379,6 +382,8 @@ class AppViewModel(
                         attachments = current.attachments,
                         scheduledId = current.scheduledId,
                         initialHtml = current.initialHtml,
+                        fromEmail = current.fromEmail,
+                        editorVersion = current.editorVersion,
                         draftHandle = current.draftHandle,
                         draftAccountId = current.draftAccountId,
                         draftSave = current.draftSave,
@@ -496,6 +501,7 @@ class AppViewModel(
                 reconcileSync()
             }
             is AppIntent.SetOpenHomeAtStart -> settings { it.copy(openHomeAtStart = intent.on) }
+            is AppIntent.SetComposeFrom -> setComposeFrom(intent.accountId, intent.email)
             is AppIntent.SetSmartPolling -> {
                 settings { it.copy(smartPolling = intent.smart) }
                 reconcileSync()
@@ -1101,15 +1107,22 @@ class AppViewModel(
             return
         }
         if (message == null || mode == ComposeMode.New) {
-            mutate { it.copy(compose = ComposeDraft(accountId = account.id, draftId = Platform.now())) }
+            val identity = s.identitiesOf(account).let { all -> all.firstOrNull { it.isDefault } ?: all.first() }
+            mutate {
+                it.copy(compose = ComposeDraft(accountId = account.id, draftId = Platform.now(), fromEmail = identity.email, initialHtml = signatureHtml(identity)))
+            }
             return
         }
+        // A reply goes out from the address the message was sent to, as Gmail does.
+        val identities = s.identitiesOf(account)
+        val replyFrom = identities.firstOrNull { message.toLine.contains(it.email, ignoreCase = true) }
+            ?: identities.firstOrNull { it.isDefault } ?: identities.first()
         val to = when (mode) {
             ComposeMode.Forward -> ""
             ComposeMode.Reply -> message.fromAddress
             else -> {
                 val others = message.toLine.split(',').map { it.trim() }.filter { entry ->
-                    entry.isNotEmpty() && !entry.contains(account.email, ignoreCase = true) &&
+                    entry.isNotEmpty() && identities.none { entry.contains(it.email, ignoreCase = true) } &&
                         !entry.contains(message.fromAddress, ignoreCase = true)
                 }
                 (listOf(message.fromAddress) + others).joinToString(", ")
@@ -1124,6 +1137,8 @@ class AppViewModel(
             to = to,
             subject = if (alreadyPrefixed) message.subject else prefix + message.subject,
             threadId = message.threadId.takeIf { account.kind == ProviderKind.Gmail && it.isNotBlank() },
+            fromEmail = replyFrom.email,
+            initialHtml = signatureHtml(replyFrom),
         )
         mutate { it.copy(compose = draft) }
         scope.launch {
@@ -1183,6 +1198,11 @@ class AppViewModel(
             return null
         }
         val html = draft.html?.takeIf { draft.body.isNotBlank() || draft.quoteHtml != null }
+        val identity = _state.value.identityOf(draft)
+        val account = _state.value.account(draft.accountId)
+        // The account's own address with no name of its own is left to the provider, as before.
+        val from = identity?.takeIf { it.name.isNotBlank() || !it.email.equals(account?.email, ignoreCase = true) }?.formatted
+        val replyTo = identity?.replyTo?.takeIf { it.isNotBlank() }
         return OutgoingMail(
             to = to, cc = cc, bcc = bcc,
             subject = draft.subject.trim(),
@@ -1192,8 +1212,33 @@ class AppViewModel(
             inReplyTo = draft.inReplyTo,
             references = draft.references,
             threadId = draft.threadId,
+            from = from,
+            replyTo = replyTo,
         )
     }
+
+    /**
+     * Switches the address the open draft sends from. Its signature comes along: while the body is
+     * still just the old signature (nothing typed), the editor is reloaded with the new one.
+     */
+    private fun setComposeFrom(accountId: String, email: String) {
+        mutate { s ->
+            val draft = s.compose ?: return@mutate s
+            val old = s.identityOf(draft)
+            val next = draft.copy(accountId = accountId, fromEmail = email)
+            val new = s.identityOf(next)
+            val untouched = draft.body.isBlank() || draft.body.trim() == HtmlText.toText(old?.signature.orEmpty()).trim()
+            if (untouched && old?.signature != new?.signature) {
+                s.copy(compose = next.copy(initialHtml = signatureHtml(new), html = null, body = "", editorVersion = draft.editorVersion + 1))
+            } else {
+                s.copy(compose = next)
+            }
+        }
+    }
+
+    /** The editor's opening content for [identity]: two empty lines, then its signature, if it has one. */
+    private fun signatureHtml(identity: SenderIdentity?): String =
+        identity?.signature?.takeIf { it.isNotBlank() }?.let { "<p></p><p></p><div>$it</div>" } ?: ""
 
     private fun sendCompose() {
         val draft = _state.value.compose ?: return

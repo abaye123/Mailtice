@@ -1,5 +1,6 @@
 package co.abaye.mailtice.provider.gmail
 
+import co.abaye.mailtice.domain.SenderIdentity
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.io.IOException
@@ -66,6 +67,14 @@ class GmailProvider(
         api.labels(token)
             .filter { it.id !in HIDDEN_LABELS }
             .map { RemoteFolder(it.id, friendlyName(it), roleOf(it.id), it.color?.backgroundColor.orEmpty()) }
+    }
+
+    /** Only addresses Gmail lets the account send from: its own, and aliases it has verified. */
+    override suspend fun identities(account: Account): List<SenderIdentity> = withToken(account) { token ->
+        api.sendAs(token)
+            .filter { it.isPrimary || it.verificationStatus == null || it.verificationStatus == "accepted" }
+            .sortedByDescending { it.isPrimary }
+            .map { SenderIdentity(account.id, it.sendAsEmail, it.displayName, it.replyToAddress, it.signature, it.isDefault) }
     }
 
     override suspend fun createLabel(account: Account, name: String, color: LabelColors?) {

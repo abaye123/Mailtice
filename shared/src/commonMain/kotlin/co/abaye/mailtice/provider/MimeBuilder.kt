@@ -26,7 +26,8 @@ object MimeBuilder {
         fun header(name: String, value: String) {
             append(name).append(": ").append(value).append("\r\n")
         }
-        header("From", encodeAddress(from))
+        header("From", encodeAddress(mail.from ?: from))
+        mail.replyTo?.let { header("Reply-To", encodeAddress(it)) }
         // A draft may not have a recipient yet.
         if (mail.to.isNotEmpty()) header("To", mail.to.joinToString(", ") { encodeAddress(it) })
         if (mail.cc.isNotEmpty()) header("Cc", mail.cc.joinToString(", ") { encodeAddress(it) })

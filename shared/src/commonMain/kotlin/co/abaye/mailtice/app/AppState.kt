@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.AccountDigest
 import co.abaye.mailtice.sync.PollPlan
 import co.abaye.mailtice.domain.Attachment
@@ -131,6 +132,10 @@ data class ComposeDraft(
     val html: String? = null,
     /** HTML the editor starts with (editing a scheduled message); "" = empty. */
     val initialHtml: String = "",
+    /** The address to send from ("" = the account's default one). */
+    val fromEmail: String = "",
+    /** Bumped when the editor should load [initialHtml] again (the signature was swapped). */
+    val editorVersion: Int = 0,
     /** The quoted original of a reply / forward, kept apart from the editor and added on send. */
     val quote: String? = null,
     val quoteHtml: String? = null,
@@ -235,6 +240,8 @@ data class AppState(
     val pollPlans: Map<String, PollPlan> = emptyMap(),
     /** The home dashboard's view of each account. */
     val digests: Map<String, AccountDigest> = emptyMap(),
+    /** Send-as addresses per account, as the provider lists them. */
+    val identities: Map<String, List<SenderIdentity>> = emptyMap(),
     /** When each account last synced without an error. */
     val lastSynced: Map<String, Long> = emptyMap(),
     val filter: InboxFilter = InboxFilter(),
@@ -271,6 +278,17 @@ data class AppState(
 
     /** Accounts that can send, in sidebar order; the compose "from" picker offers these. */
     val sendingAccounts: List<Account> get() = accounts.filter { it.capabilities.send }
+
+    /** The addresses [account] may send from; its own address alone until the provider said more. */
+    fun identitiesOf(account: Account): List<SenderIdentity> =
+        identities[account.id]?.takeIf { it.isNotEmpty() } ?: listOf(SenderIdentity(account.id, account.email, isDefault = true))
+
+    /** The address a draft sends from: the one picked, or the account's default. */
+    fun identityOf(draft: ComposeDraft): SenderIdentity? {
+        val account = account(draft.accountId) ?: return null
+        val all = identitiesOf(account)
+        return all.firstOrNull { it.email.equals(draft.fromEmail, ignoreCase = true) } ?: all.firstOrNull { it.isDefault } ?: all.first()
+    }
 
     /** The list as shown: stored rows, then older ones from the server, newest first. */
     val visibleMessages: List<MailMessage> get() =

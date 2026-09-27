@@ -224,6 +224,7 @@ class SyncEngine(
             if (repo.foldersNow(account.id).isEmpty() || now - (lastFolderRefresh[account.id] ?: 0L) > FOLDER_REFRESH_MS) {
                 repo.mergeFolders(account.id, provider.listFolders(account))
                 repo.updateCapabilities(account.id, provider.capabilities(account))
+                refreshIdentities(account, provider)
                 lastFolderRefresh[account.id] = now
             }
             val stored = repo.account(account.id) ?: return@withLock emptyList()
@@ -360,6 +361,18 @@ class SyncEngine(
             if (cached.size == wanted.size && cached.isNotEmpty()) return cached
         }
         return providers.forAccount(account).fetchAttachments(account, message, indices)
+    }
+
+    /** The send-as addresses; best effort, a failure keeps the ones already known. */
+    private suspend fun refreshIdentities(account: Account, provider: MailProvider) {
+        try {
+            val identities = provider.identities(account)
+            if (identities.isNotEmpty()) repo.replaceIdentities(account.id, identities)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            println("Sync: send-as addresses not read: ${describe(e)}")
+        }
     }
 
     // ---- offline mode -------------------------------------------------------------------------
@@ -523,6 +536,7 @@ class SyncEngine(
         val provider = providers.forAccount(account)
         repo.mergeFolders(account.id, provider.listFolders(account))
         repo.updateCapabilities(account.id, provider.capabilities(account))
+        refreshIdentities(account, provider)
         lastFolderRefresh[account.id] = Platform.now()
     }
 

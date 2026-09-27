@@ -1,0 +1,12 @@
+-- 4 -> 5: send-as addresses.
+-- The addresses an account sends from (Gmail "Send mail as"), read from the provider.
+CREATE TABLE sender_identity (
+  accountId TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  replyTo TEXT NOT NULL DEFAULT '',
+  signature TEXT NOT NULL DEFAULT '',
+  isDefault INTEGER NOT NULL DEFAULT 0,
+  sortOrder INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (accountId, email)
+);

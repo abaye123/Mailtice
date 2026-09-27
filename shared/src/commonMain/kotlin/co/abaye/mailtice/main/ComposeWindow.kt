@@ -1,5 +1,6 @@
 package co.abaye.mailtice.main
 
+import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -283,7 +284,8 @@ private fun ComposeHeader(draft: ComposeDraft, onIntent: (AppIntent) -> Unit) {
 private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppIntent) -> Unit, docked: Boolean) {
     val current by rememberUpdatedState(draft)
     fun update(block: (ComposeDraft) -> ComposeDraft) = onIntent(AppIntent.UpdateCompose(block(current)))
-    val rich = remember(draft.draftId) { RichTextState().apply { if (draft.initialHtml.isNotBlank()) setHtml(draft.initialHtml) } }
+    // Reloaded when the signature is swapped for another address's ([ComposeDraft.editorVersion]).
+    val rich = remember(draft.draftId, draft.editorVersion) { RichTextState().apply { if (draft.initialHtml.isNotBlank()) setHtml(draft.initialHtml) } }
     // The editor reports its text and HTML a moment after typing stops.
     LaunchedEffect(rich) {
         snapshotFlow { rich.annotatedString }.debounce(150).distinctUntilChanged().collect {
@@ -308,7 +310,7 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
     ) {
         ComposeHeader(draft, onIntent)
         Column(Modifier.padding(horizontal = 16.dp)) {
-            FromRow(draft, state.sendingAccounts, enabled) { id -> update { it.copy(accountId = id) } }
+            FromRow(draft, state, enabled) { identity -> onIntent(AppIntent.SetComposeFrom(identity.accountId, identity.email)) }
             RecipientField(
                 label = stringResource(Res.string.compose_to),
                 value = draft.to,
@@ -432,29 +434,36 @@ private fun DropHint() {
     }
 }
 
+/**
+ * "From": every address of every account that can send, Gmail's "Send mail as" aliases included,
+ * each under its account's avatar. The picked one is shown as "Name <address>".
+ */
 @Composable
-private fun FromRow(draft: ComposeDraft, accounts: List<Account>, enabled: Boolean, onPick: (String) -> Unit) {
-    val current = accounts.firstOrNull { it.id == draft.accountId } ?: return
+private fun FromRow(draft: ComposeDraft, state: AppState, enabled: Boolean, onPick: (SenderIdentity) -> Unit) {
+    val accounts = state.sendingAccounts
+    val currentAccount = accounts.firstOrNull { it.id == draft.accountId } ?: return
+    val current = state.identityOf(draft) ?: return
+    val choices = accounts.flatMap { a -> state.identitiesOf(a).map { a to it } }
     var open by remember { mutableStateOf(false) }
     FieldRow(stringResource(Res.string.compose_from)) {
         Box {
             Row(
-                Modifier.clip(RoundedCornerShape(8.dp)).clickable(enabled = enabled && accounts.size > 1) { open = true }.padding(vertical = 6.dp),
+                Modifier.clip(RoundedCornerShape(8.dp)).clickable(enabled = enabled && choices.size > 1) { open = true }.padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                AccountAvatar(current, size = 20.dp)
-                Text(current.email, style = MaterialTheme.typography.bodyMedium.merge(LtrText))
-                if (accounts.size > 1) Icon(Icons.Outlined.ArrowDropDown, null, Modifier.size(18.dp))
+                AccountAvatar(currentAccount, size = 20.dp)
+                Text(current.formatted, style = MaterialTheme.typography.bodyMedium.merge(LtrText), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (choices.size > 1) Icon(Icons.Outlined.ArrowDropDown, null, Modifier.size(18.dp))
             }
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                accounts.forEach { account ->
+                choices.forEach { (account, identity) ->
                     DropdownMenuItem(
                         leadingIcon = { AccountAvatar(account, size = 22.dp) },
-                        text = { Text(account.email, style = LtrText) },
+                        text = { Text(identity.formatted, style = LtrText) },
                         onClick = {
                             open = false
-                            onPick(account.id)
+                            onPick(identity)
                         },
                     )
                 }

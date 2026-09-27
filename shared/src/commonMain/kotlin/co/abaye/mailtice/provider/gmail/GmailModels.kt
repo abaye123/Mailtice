@@ -31,6 +31,20 @@ data class LabelWrite(
 )
 
 @Serializable
+data class SendAs(
+    val sendAsEmail: String,
+    val displayName: String = "",
+    val replyToAddress: String = "",
+    val signature: String = "",
+    val isPrimary: Boolean = false,
+    val isDefault: Boolean = false,
+    val verificationStatus: String? = null,
+)
+
+@Serializable
+data class SendAsList(val sendAs: List<SendAs> = emptyList())
+
+@Serializable
 data class LabelList(val labels: List<GmailLabel> = emptyList())
 
 @Serializable

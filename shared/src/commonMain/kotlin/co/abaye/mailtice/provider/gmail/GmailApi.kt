@@ -26,6 +26,9 @@ class GmailApi(private val http: HttpClient) {
 
     suspend fun labels(token: String): List<GmailLabel> = http.get("$BASE/labels") { bearerAuth(token) }.parsed<LabelList>().labels
 
+    /** Gmail's "Send mail as" addresses: the account's own and every alias, with their signatures. */
+    suspend fun sendAs(token: String): List<SendAs> = http.get("$BASE/settings/sendAs") { bearerAuth(token) }.parsed<SendAsList>().sendAs
+
     suspend fun label(token: String, id: String): GmailLabel = http.get("$BASE/labels/$id") { bearerAuth(token) }.parsed()
 
     suspend fun createLabel(token: String, label: LabelWrite): GmailLabel =

@@ -40,7 +40,7 @@ class MigrationTest {
         ).value
         // Everything syncs now; notifications untouched; no colour until the next folder refresh.
         assertEquals(listOf("INBOX:1:1:", "SPAM:1:0:"), rows)
-        assertEquals(4L, MailDatabase.Schema.version)
+        assertEquals(5L, MailDatabase.Schema.version)
         // 2 -> 3 added the scheduled-send queue.
         val tables = driver.executeQuery(
             null,

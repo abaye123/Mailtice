@@ -42,6 +42,8 @@ internal object ScheduledCodec {
         val references: String? = null,
         val threadId: String? = null,
         val files: List<File> = emptyList(),
+        val from: String? = null,
+        val replyTo: String? = null,
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -51,6 +53,8 @@ internal object ScheduledCodec {
         Payload(
             mail.to, mail.cc, mail.bcc, mail.subject, mail.text, mail.html, mail.inReplyTo, mail.references, mail.threadId,
             mail.attachments.map { File(it.name, it.mimeType, Base64.Default.encode(it.bytes)) },
+            mail.from,
+            mail.replyTo,
         ),
     )
 
@@ -59,7 +63,7 @@ internal object ScheduledCodec {
         return OutgoingMail(
             to = p.to, cc = p.cc, bcc = p.bcc, subject = p.subject, text = p.text, html = p.html,
             attachments = p.files.map { OutgoingAttachment(it.name, it.mimeType, Base64.Default.decode(it.data)) },
-            inReplyTo = p.inReplyTo, references = p.references, threadId = p.threadId,
+            inReplyTo = p.inReplyTo, references = p.references, threadId = p.threadId, from = p.from, replyTo = p.replyTo,
         )
     }
 }

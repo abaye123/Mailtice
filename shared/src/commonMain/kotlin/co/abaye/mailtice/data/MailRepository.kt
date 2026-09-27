@@ -1,5 +1,6 @@
 package co.abaye.mailtice.data
 
+import co.abaye.mailtice.domain.SenderIdentity
 import kotlin.time.Instant
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.toLocalDateTime
@@ -187,6 +188,22 @@ class MailRepository(
         }
 
     fun message(accountId: String, id: String): MailMessage? = q.selectMessage(accountId, id, ::mapMessage).executeAsOneOrNull()
+
+    // ---- sender identities ------------------------------------------------------------------
+
+    /** Every account's send-as addresses, in the provider's order. */
+    val identities: Flow<Map<String, List<SenderIdentity>>> = q.selectIdentities().asFlow().mapToList(dispatcher).map { rows ->
+        rows.map { SenderIdentity(it.accountId, it.email, it.name, it.replyTo, it.signature, it.isDefault != 0L) }.groupBy { it.accountId }
+    }
+
+    fun replaceIdentities(accountId: String, identities: List<SenderIdentity>) {
+        db.transaction {
+            q.deleteIdentities(accountId)
+            identities.forEachIndexed { i, id ->
+                q.insertIdentity(accountId, id.email, id.name, id.replyTo, id.signature, if (id.isDefault) 1 else 0, i.toLong())
+            }
+        }
+    }
 
     // ---- home dashboard ---------------------------------------------------------------------
 
