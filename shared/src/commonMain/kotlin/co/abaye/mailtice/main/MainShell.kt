@@ -211,7 +211,7 @@ private fun BrandBar(modifier: Modifier = Modifier) {
 /**
  * The wide layout's sidebar: the compose button, the standard folders across every account, then
  * each account as a tree of its own - its standard folders, its labels (pinned first, hidden ones
- * left out) and a row to manage them. One arrow folds an account's whole tree. Account management,
+ * left out) and a row to manage them. Clicking the account row folds its whole tree. Account management,
  * settings and about sit at the foot. It collapses to an icon rail; every icon then names itself on
  * hover.
  */
@@ -270,10 +270,14 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
                     selected = inMail && filter.accountId == account.id && !expanded,
                     collapsed = collapsed,
                     expanded = expanded,
-                    onToggle = { onIntent(AppIntent.ToggleAccountExpanded(account.id)) },
                 ) {
-                    if (!collapsed && !expanded) onIntent(AppIntent.ToggleAccountExpanded(account.id))
-                    onIntent(AppIntent.OpenView(account.id, MailView.Inbox))
+                    // The account row folds and unfolds its tree; on the icon rail, with no tree to
+                    // show, it opens the account's inbox instead.
+                    if (collapsed) {
+                        onIntent(AppIntent.OpenView(account.id, MailView.Inbox))
+                    } else {
+                        onIntent(AppIntent.ToggleAccountExpanded(account.id))
+                    }
                 }
                 AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -446,7 +450,6 @@ private fun AccountSidebarItem(
     selected: Boolean,
     collapsed: Boolean,
     expanded: Boolean,
-    onToggle: () -> Unit,
     onClick: () -> Unit,
 ) {
     val problem = when (status) {
@@ -471,12 +474,11 @@ private fun AccountSidebarItem(
                 }
             },
             end = {
-                // One arrow folds or unfolds everything the account shows.
-                TooltipIconButton(
+                // The whole row folds and unfolds; the arrow only shows which way it will go.
+                Icon(
                     if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
                     stringResource(if (expanded) Res.string.account_collapse else Res.string.account_expand),
-                    onToggle,
-                    modifier = Modifier.size(32.dp),
+                    Modifier.padding(horizontal = 8.dp).size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },

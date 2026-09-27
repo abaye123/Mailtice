@@ -1,5 +1,7 @@
 package co.abaye.mailtice.main
 
+import co.abaye.mailtice.ui.Tooltip
+import co.abaye.mailtice.domain.Account
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,6 +71,31 @@ fun LabelChip(folder: Folder, modifier: Modifier = Modifier, small: Boolean = tr
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * The account a row of the unified list belongs to: its colour dot and name, as small and quiet
+ * as a label chip so it reads as a tag, not as another label. The address shows on hover.
+ */
+@Composable
+fun AccountTag(account: Account, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Tooltip(account.email) {
+        Row(
+            modifier.background(colors.surfaceContainerHighest, RoundedCornerShape(9.dp)).padding(horizontal = 6.dp).widthIn(max = 120.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Box(Modifier.size(6.dp).background(account.color.color, CircleShape))
+            Text(
+                account.displayName,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

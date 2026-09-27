@@ -289,6 +289,8 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
         return
     }
     val visible = state.visibleMessages
+    // The unified list mixes accounts: each row names its own, unless there is only one.
+    val showAccount = state.filter.accountId.isEmpty() && state.accounts.size > 1
     if (visible.isEmpty()) {
         // Nothing stored for this list: ask the server before calling it empty (an old search
         // result, a folder whose mail is all older than the kept days).
@@ -324,6 +326,7 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
                 selecting = state.selection.isNotEmpty(),
                 labels = state.labelsOf(message),
                 fromServer = message.key !in stored,
+                showAccount = showAccount,
                 onIntent = onIntent,
             )
             if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -632,6 +635,7 @@ private fun MailRow(
     selecting: Boolean,
     labels: List<Folder>,
     fromServer: Boolean,
+    showAccount: Boolean,
     onIntent: (AppIntent) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -684,6 +688,8 @@ private fun MailRow(
                                 Icon(Icons.Outlined.Cloud, null, Modifier.size(16.dp), tint = colors.onSurfaceVariant)
                             }
                         }
+                        // Next to the time, where the sender line has room, so the subject keeps its width.
+                        if (showAccount && account != null) AccountTag(account)
                         Text(
                             dateLabel(message.receivedAt),
                             style = MaterialTheme.typography.labelMedium,
