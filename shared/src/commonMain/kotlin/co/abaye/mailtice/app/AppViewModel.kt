@@ -1,5 +1,20 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.domain.OfflineAttachmentLimits
+import co.abaye.mailtice.sync.ActionQueuedException
+import co.abaye.mailtice.sync.isNetworkError
+import co.abaye.mailtice.sync.OfflinePrefs
+import co.abaye.mailtice.platform.joinPath
+import co.abaye.mailtice.main.fileUrl
+import co.abaye.mailtice.main.previewPage
+import co.abaye.mailtice.main.previewKindOf
+import co.abaye.mailtice.main.PreviewKind
+import co.abaye.mailtice.domain.MailBody
+import kotlin.io.encoding.Base64
+import co.abaye.mailtice.translate.replaceSegments
+import co.abaye.mailtice.translate.htmlTextSegments
+import co.abaye.mailtice.main.cidRefs
+import co.abaye.mailtice.main.splitQuote
 import co.abaye.mailtice.translate.Translator
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModel
@@ -159,6 +174,7 @@ class AppViewModel(
         }
         scope.launch { sync.statuses.collect { s -> mutate { it.copy(statuses = s) } } }
         scope.launch { sync.errors.collect { e -> mutate { it.copy(syncErrors = e) } } }
+        scope.launch { sync.plans.collect { p -> mutate { it.copy(pollPlans = p) } } }
         refreshStorage()
         scope.launch {
             val profiles = withContext(io) { runCatching { authorizer.browserProfiles() }.getOrDefault(emptyList()) }
@@ -177,7 +193,7 @@ class AppViewModel(
         scope.launch {
             repo.accounts.collect { accounts ->
                 mutate { it.copy(accounts = accounts) }
-                sync.reconcile(scope, accounts, _state.value.data.settings.pollSeconds)
+                reconcileSync(accounts)
             }
         }
         scope.launch {
@@ -400,6 +416,20 @@ class AppViewModel(
             is AppIntent.SetHebrewDateAtSunset -> settings { it.copy(hebrewDateAtSunset = intent.atSunset) }
             is AppIntent.SetSunsetCity -> settings { it.copy(sunsetCity = intent.city) }
             is AppIntent.SetOfferTranslation -> settings { it.copy(offerTranslation = intent.offer) }
+            is AppIntent.SetLoadRemoteImages -> settings { it.copy(loadRemoteImages = intent.load) }
+            is AppIntent.SetDownloadFolder -> settings { it.copy(downloadFolder = intent.path) }
+            is AppIntent.ChooseDownloadFolder -> scope.launch {
+                Platform.pickFolder(intent.title)?.let { path -> settings { it.copy(downloadFolder = path) } }
+            }
+            is AppIntent.PreviewAttachment -> previewAttachment(intent.message, intent.index)
+            AppIntent.ClosePreview -> closePreview()
+            AppIntent.SavePreview -> savePreview()
+            AppIntent.OpenPreviewExternally -> _state.value.preview?.let { p ->
+                if (p.tempPath.isNotEmpty()) {
+                    previewOpenedOutside = true
+                    if (!Platform.openFile(p.tempPath)) mutate { it.copy(message = AppMessage.ActionFailed) }
+                }
+            }
             AppIntent.TranslateMessage -> translateOpenMessage()
             is AppIntent.ShowOriginal -> _state.value.reader?.let { reader ->
                 reader.translation?.let { setTranslation(reader.message, it.copy(showOriginal = intent.original)) }
@@ -446,7 +476,20 @@ class AppViewModel(
             }
             is AppIntent.SetPollInterval -> {
                 settings { it.copy(pollSeconds = intent.seconds.takeIf { s -> s in PollIntervals } ?: it.pollSeconds) }
-                sync.reconcile(scope, _state.value.accounts, _state.value.data.settings.pollSeconds)
+                reconcileSync()
+            }
+            is AppIntent.SetSmartPolling -> {
+                settings { it.copy(smartPolling = intent.smart) }
+                reconcileSync()
+            }
+            is AppIntent.SetOfflineMode -> {
+                settings { it.copy(offlineMode = intent.on) }
+                reconcileSync()
+                if (intent.on) sync.refreshNow()
+            }
+            is AppIntent.SetOfflineAttachments -> {
+                settings { it.copy(offlineAttachmentsMb = intent.mb.takeIf { mb -> mb in OfflineAttachmentLimits } ?: it.offlineAttachmentsMb) }
+                reconcileSync()
             }
             is AppIntent.SetNotifications -> settings { it.copy(notificationsEnabled = intent.on) }
             is AppIntent.SetCloseToTray -> settings { it.copy(closeToTray = intent.on) }
@@ -814,6 +857,7 @@ class AppViewModel(
                     s.copy(reader = Reader(message, body, failed = body == null, translation = translated))
                 }
             }
+            if (body != null) scope.launch { loadInlineImages(message, body) }
             // Opening means reading, where the account can say so.
             val account = _state.value.account(message.accountId)
             if (message.unread && account?.capabilities?.markRead == true) {
@@ -842,6 +886,8 @@ class AppViewModel(
                 mutate { it.copy(message = AppMessage.MovedToTrash) }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: ActionQueuedException) {
+                mutate { it.copy(message = AppMessage.ActionQueued) }
             } catch (e: Exception) {
                 println("Trash failed: ${e::class.simpleName}")
                 mutate { it.copy(message = AppMessage.ActionFailed) }
@@ -975,7 +1021,7 @@ class AppViewModel(
         val saved = mutableListOf<String>()
         messages.forEach { m ->
             val files = withContext(io) { sync.attachments(m, index?.let { setOf(it) }) }
-            files.forEach { f -> withContext(io) { Platform.saveDownload(folder, f.name, f.bytes) }?.let(saved::add) }
+            files.forEach { f -> withContext(io) { Platform.saveDownload(folder, f.name, f.bytes, downloadRoot()) }?.let(saved::add) }
         }
         if (saved.isEmpty()) {
             mutate { it.copy(message = if (messages.isEmpty()) AppMessage.NoAttachments else AppMessage.DownloadFailed) }
@@ -1000,14 +1046,14 @@ class AppViewModel(
                     exported = localizedString(language, Res.string.export_exported, thread.size),
                 )
                 val html = ThreadExport.html(message.subject, bodies, labels) { co.abaye.mailtice.main.formatTime(it, withDate = true) }
-                withContext(io) { Platform.saveDownload("", "$base.html", html.encodeToByteArray()) }
+                withContext(io) { Platform.saveDownload("", "$base.html", html.encodeToByteArray(), downloadRoot()) }
             }
             ExportFormat.Mail -> {
                 val raws = thread.map { m -> m to withContext(io) { sync.rawMessage(m) } }
                 if (raws.size == 1) {
-                    withContext(io) { Platform.saveDownload("", "$base.eml", raws.first().second) }
+                    withContext(io) { Platform.saveDownload("", "$base.eml", raws.first().second, downloadRoot()) }
                 } else {
-                    withContext(io) { Platform.saveDownload("", "$base.mbox", ThreadExport.mbox(raws)) }
+                    withContext(io) { Platform.saveDownload("", "$base.mbox", ThreadExport.mbox(raws), downloadRoot()) }
                 }
             }
         }
@@ -1148,8 +1194,16 @@ class AppViewModel(
             } catch (e: ProviderException.SendNotAllowed) {
                 mutate { it.copy(compose = it.compose?.copy(sending = false), message = AppMessage.SendNeedsReauth) }
             } catch (e: Exception) {
-                println("Send failed: ${e::class.simpleName}")
-                mutate { it.copy(compose = it.compose?.copy(sending = false), message = AppMessage.SendFailed) }
+                if (isNetworkError(e)) {
+                    // No connection: the message waits in the queue and goes out as soon as it is back.
+                    val item = ScheduledMail(id = draft.scheduledId ?: newId(), accountId = draft.accountId, sendAt = Platform.now(), mail = mail)
+                    withContext(io) { repo.schedule(item) }
+                    dropServerDraft(latestDraftFor(draft))
+                    mutate { it.copy(compose = null, message = AppMessage.SendQueued) }
+                } else {
+                    println("Send failed: ${e::class.simpleName}")
+                    mutate { it.copy(compose = it.compose?.copy(sending = false), message = AppMessage.SendFailed) }
+                }
             }
         }
     }
@@ -1247,7 +1301,8 @@ class AppViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val wait = (2L shl item.attempts.coerceAtMost(5)).coerceAtMost(60) * 60_000L
+                // No connection is not the message's fault: try again in a minute, not in growing waits.
+                val wait = if (isNetworkError(e)) 60_000L else (2L shl item.attempts.coerceAtMost(5)).coerceAtMost(60) * 60_000L
                 val why = listOfNotNull(e::class.simpleName, e.message?.lineSequence()?.firstOrNull()).joinToString(": ")
                 withContext(io) { repo.scheduledFailed(item.id, why, Platform.now() + wait) }
             }
@@ -1399,6 +1454,8 @@ class AppViewModel(
                 throw e
             } catch (e: ReauthRequiredException) {
                 mutate { it.copy(message = AppMessage.ActionFailed) }
+            } catch (e: ActionQueuedException) {
+                mutate { it.copy(message = AppMessage.ActionQueued) }
             } catch (e: Exception) {
                 println("Mail action failed: ${e::class.simpleName}")
                 mutate { it.copy(message = AppMessage.ActionFailed) }
@@ -1451,6 +1508,87 @@ class AppViewModel(
         }
     }
 
+    private fun reconcileSync(accounts: List<Account> = _state.value.accounts) {
+        val settings = _state.value.data.settings
+        val attachments = when (settings.offlineAttachmentsMb) {
+            -1 -> Long.MAX_VALUE
+            else -> settings.offlineAttachmentsMb * 1024L * 1024L
+        }
+        sync.reconcile(scope, accounts, settings.pollSeconds, settings.smartPolling, OfflinePrefs(settings.offlineMode, attachments))
+    }
+
+    // ---- attachment viewer ------------------------------------------------------------------
+
+    private fun downloadRoot(): String = _state.value.data.settings.downloadFolder
+
+    /** Set once the file went to another app, which may still be reading it when the viewer closes. */
+    private var previewOpenedOutside = false
+
+    private fun previewAttachment(message: MailMessage, index: Int) {
+        val attachment = _state.value.reader?.body?.attachments?.getOrNull(index) ?: return
+        previewOpenedOutside = false
+        mutate { it.copy(preview = AttachmentPreview(message, index, attachment)) }
+        scope.launch {
+            try {
+                val file = withContext(io) { sync.attachments(message, setOf(index)) }.firstOrNull() ?: error("Attachment not found")
+                var path = ""
+                var page = ""
+                if (Platform.isDesktop) {
+                    withContext(io) {
+                        val dir = joinPath(Platform.appDir(), "preview")
+                        val name = safeFileName(file.name, "attachment")
+                        path = joinPath(dir, name)
+                        Platform.writeBytes(path, file.bytes)
+                        val kind = previewKindOf(attachment.name, attachment.mimeType)
+                        page = when (kind) {
+                            PreviewKind.Pdf -> fileUrl(path)
+                            PreviewKind.Audio, PreviewKind.Video -> {
+                                val player = joinPath(dir, "player.html")
+                                Platform.writeText(player, previewPage(kind, name).orEmpty())
+                                fileUrl(player)
+                            }
+                            else -> ""
+                        }
+                    }
+                }
+                updatePreview(message, index) { it.copy(bytes = file.bytes, tempPath = path, pageUrl = page) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                println("Preview failed: ${e::class.simpleName}")
+                updatePreview(message, index) { it.copy(failed = true) }
+            }
+        }
+    }
+
+    private fun updatePreview(message: MailMessage, index: Int, block: (AttachmentPreview) -> AttachmentPreview) {
+        mutate { s ->
+            val p = s.preview
+            if (p == null || p.message.key != message.key || p.index != index) s else s.copy(preview = block(p))
+        }
+    }
+
+    private fun closePreview() {
+        val p = _state.value.preview ?: return
+        mutate { it.copy(preview = null) }
+        // The copy is only for viewing; one handed to another app stays for it.
+        if (p.tempPath.isNotEmpty() && !previewOpenedOutside) background { Platform.delete(p.tempPath) }
+    }
+
+    private fun savePreview() {
+        val p = _state.value.preview ?: return
+        val bytes = p.bytes ?: return
+        scope.launch {
+            val location = withContext(io) { Platform.saveDownload("", p.attachment.name, bytes, downloadRoot()) }
+            if (location == null) {
+                mutate { it.copy(message = AppMessage.DownloadFailed) }
+            } else {
+                Platform.revealDownload(location)
+                mutate { it.copy(message = AppMessage.FilesSaved) }
+            }
+        }
+    }
+
     // ---- translation ------------------------------------------------------------------------
 
     /** Finished translations this session, so reopening a message costs no second request. */
@@ -1471,14 +1609,7 @@ class AppViewModel(
         setTranslation(message, ReaderTranslation(target, TranslationState.Loading))
         scope.launch {
             try {
-                val result = withContext(io) { translator.translate(listOf(message.subject, body.text.ifBlank { message.snippet }), target) }
-                val done = ReaderTranslation(
-                    target = target,
-                    state = TranslationState.Done,
-                    sourceLanguage = result.sourceLanguage,
-                    subject = result.texts[0],
-                    body = result.texts[1],
-                )
+                val done = withContext(io) { translate(message, body, target) }
                 translations[key] = done
                 setTranslation(message, done)
             } catch (e: CancellationException) {
@@ -1487,6 +1618,56 @@ class AppViewModel(
                 println("Translation failed: ${e::class.simpleName}: ${e.message?.take(200)}")
                 setTranslation(message, ReaderTranslation(target, TranslationState.Failed))
             }
+        }
+    }
+
+    /**
+     * HTML mail is translated in place: its text nodes (before the quoted part) go out one per
+     * line and come back into the same places, so the layout, images and links stay. Should the
+     * lines not come back one for one, the plain text is translated instead.
+     */
+    private suspend fun translate(message: MailMessage, body: MailBody, target: String): ReaderTranslation {
+        val segments = if (body.html.isNotBlank()) htmlTextSegments(body.html) else emptyList()
+        val plain = splitQuote(body.text.ifBlank { message.snippet }).main
+        val first = translator.translate(listOf(message.subject, segments.joinToString("\n") { it.text }.ifEmpty { plain }), target)
+        val lines = first.texts[1].split('\n')
+        if (segments.isNotEmpty() && lines.size == segments.size) {
+            return ReaderTranslation(
+                target = target,
+                state = TranslationState.Done,
+                sourceLanguage = first.sourceLanguage,
+                subject = first.texts[0],
+                html = replaceSegments(body.html, segments, lines),
+            )
+        }
+        val text = if (segments.isEmpty()) first.texts[1] else translator.translate(listOf(plain), target).texts[0]
+        return ReaderTranslation(target, TranslationState.Done, first.sourceLanguage, first.texts[0], text)
+    }
+
+    /**
+     * Images the HTML shows by Content-ID are parts of the message: download them and hand them to
+     * the page as data: URIs. A body stored before Content-IDs were kept is read again first.
+     */
+    private suspend fun loadInlineImages(message: MailMessage, stored: MailBody) {
+        val refs = cidRefs(stored.html)
+        if (refs.isEmpty()) return
+        try {
+            val body = if (stored.attachments.none { it.contentId.isNotEmpty() }) withContext(io) { sync.body(message, refresh = true) } else stored
+            val wanted = body.attachments.withIndex().filter { it.value.contentId in refs }
+            if (wanted.isEmpty()) return
+            val files = withContext(io) { sync.attachments(message, wanted.map { it.index }.toSet()) }
+            val images = files.associate { file ->
+                val part = body.attachments[file.index]
+                part.contentId to "data:${part.mimeType.ifBlank { "image/png" }};base64,${Base64.encode(file.bytes)}"
+            }
+            mutate { s ->
+                val reader = s.reader
+                if (reader?.message?.key != message.key) s else s.copy(reader = reader.copy(body = body, inlineImages = images))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            println("Inline images failed: ${e::class.simpleName}")
         }
     }
 

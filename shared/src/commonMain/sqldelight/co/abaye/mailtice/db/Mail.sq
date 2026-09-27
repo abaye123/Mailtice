@@ -73,6 +73,15 @@ CREATE TABLE scheduled_mail (
   lastError TEXT NOT NULL DEFAULT ''
 );
 
+-- What the user did while offline (offline mode), replayed in order when the connection is back.
+CREATE TABLE pending_action (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  accountId TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  messageId TEXT NOT NULL,
+  kind TEXT NOT NULL,                  -- PendingKind.name
+  createdAt INTEGER NOT NULL
+);
+
 CREATE TABLE message_body (
   accountId TEXT NOT NULL,
   messageId TEXT NOT NULL,
@@ -319,3 +328,52 @@ SELECT a.id AS accountId,
      FROM message_body b WHERE b.accountId = a.id) AS bytes,
   (SELECT count(*) FROM message m WHERE m.accountId = a.id) AS messages
 FROM account a;
+
+-- Every stored message's time since :since, and whether it sits in a Sent folder: what the smart
+-- check learns an account's week from.
+activityTimes:
+SELECT m.receivedAt,
+  EXISTS (
+    SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+    WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.role = 'Sent'
+  ) AS sent
+FROM message m
+WHERE m.accountId = :accountId AND m.receivedAt >= :since;
+
+-- The newest sent and the newest received message of an account.
+latestActivity:
+SELECT
+  (SELECT MAX(m.receivedAt) FROM message m
+     JOIN message_folder mf ON mf.accountId = m.accountId AND mf.messageId = m.id
+     JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+   WHERE m.accountId = :accountId AND f.role = 'Sent') AS lastSent,
+  (SELECT MAX(m.receivedAt) FROM message m
+     JOIN message_folder mf ON mf.accountId = m.accountId AND mf.messageId = m.id
+     JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+   WHERE m.accountId = :accountId AND f.role = 'Inbox') AS lastIncoming;
+
+insertPending:
+INSERT INTO pending_action(accountId, messageId, kind, createdAt) VALUES (?, ?, ?, ?);
+
+selectPending:
+SELECT id, messageId, kind FROM pending_action WHERE accountId = ? ORDER BY id;
+
+deletePending:
+DELETE FROM pending_action WHERE id = ?;
+
+countPending:
+SELECT count(*) FROM pending_action;
+
+-- Offline mode: the newest messages still without a stored body.
+messageIdsWithoutBody:
+SELECT m.id FROM message m
+WHERE m.accountId = :accountId
+  AND NOT EXISTS (SELECT 1 FROM message_body b WHERE b.accountId = m.accountId AND b.messageId = m.id)
+ORDER BY m.receivedAt DESC
+LIMIT :limit;
+
+-- Offline mode: messages with attachments, newest first, to download their files.
+messageIdsWithAttachments:
+SELECT m.id FROM message m
+WHERE m.accountId = :accountId AND m.hasAttachments = 1
+ORDER BY m.receivedAt DESC;

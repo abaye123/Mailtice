@@ -1,5 +1,6 @@
 package co.abaye.mailtice.di
 
+import co.abaye.mailtice.sync.NetworkProbe
 import co.abaye.mailtice.translate.GtxTranslator
 import co.abaye.mailtice.translate.Translator
 import co.abaye.mailtice.auth.AuthManager
@@ -120,7 +121,8 @@ object AppBindings {
     // One engine per process: the UI loops and the Android worker share its per-account locks.
     @Provides
     @SingleIn(AppScope::class)
-    fun provideSyncEngine(repo: MailRepository, providers: MailProviders): SyncEngine = SyncEngine(repo, providers)
+    fun provideSyncEngine(repo: MailRepository, providers: MailProviders, http: HttpClient): SyncEngine =
+        SyncEngine(repo, providers, NetworkProbe(http))
 
     @Provides
     @SingleIn(AppScope::class)

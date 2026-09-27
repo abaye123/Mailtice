@@ -109,6 +109,8 @@ kotlin {
             api(libs.compose.resources)
             // Hebrew calendar and sunset times (KosherJava ported to Kotlin Multiplatform).
             implementation(libs.kosherkotlin)
+            // HTML mail, rendered by the platform's own browser engine.
+            implementation(libs.composewebview)
             api(libs.compose.ui.tooling.preview)
             api(libs.compose.material3)
             implementation(libs.compose.material.icons.extended)

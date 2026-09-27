@@ -1,5 +1,7 @@
 package co.abaye.mailtice.app
 
+import mailtice.shared.generated.resources.message_action_queued
+import mailtice.shared.generated.resources.message_send_queued
 import androidx.compose.runtime.Composable
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.message_account_added
@@ -54,6 +56,12 @@ enum class AppMessage {
     Exported,
     Scheduled,
     ScheduledSent,
+
+    /** No connection: the message waits in the outgoing queue. */
+    SendQueued,
+
+    /** Offline mode, no connection: done here, sent to the server when it is back. */
+    ActionQueued,
     ScheduleCancelled,
     AttachmentsTooLarge,
     DraftSaved,
@@ -84,6 +92,8 @@ fun AppMessage.text(): String = when (this) {
     AppMessage.Exported -> stringResource(Res.string.message_exported)
     AppMessage.Scheduled -> stringResource(Res.string.message_scheduled)
     AppMessage.ScheduledSent -> stringResource(Res.string.message_scheduled_sent)
+    AppMessage.SendQueued -> stringResource(Res.string.message_send_queued)
+    AppMessage.ActionQueued -> stringResource(Res.string.message_action_queued)
     AppMessage.ScheduleCancelled -> stringResource(Res.string.message_schedule_cancelled)
     AppMessage.AttachmentsTooLarge -> stringResource(Res.string.message_attachments_too_large)
     AppMessage.DraftSaved -> stringResource(Res.string.message_draft_saved)

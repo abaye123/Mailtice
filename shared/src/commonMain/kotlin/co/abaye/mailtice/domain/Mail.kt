@@ -178,7 +178,13 @@ data class MailMessage(
 }
 
 @Immutable
-data class Attachment(val name: String, val size: Long)
+data class Attachment(
+    val name: String,
+    val size: Long,
+    /** The part's Content-ID without brackets, "" if none: how HTML refers to it as "cid:...". */
+    val contentId: String = "",
+    val mimeType: String = "",
+)
 
 @Immutable
 data class MailBody(val text: String, val html: String, val attachments: List<Attachment>)

@@ -1,5 +1,10 @@
 package co.abaye.mailtice.sync
 
+import co.abaye.mailtice.platform.safeFileName
+import co.abaye.mailtice.platform.joinPath
+import co.abaye.mailtice.provider.MailProvider
+import kotlinx.coroutines.delay
+import kotlinx.datetime.TimeZone
 import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.auth.ReauthRequiredException
 import co.abaye.mailtice.data.MailRepository
@@ -43,6 +48,17 @@ private const val BACKOFF_MAX_MS = 15 * 60_000L
 private const val FOLDER_REFRESH_MS = 60 * 60_000L
 
 
+
+
+/** Offline mode: the longest wait between failed rounds, and how much it downloads ahead per round. */
+private const val OFFLINE_BACKOFF_MAX_MS = 30_000L
+private const val BACKFILL_BATCH = 40
+private const val BACKFILL_ATTACHMENT_BATCH = 10
+
+/** How far back the smart check looks, and how long a learned week is kept before it is relearned. */
+private const val PROFILE_WINDOW_MS = 60L * 24 * 60 * 60_000
+private const val PROFILE_TTL_MS = 6L * 60 * 60_000
+
 /** Failed rounds in a row a first sync rides out before the account is shown as offline. */
 private const val FIRST_SYNC_PATIENCE = 5
 
@@ -54,6 +70,7 @@ private const val FIRST_SYNC_PATIENCE = 5
 class SyncEngine(
     private val repo: MailRepository,
     private val providers: MailProviders,
+    private val probe: NetworkProbe? = null,
 ) {
     private val _statuses = MutableStateFlow<Map<String, AccountStatus>>(emptyMap())
     val statuses: StateFlow<Map<String, AccountStatus>> = _statuses.asStateFlow()
@@ -80,14 +97,42 @@ class SyncEngine(
     val errors: StateFlow<Map<String, String>> = _errors.asStateFlow()
     private var intervalMs = 60_000L
 
+    /** Smart checking: each account's pace comes from [PollPlanner] instead of [intervalMs]. */
+    private var smart = true
+
+    private var offline = OfflinePrefs()
+    private var monitor: Job? = null
+
+    private val _plans = MutableStateFlow<Map<String, PollPlan>>(emptyMap())
+
+    /** The pace each account is checked at right now, and why (smart checking only). */
+    val plans: StateFlow<Map<String, PollPlan>> = _plans.asStateFlow()
+
+    /** Learned weeks, rebuilt every few hours: (built at, profile). */
+    private val profiles = mutableMapOf<String, Pair<Long, ActivityProfile>>()
+
+    /** Mail sent from this app, before the sync has seen it in Sent. */
+    private val sentHere = mutableMapOf<String, Long>()
+
     // ---- loops ------------------------------------------------------------------------------
 
-    /** Makes the running loops match [accounts]; restarts all when the interval changed. */
-    fun reconcile(@StructuredScope scope: CoroutineScope, accounts: List<Account>, intervalSeconds: Int) {
+    /** Makes the running loops match [accounts]; restarts all when the pacing changed. */
+    fun reconcile(
+        @StructuredScope scope: CoroutineScope,
+        accounts: List<Account>,
+        intervalSeconds: Int,
+        smart: Boolean,
+        offline: OfflinePrefs = OfflinePrefs(),
+    ) {
         val newInterval = intervalSeconds * 1000L
-        if (newInterval != intervalMs) {
+        if (newInterval != intervalMs || smart != this.smart || offline != this.offline) {
             intervalMs = newInterval
+            this.smart = smart
+            this.offline = offline
+            if (!smart) _plans.value = emptyMap()
             stopAll()
+            monitor?.cancel()
+            monitor = if (offline.enabled && probe != null) scope.launch { watchConnection(probe) } else null
         }
         val wanted = accounts.map { it.id }.toSet()
         (jobs.keys - wanted).forEach { stop(it) }
@@ -124,7 +169,7 @@ class SyncEngine(
                 failures = 0
                 // A first sync in pages goes straight on to the next page.
                 if (pending.remove(accountId)) continue
-                withTimeoutOrNull(intervalMs) { kicks.first() }
+                withTimeoutOrNull(nextDelay(accountId)) { kicks.first() }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ReauthRequiredException) {
@@ -133,10 +178,29 @@ class SyncEngine(
             } catch (e: Exception) {
                 failures++
                 println("Sync: round failed, attempt $failures: ${describe(e)}")
-                val backoff = (BACKOFF_BASE_MS shl (failures - 1).coerceAtMost(4)).coerceAtMost(BACKOFF_MAX_MS)
+                // Offline mode waits for the connection watcher instead, so a short window is not missed.
+                val cap = if (offline.enabled) OFFLINE_BACKOFF_MAX_MS else BACKOFF_MAX_MS
+                val backoff = (BACKOFF_BASE_MS shl (failures - 1).coerceAtMost(4)).coerceAtMost(cap)
                 withTimeoutOrNull(backoff) { kicks.first() }
             }
         }
+    }
+
+    /**
+     * How long an account waits for its next round: the fixed interval, or with smart checking
+     * what [PollPlanner] makes of its learned week and its latest sent and received mail.
+     */
+    private fun nextDelay(accountId: String): Long {
+        if (!smart) return intervalMs
+        return runCatching {
+            val now = Platform.now()
+            val zone = TimeZone.currentSystemDefault()
+            val profile = profiles[accountId]?.takeIf { now - it.first < PROFILE_TTL_MS }?.second
+                ?: ActivityProfile.from(repo.activity(accountId, now - PROFILE_WINDOW_MS), now, zone).also { profiles[accountId] = now to it }
+            val (sent, incoming) = repo.latestActivity(accountId)
+            val lastSent = listOfNotNull(sent, sentHere[accountId]).maxOrNull()
+            PollPlanner.plan(profile, now, zone, lastSent, incoming).also { plan -> _plans.update { it + (accountId to plan) } }.delayMs
+        }.getOrDefault(intervalMs)
     }
 
     // ---- one round --------------------------------------------------------------------------
@@ -150,18 +214,23 @@ class SyncEngine(
         setStatus(account.id, if (repo.foldersNow(account.id).isEmpty()) AccountStatus.Syncing else statusOf(account.id))
         try {
             val now = Platform.now()
+            // What the user did offline goes first, so the round does not undo it with the server's state.
+            replayPending(account, provider)
             if (repo.foldersNow(account.id).isEmpty() || now - (lastFolderRefresh[account.id] ?: 0L) > FOLDER_REFRESH_MS) {
                 repo.mergeFolders(account.id, provider.listFolders(account))
                 repo.updateCapabilities(account.id, provider.capabilities(account))
                 lastFolderRefresh[account.id] = now
             }
-            val current = repo.account(account.id) ?: return@withLock emptyList()
+            val stored = repo.account(account.id) ?: return@withLock emptyList()
+            // Offline mode keeps the whole mailbox, whatever the account's window.
+            val current = if (offline.enabled) stored.copy(retentionDays = 0) else stored
             val synced = repo.foldersNow(account.id).filter { it.sync }
             val since = if (current.retentionDays > 0) now - current.retentionDays * MailRepository.DAY_MS else null
             val batch = provider.sync(current, synced, since, repo.knownIds(account.id, synced.map { it.id }))
             repo.applyBatch(account.id, batch)
             repo.prune(current)
             if (batch.more) pending += account.id
+            if (!batch.more && offline.enabled && backfill(current, provider)) pending += account.id
             // Still "syncing" while a first sync has pages left, so the UI keeps saying so.
             setStatus(account.id, if (batch.more) AccountStatus.Syncing else AccountStatus.Ok)
             _errors.update { it - account.id }
@@ -199,7 +268,10 @@ class SyncEngine(
 
     // ---- actions ----------------------------------------------------------------------------
 
-    /** Optimistic: the database changes first; a server refusal puts it back and rethrows. */
+    /**
+     * Optimistic: the database changes first; a server refusal puts it back and rethrows. In offline
+     * mode a missing connection keeps the change and queues it ([ActionQueuedException]).
+     */
     suspend fun setRead(message: MailMessage, read: Boolean) {
         val account = repo.account(message.accountId) ?: return
         repo.setUnread(message.accountId, message.id, !read)
@@ -208,9 +280,17 @@ class SyncEngine(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            queueIfOffline(e, message, if (read) PendingKind.Read else PendingKind.Unread)
             repo.setUnread(message.accountId, message.id, message.unread)
             throw e
         }
+    }
+
+    /** Queues [kind] and throws [ActionQueuedException] when [e] is a lost connection in offline mode. */
+    private fun queueIfOffline(e: Exception, message: MailMessage, kind: PendingKind) {
+        if (!offline.enabled || !isNetworkError(e)) return
+        repo.queuePending(message.accountId, message.id, kind)
+        throw ActionQueuedException()
     }
 
     suspend fun archive(message: MailMessage) {
@@ -226,6 +306,7 @@ class SyncEngine(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            queueIfOffline(e, message, PendingKind.Archive)
             repo.link(account.id, message.id, inbox.id)
             throw e
         }
@@ -246,6 +327,7 @@ class SyncEngine(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            queueIfOffline(e, message, PendingKind.Trash)
             links.forEach { repo.link(account.id, message.id, it) }
             throw e
         }
@@ -255,13 +337,111 @@ class SyncEngine(
     suspend fun send(account: Account, mail: OutgoingMail) {
         check(account.capabilities.send) { "Sending is not available for this account" }
         providers.forAccount(account).send(account, mail, repo.foldersNow(account.id))
+        // A reply may come soon: the smart pace speeds up for this account right away.
+        sentHere[account.id] = Platform.now()
         kicks.tryEmit(Unit)
     }
 
+    /** From the offline copy when every file asked for is there, otherwise from the server. */
     suspend fun attachments(message: MailMessage, indices: Set<Int>?): List<AttachmentFile> {
         val account = repo.account(message.accountId) ?: return emptyList()
+        repo.body(message.accountId, message.id)?.let { body ->
+            val wanted = indices ?: body.attachments.indices.toSet()
+            val cached = wanted.mapNotNull { i ->
+                val name = body.attachments.getOrNull(i)?.name ?: return@mapNotNull null
+                Platform.readBytes(attachmentPath(message.accountId, message.id, i))?.let { AttachmentFile(i, name, it) }
+            }
+            if (cached.size == wanted.size && cached.isNotEmpty()) return cached
+        }
         return providers.forAccount(account).fetchAttachments(account, message, indices)
     }
+
+    // ---- offline mode -------------------------------------------------------------------------
+
+    /**
+     * Watches for the internet every 15 seconds while it is away (every minute while it is there),
+     * and on its return starts a round of every account at once: someone online for a few minutes
+     * every few days gets all of it in that window.
+     */
+    private suspend fun watchConnection(probe: NetworkProbe) {
+        var wasOnline = true
+        while (currentCoroutineContext().isActive) {
+            val online = probe.online()
+            if (online && !wasOnline) {
+                println("Sync: connection is back, syncing everything now")
+                kicks.tryEmit(Unit)
+            }
+            wasOnline = online
+            delay(if (online) 60_000L else 15_000L)
+        }
+    }
+
+    /** Sends the queued offline actions in order; a server refusal drops one, a lost connection stops. */
+    private suspend fun replayPending(account: Account, provider: MailProvider) {
+        for ((id, messageId, kind) in repo.pending(account.id)) {
+            val message = repo.message(account.id, messageId)
+            if (message == null) {
+                repo.donePending(id)
+                continue
+            }
+            try {
+                val folders = repo.foldersNow(account.id)
+                when (kind) {
+                    PendingKind.Read -> provider.setRead(account, message, folders, true)
+                    PendingKind.Unread -> provider.setRead(account, message, folders, false)
+                    PendingKind.Archive -> provider.archive(account, message, folders)
+                    PendingKind.Trash -> {
+                        provider.trash(account, message, folders)
+                        repo.deleteMessage(account.id, message.id)
+                    }
+                }
+                repo.donePending(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isNetworkError(e)) throw e
+                println("Sync: queued ${kind.name} refused, dropped: ${describe(e)}")
+                repo.donePending(id)
+            }
+        }
+    }
+
+    /**
+     * Downloads ahead what offline mode keeps: bodies, newest first, a batch per round, then the
+     * attachments within the size limit. True while there is more, so the loop goes straight on.
+     */
+    private suspend fun backfill(account: Account, provider: MailProvider): Boolean {
+        val missing = repo.messageIdsWithoutBody(account.id, BACKFILL_BATCH.toLong())
+        for (id in missing) {
+            val message = repo.message(account.id, id) ?: continue
+            repo.saveBody(account.id, id, provider.fetchBody(account, message))
+        }
+        if (missing.size >= BACKFILL_BATCH) return true
+        val limit = offline.attachmentLimitBytes
+        if (limit <= 0) return false
+        var fetched = 0
+        for (id in repo.messageIdsWithAttachments(account.id)) {
+            if (Platform.readBytes(doneMarker(account.id, id)) != null) continue
+            val message = repo.message(account.id, id) ?: continue
+            val body = repo.body(account.id, id) ?: continue
+            val wanted = body.attachments.withIndex().filter { it.value.size <= limit }.map { it.index }.toSet()
+            if (wanted.isNotEmpty()) {
+                provider.fetchAttachments(account, message, wanted).forEach { f ->
+                    Platform.writeBytes(attachmentPath(account.id, id, f.index), f.bytes)
+                }
+            }
+            Platform.writeBytes(doneMarker(account.id, id), ByteArray(0))
+            if (++fetched >= BACKFILL_ATTACHMENT_BATCH) return true
+        }
+        return false
+    }
+
+    private fun offlineDir(accountId: String, messageId: String): String =
+        joinPath(joinPath(joinPath(Platform.appDir(), "offline"), safeFileName(accountId, "account")), safeFileName(messageId, "message"))
+
+    private fun attachmentPath(accountId: String, messageId: String, index: Int) = joinPath(offlineDir(accountId, messageId), index.toString())
+
+    private fun doneMarker(accountId: String, messageId: String) = joinPath(offlineDir(accountId, messageId), "done")
 
     /** Older mail straight from the server, as list rows. Never stored (see [MailProvider.olderMessages]). */
     suspend fun olderMessages(account: Account, folders: List<Folder>, query: OlderQuery): List<MailMessage> =
@@ -302,9 +482,12 @@ class SyncEngine(
         }
     }
 
-    /** Stored body, or fetched now and stored (after a cache clear, or a body the sync skipped). */
-    suspend fun body(message: MailMessage): MailBody {
-        repo.body(message.accountId, message.id)?.let { return it }
+    /**
+     * Stored body, or fetched now and stored (after a cache clear, or a body the sync skipped).
+     * [refresh] reads it from the server even when stored, replacing the stored copy.
+     */
+    suspend fun body(message: MailMessage, refresh: Boolean = false): MailBody {
+        if (!refresh) repo.body(message.accountId, message.id)?.let { return it }
         val account = repo.account(message.accountId) ?: return MailBody("", "", emptyList())
         val body = providers.forAccount(account).fetchBody(account, message)
         // Older mail looked at from the server has no stored row, so its body is not stored either.

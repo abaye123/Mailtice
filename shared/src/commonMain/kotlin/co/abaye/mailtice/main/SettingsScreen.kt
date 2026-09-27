@@ -1,5 +1,32 @@
 package co.abaye.mailtice.main
 
+import mailtice.shared.generated.resources.offline_attachments_upto
+import mailtice.shared.generated.resources.offline_attachments_all
+import mailtice.shared.generated.resources.offline_attachments_none
+import mailtice.shared.generated.resources.settings_offline_attachments_desc
+import mailtice.shared.generated.resources.settings_offline_attachments
+import mailtice.shared.generated.resources.settings_offline_desc
+import mailtice.shared.generated.resources.settings_offline
+import co.abaye.mailtice.domain.OfflineAttachmentLimits
+import mailtice.shared.generated.resources.poll_reason_learning
+import mailtice.shared.generated.resources.poll_reason_night
+import mailtice.shared.generated.resources.poll_reason_quiet
+import mailtice.shared.generated.resources.poll_reason_usual
+import mailtice.shared.generated.resources.poll_reason_busy
+import mailtice.shared.generated.resources.poll_reason_conversation
+import mailtice.shared.generated.resources.poll_reason_reply
+import mailtice.shared.generated.resources.smart_poll_status
+import mailtice.shared.generated.resources.settings_smart_poll_desc
+import mailtice.shared.generated.resources.settings_smart_poll
+import co.abaye.mailtice.sync.PollReason
+import mailtice.shared.generated.resources.settings_download_folder_default
+import mailtice.shared.generated.resources.settings_download_folder_change
+import mailtice.shared.generated.resources.settings_download_folder_choose
+import mailtice.shared.generated.resources.settings_download_folder
+import mailtice.shared.generated.resources.settings_downloads
+import androidx.compose.material3.TextButton
+import mailtice.shared.generated.resources.settings_remote_images_desc
+import mailtice.shared.generated.resources.settings_remote_images
 import mailtice.shared.generated.resources.settings_offer_translation_desc
 import mailtice.shared.generated.resources.settings_offer_translation
 import androidx.compose.material.icons.outlined.ArrowDropDown
@@ -181,6 +208,9 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                     }
                 }
             }
+            SettingRow(stringResource(Res.string.settings_remote_images), subtitle = stringResource(Res.string.settings_remote_images_desc)) {
+                Switch(checked = settings.loadRemoteImages, onCheckedChange = { onIntent(AppIntent.SetLoadRemoteImages(it)) })
+            }
             SettingRow(stringResource(Res.string.settings_offer_translation), subtitle = stringResource(Res.string.settings_offer_translation_desc)) {
                 Switch(checked = settings.offerTranslation, onCheckedChange = { onIntent(AppIntent.SetOfferTranslation(it)) })
             }
@@ -193,8 +223,29 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
 
             HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
             SectionHeader(stringResource(Res.string.settings_sync))
-            SettingBlock(stringResource(Res.string.settings_poll), subtitle = stringResource(Res.string.settings_poll_desc)) {
-                PollPicker(settings.pollSeconds) { onIntent(AppIntent.SetPollInterval(it)) }
+            SettingRow(stringResource(Res.string.settings_smart_poll), subtitle = stringResource(Res.string.settings_smart_poll_desc)) {
+                Switch(checked = settings.smartPolling, onCheckedChange = { onIntent(AppIntent.SetSmartPolling(it)) })
+            }
+            if (settings.smartPolling) {
+                SmartPollStatus(state)
+            } else {
+                SettingBlock(stringResource(Res.string.settings_poll), subtitle = stringResource(Res.string.settings_poll_desc)) {
+                    PollPicker(settings.pollSeconds) { onIntent(AppIntent.SetPollInterval(it)) }
+                }
+            }
+            SettingRow(stringResource(Res.string.settings_offline), subtitle = stringResource(Res.string.settings_offline_desc)) {
+                Switch(checked = settings.offlineMode, onCheckedChange = { onIntent(AppIntent.SetOfflineMode(it)) })
+            }
+            if (settings.offlineMode) {
+                SettingBlock(stringResource(Res.string.settings_offline_attachments), subtitle = stringResource(Res.string.settings_offline_attachments_desc)) {
+                    ChoicePicker(OfflineAttachmentLimits, settings.offlineAttachmentsMb, {
+                        when (it) {
+                            0 -> stringResource(Res.string.offline_attachments_none)
+                            -1 -> stringResource(Res.string.offline_attachments_all)
+                            else -> stringResource(Res.string.offline_attachments_upto, it)
+                        }
+                    }) { onIntent(AppIntent.SetOfflineAttachments(it)) }
+                }
             }
             SettingRow(stringResource(Res.string.settings_notifications), subtitle = stringResource(Res.string.settings_notifications_desc)) {
                 Switch(checked = settings.notificationsEnabled, onCheckedChange = { onIntent(AppIntent.SetNotifications(it)) })
@@ -209,6 +260,27 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                 }
                 SettingRow(stringResource(Res.string.settings_launch_at_login), subtitle = stringResource(Res.string.settings_launch_at_login_desc)) {
                     Switch(checked = settings.launchAtLogin, onCheckedChange = { onIntent(AppIntent.SetLaunchAtLogin(it)) })
+                }
+            }
+
+            if (Platform.canPickFolder) {
+                HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                SectionHeader(stringResource(Res.string.settings_downloads))
+                val chooseTitle = stringResource(Res.string.settings_download_folder_choose)
+                SettingBlock(
+                    stringResource(Res.string.settings_download_folder),
+                    subtitle = settings.downloadFolder.ifEmpty { Platform.defaultDownloadRoot() },
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { onIntent(AppIntent.ChooseDownloadFolder(chooseTitle)) }) {
+                            Text(stringResource(Res.string.settings_download_folder_change))
+                        }
+                        if (settings.downloadFolder.isNotEmpty()) {
+                            TextButton(onClick = { onIntent(AppIntent.SetDownloadFolder("")) }) {
+                                Text(stringResource(Res.string.settings_download_folder_default))
+                            }
+                        }
+                    }
                 }
             }
 
@@ -324,6 +396,37 @@ private fun AccentColor.label(): String = when (this) {
     AccentColor.Violet -> stringResource(Res.string.accent_violet)
     AccentColor.Slate -> stringResource(Res.string.accent_slate)
 }
+
+/** What the smart check is doing for each account right now: how often, and why. */
+@Composable
+private fun SmartPollStatus(state: AppState) {
+    if (state.pollPlans.isEmpty()) return
+    Column(Modifier.padding(start = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        state.accounts.forEach { account ->
+            val plan = state.pollPlans[account.id] ?: return@forEach
+            val seconds = (plan.delayMs / 1000).toInt()
+            val pace = if (seconds < 60) stringResource(Res.string.poll_seconds, seconds) else stringResource(Res.string.poll_minutes, seconds / 60)
+            Text(
+                stringResource(Res.string.smart_poll_status, account.displayName, pace, plan.reason.label()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PollReason.label(): String = stringResource(
+    when (this) {
+        PollReason.AwaitingReply -> Res.string.poll_reason_reply
+        PollReason.Conversation -> Res.string.poll_reason_conversation
+        PollReason.Busy -> Res.string.poll_reason_busy
+        PollReason.Usual -> Res.string.poll_reason_usual
+        PollReason.Quiet -> Res.string.poll_reason_quiet
+        PollReason.Night -> Res.string.poll_reason_night
+        PollReason.Learning -> Res.string.poll_reason_learning
+    },
+)
 
 @Composable
 private fun PollPicker(current: Int, onPick: (Int) -> Unit) {

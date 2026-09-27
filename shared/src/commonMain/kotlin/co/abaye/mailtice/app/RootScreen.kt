@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.main.AttachmentPreviewOverlay
 import co.abaye.mailtice.main.LabelsScreen
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.CubicBezierEasing
@@ -48,6 +49,7 @@ fun RootScreen(state: AppState, backStack: NavBackStack<AppKey>, onIntent: (AppI
                 AppNavDisplay(backStack, state, onIntent)
             }
         }
+        state.preview?.let { AttachmentPreviewOverlay(it, onIntent) }
         MessageBar(
             message = state.message,
             onDismiss = remember(onIntent) { { onIntent(AppIntent.DismissMessage) } },

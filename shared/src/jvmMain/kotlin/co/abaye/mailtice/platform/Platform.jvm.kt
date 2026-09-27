@@ -1,5 +1,6 @@
 package co.abaye.mailtice.platform
 
+import io.github.vinceglb.filekit.dialogs.openDirectoryPicker
 import co.abaye.mailtice.dev.DemoMode
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.FileKitDialogParent
@@ -112,9 +113,11 @@ internal actual object Platform {
         }
     }
 
-    actual fun saveDownload(folder: String, fileName: String, bytes: ByteArray): String? = runCatching {
-        val downloads = File(System.getProperty("user.home").orEmpty(), "Downloads")
-        val dir = File(File(downloads, APP_DIR_NAME), safeFileName(folder, ""))
+    actual fun defaultDownloadRoot(): String = File(File(System.getProperty("user.home").orEmpty(), "Downloads"), APP_DIR_NAME).absolutePath
+
+    actual fun saveDownload(folder: String, fileName: String, bytes: ByteArray, root: String): String? = runCatching {
+        val base = root.takeIf { it.isNotBlank() }?.let(::File) ?: File(defaultDownloadRoot())
+        val dir = File(base, safeFileName(folder, ""))
         dir.mkdirs()
         val name = safeFileName(fileName, "attachment")
         val stem = name.substringBeforeLast('.', name)
@@ -140,6 +143,47 @@ internal actual object Platform {
     }
 
     actual val canPickFiles: Boolean = true
+
+    actual val canPickFolder: Boolean = true
+
+    actual val canOpenFiles: Boolean = true
+
+    actual fun readBytes(path: String): ByteArray? = runCatching { File(path).takeIf { it.isFile }?.readBytes() }.getOrNull()
+
+    actual fun writeBytes(path: String, bytes: ByteArray) {
+        runCatching {
+            val file = File(path)
+            file.parentFile?.mkdirs()
+            file.writeBytes(bytes)
+        }
+    }
+
+    actual fun openFile(path: String): Boolean = runCatching {
+        val file = File(path)
+        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+            Desktop.getDesktop().open(file)
+        } else {
+            when (osLabel) {
+                "Windows" -> ProcessBuilder("cmd", "/c", "start", "", file.absolutePath).start()
+                "macOS" -> ProcessBuilder("open", file.absolutePath).start()
+                else -> ProcessBuilder("xdg-open", file.absolutePath).start()
+            }
+        }
+        true
+    }.getOrDefault(false)
+
+    /** Same native dialogs as [pickFiles], owned by the app window so it opens in front. */
+    actual suspend fun pickFolder(title: String): String? = runCatching {
+        val parent = if (osLabel == "Windows") {
+            runCatching {
+                val hwnd = com.sun.jna.platform.win32.User32.INSTANCE.GetForegroundWindow()
+                FileKitDialogParent.windows(com.sun.jna.Pointer.nativeValue(hwnd.pointer))
+            }.getOrNull()
+        } else {
+            null
+        }
+        FileKit.openDirectoryPicker(dialogSettings = FileKitDialogSettings(title = title, parent = parent))?.file?.absolutePath
+    }.getOrNull()
 
     /**
      * The native dialog (FileKit): IFileOpenDialog on Windows - the current Windows 11 one - NSOpenPanel

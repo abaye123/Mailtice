@@ -1,5 +1,6 @@
 package co.abaye.mailtice.provider.imap
 
+import jakarta.mail.internet.MimePart
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Credential
 import co.abaye.mailtice.auth.ReauthRequiredException
@@ -216,7 +217,7 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
                 fun walk(part: Part) {
                     val fileName = part.fileName?.let { runCatching { MimeUtility.decodeText(it) }.getOrDefault(it) }
                     when {
-                        fileName != null || Part.ATTACHMENT.equals(part.disposition, ignoreCase = true) -> {
+                        isFilePart(part, fileName) -> {
                             if (indices == null || index in indices) {
                                 out += AttachmentFile(index, fileName ?: "attachment", part.inputStream.use { it.readBytes() })
                             }
@@ -686,7 +687,18 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         )
     }
 
-    /** First text/plain, first text/html, and every named part as an attachment (not downloaded). */
+    /**
+     * A part that is a file rather than the text: named, marked as an attachment, or an image the
+     * HTML shows by Content-ID. [fetchAttachments] uses the same test, so indices line up.
+     */
+    private fun isFilePart(part: Part, fileName: String?): Boolean =
+        fileName != null || Part.ATTACHMENT.equals(part.disposition, ignoreCase = true) ||
+            (part.isMimeType("image/*") && contentIdOf(part).isNotEmpty())
+
+    private fun contentIdOf(part: Part): String =
+        (part as? MimePart)?.contentID?.trim()?.removePrefix("<")?.removeSuffix(">").orEmpty()
+
+    /** First text/plain, first text/html, and every file part as an attachment (not downloaded). */
     private fun parseBody(message: Part): MailBody {
         var text: String? = null
         var html: String? = null
@@ -694,8 +706,13 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         fun walk(part: Part) {
             val fileName = part.fileName?.let { runCatching { MimeUtility.decodeText(it) }.getOrDefault(it) }
             when {
-                fileName != null || Part.ATTACHMENT.equals(part.disposition, ignoreCase = true) ->
-                    attachments += Attachment(fileName ?: "attachment", part.size.toLong().coerceAtLeast(0))
+                isFilePart(part, fileName) ->
+                    attachments += Attachment(
+                        fileName ?: "attachment",
+                        part.size.toLong().coerceAtLeast(0),
+                        contentIdOf(part),
+                        part.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty(),
+                    )
                 part.isMimeType("text/plain") && text == null -> text = part.content as? String
                 part.isMimeType("text/html") && html == null -> html = part.content as? String
                 part.isMimeType("multipart/*") -> {

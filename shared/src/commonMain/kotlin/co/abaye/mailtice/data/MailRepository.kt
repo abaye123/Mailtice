@@ -1,5 +1,7 @@
 package co.abaye.mailtice.data
 
+import co.abaye.mailtice.sync.PendingKind
+import co.abaye.mailtice.sync.ActivityEvent
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.SqlDriver
@@ -179,6 +181,31 @@ class MailRepository(
         }
 
     fun message(accountId: String, id: String): MailMessage? = q.selectMessage(accountId, id, ::mapMessage).executeAsOneOrNull()
+
+    // ---- offline mode -----------------------------------------------------------------------
+
+    fun queuePending(accountId: String, messageId: String, kind: PendingKind) {
+        q.insertPending(accountId, messageId, kind.name, Platform.now())
+    }
+
+    fun pending(accountId: String): List<Triple<Long, String, PendingKind>> = q.selectPending(accountId).executeAsList().mapNotNull { r ->
+        PendingKind.entries.firstOrNull { it.name == r.kind }?.let { Triple(r.id, r.messageId, it) }
+    }
+
+    fun donePending(id: Long) {
+        q.deletePending(id)
+    }
+
+    fun messageIdsWithoutBody(accountId: String, limit: Long): List<String> = q.messageIdsWithoutBody(accountId, limit).executeAsList()
+
+    fun messageIdsWithAttachments(accountId: String): List<String> = q.messageIdsWithAttachments(accountId).executeAsList()
+
+    fun activity(accountId: String, since: Long): List<ActivityEvent> =
+        q.activityTimes(accountId, since) { at, sent -> ActivityEvent(at, sent) }.executeAsList()
+
+    /** The newest sent and received times of an account, null when it has none. */
+    fun latestActivity(accountId: String): Pair<Long?, Long?> =
+        q.latestActivity(accountId).executeAsOneOrNull()?.let { it.lastSent to it.lastIncoming } ?: (null to null)
 
     fun knownIds(accountId: String, folderIds: List<String>): Set<String> =
         folderIds.flatMap { q.messageIdsInFolder(accountId, it).executeAsList() }.toSet()
@@ -388,10 +415,14 @@ class MailRepository(
         unread != 0L, flagged != 0L, hasAttachments != 0L, sizeBytes,
     )
 
-    private fun encodeAttachments(list: List<Attachment>) = list.joinToString("\n") { "${it.name.replace('|', ' ').replace('\n', ' ')}|${it.size}" }
+    // "name|size|contentId|mimeType"; rows stored before the last two existed have just two fields.
+    private fun encodeAttachments(list: List<Attachment>) = list.joinToString("\n") { a ->
+        listOf(a.name, a.size.toString(), a.contentId, a.mimeType).joinToString("|") { it.replace('|', ' ').replace('\n', ' ') }
+    }
 
-    private fun decodeAttachments(raw: String) = raw.lines().filter { '|' in it }.map {
-        Attachment(it.substringBeforeLast('|'), it.substringAfterLast('|').toLongOrNull() ?: 0)
+    private fun decodeAttachments(raw: String) = raw.lines().filter { '|' in it }.map { line ->
+        val f = line.split('|')
+        Attachment(f[0], f.getOrNull(1)?.toLongOrNull() ?: 0, f.getOrElse(2) { "" }, f.getOrElse(3) { "" })
     }
 
     companion object {

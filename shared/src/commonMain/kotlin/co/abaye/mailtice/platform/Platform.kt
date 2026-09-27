@@ -32,11 +32,31 @@ internal expect object Platform {
     fun openHtml(html: String)
 
     /**
-     * Saves [bytes] as [fileName] under Downloads/Mailtice/[folder] (the folder may be empty). A name
-     * that already exists gets " (2)", " (3)"... Returns a path or URI for [revealDownload], or null
-     * when the file could not be written.
+     * Saves [bytes] as [fileName] under [root]/[folder] (the folder may be empty); an empty [root] is
+     * Downloads/Mailtice. A name that already exists gets " (2)", " (3)"... Returns a path or URI for
+     * [revealDownload], or null when the file could not be written. Android always uses Downloads.
      */
-    fun saveDownload(folder: String, fileName: String, bytes: ByteArray): String?
+    fun saveDownload(folder: String, fileName: String, bytes: ByteArray, root: String = ""): String?
+
+    /** Where downloads go when the user has not picked a folder, for the settings to show. */
+    fun defaultDownloadRoot(): String
+
+    /** The OS "choose folder" dialog; null when cancelled or unsupported. */
+    suspend fun pickFolder(title: String): String?
+
+    /** False where [pickFolder] has no dialog (Android): the download folder setting is hidden. */
+    val canPickFolder: Boolean
+
+    fun writeBytes(path: String, bytes: ByteArray)
+
+    /** The file's bytes, or null when it is not there. */
+    fun readBytes(path: String): ByteArray?
+
+    /** Opens [path] in the app the system uses for its type; false when it could not. */
+    fun openFile(path: String): Boolean
+
+    /** False where [openFile] is not wired (Android, which would need a content provider). */
+    val canOpenFiles: Boolean
 
     /** Shows where [location] (from [saveDownload]) was saved: the folder in the file manager. */
     fun revealDownload(location: String)

@@ -202,7 +202,14 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
                 if (reader == null) {
                     ReaderEmptyState()
                 } else {
-                    ReaderPane(reader, state.account(reader.message.accountId), onIntent, working = state.working, labels = state.labelsOf(reader.message))
+                    ReaderPane(
+                        reader,
+                        state.account(reader.message.accountId),
+                        onIntent,
+                        working = state.working,
+                        labels = state.labelsOf(reader.message),
+                        webPaused = state.preview != null,
+                    )
                 }
             }
         }
@@ -228,7 +235,7 @@ private fun FullWidthInbox(state: AppState, onIntent: (AppIntent) -> Unit, cards
                 ) {
                     ReaderPane(
                         reader, state.account(reader.message.accountId), onIntent,
-                        showBack = true, working = state.working, labels = state.labelsOf(reader.message),
+                        showBack = true, working = state.working, labels = state.labelsOf(reader.message), webPaused = state.preview != null,
                     )
                 }
             }

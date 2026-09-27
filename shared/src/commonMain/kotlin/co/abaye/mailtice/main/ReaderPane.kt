@@ -1,5 +1,14 @@
 package co.abaye.mailtice.main
 
+import mailtice.shared.generated.resources.reader_preview_one
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.HideImage
+import androidx.compose.foundation.layout.Spacer
+import mailtice.shared.generated.resources.reader_show_quoted
+import mailtice.shared.generated.resources.reader_hide_quoted
+import mailtice.shared.generated.resources.reader_images_hidden
+import mailtice.shared.generated.resources.reader_show_images
 import mailtice.shared.generated.resources.translate_menu
 import mailtice.shared.generated.resources.translate_retry
 import mailtice.shared.generated.resources.translate_failed
@@ -116,13 +125,15 @@ fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modif
     val reader = state.reader ?: return
     ReaderPane(
         reader, state.account(reader.message.accountId), onIntent, modifier,
-        showBack = true, working = state.working, labels = state.labelsOf(reader.message),
+        showBack = true, working = state.working, labels = state.labelsOf(reader.message), webPaused = state.preview != null,
     )
 }
 
 /**
  * After the approved design: an action bar, a large subject with the account as a chip, the sender
- * with an avatar, the body at a comfortable reading width and attachments as cards.
+ * with an avatar, then the body across the full width. HTML mail is drawn by the platform's own
+ * browser engine and scrolls inside its own area under the fixed header; plain text scrolls with
+ * the header. Quoted earlier messages start folded either way.
  */
 @Composable
 fun ReaderPane(
@@ -133,89 +144,183 @@ fun ReaderPane(
     showBack: Boolean = false,
     working: Boolean = false,
     labels: List<Folder> = emptyList(),
+    webPaused: Boolean = false,
 ) {
     val message = reader.message
     val colors = MaterialTheme.colorScheme
     val cards = cardStyle()
+    val prefs = LocalReaderPrefs.current
+    val body = reader.body
+    val translation = reader.translation
+    // HTML is translated in place; only a message translated as plain text falls back to text.
+    val html = if (translation?.showing == true) translation.html.takeIf { it.isNotBlank() } else body?.html?.takeIf { it.isNotBlank() }
+    var showQuoted by remember(message.key) { mutableStateOf(false) }
+    var showImages by remember(message.key) { mutableStateOf(prefs.loadRemoteImages) }
+    val padding = Modifier.padding(horizontal = if (cards) 32.dp else 24.dp)
     Column(modifier.fillMaxSize()) {
         ReaderActions(reader, account, onIntent, showBack, working)
         if (working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
         if (!cards) HorizontalDivider(color = colors.outlineVariant)
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = if (cards) 32.dp else 24.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SelectionContainer {
-                    val translation = reader.translation
-                    // Translated, the subject keeps its original and adds the translation in brackets.
-                    val subject = if (translation?.showing == true && translation.subject.isNotBlank()) {
-                        buildAnnotatedString {
-                            append(message.subject)
-                            withStyle(SpanStyle(color = colors.onSurfaceVariant)) { append(" (${translation.subject})") }
-                        }
-                    } else {
-                        AnnotatedString(message.subject)
-                    }
-                    Text(
-                        subject,
-                        style = MaterialTheme.typography.headlineSmall.merge(ContentDirection),
-                        fontWeight = FontWeight.Normal,
-                    )
+        if (html != null) {
+            Column(padding.fillMaxSize().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ReaderHeader(reader, account, labels, working, onIntent)
+                val remote = remember(html) { htmlLoadsRemote(html) }
+                if (remote && !showImages) ImagesBar { showImages = true }
+                val quoted = remember(html) { htmlHasQuote(html) }
+                val inline = reader.inlineImages
+                val document = remember(html, showQuoted, showImages, inline) {
+                    emailDocument(html, hideQuotes = quoted && !showQuoted, remoteImages = showImages, inlineImages = inline)
                 }
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (account != null) AccountChip(account)
-                    labels.forEach { LabelChip(it, small = false) }
+                // A native view draws above Compose: while the viewer is open over it, the page steps aside.
+                if (webPaused) {
+                    Box(Modifier.weight(1f).fillMaxWidth())
+                } else {
+                    HtmlBody(document, onOpenUrl = { onIntent(AppIntent.OpenUrl(it)) }, modifier = Modifier.weight(1f).fillMaxWidth())
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
+                    Spacer(Modifier.weight(1f))
+                    if (quoted) QuoteToggle(showQuoted) { showQuoted = !showQuoted }
                 }
             }
-            SenderLine(message, account)
-            val body = reader.body
-            if (body != null && body.attachments.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                ) {
-                    body.attachments.forEachIndexed { index, attachment ->
-                        AttachmentCard(attachment, enabled = !working) { onIntent(AppIntent.DownloadAttachments(message, index)) }
-                    }
-                    if (body.attachments.size > 1) {
-                        TextButton(onClick = { onIntent(AppIntent.DownloadAttachments(message)) }, enabled = !working) {
-                            Icon(Icons.Outlined.Download, null, Modifier.size(18.dp))
-                            Text(stringResource(Res.string.reader_download_all), Modifier.padding(start = 6.dp))
-                        }
-                    }
-                }
-            }
-            if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
-            if (body != null) TranslateBar(reader, onIntent)
-            Box(Modifier.widthIn(max = 680.dp)) {
+        } else {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(padding).padding(vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                ReaderHeader(reader, account, labels, working, onIntent)
                 when {
-                    body != null -> SelectionContainer {
-                        val translation = reader.translation
-                        AutoLinkedText(
-                            if (translation?.showing == true) translation.body else body.text.ifBlank { message.snippet },
-                            style = MaterialTheme.typography.bodyLarge.merge(ContentDirection),
-                            onOpen = { onIntent(AppIntent.OpenUrl(it)) },
-                        )
+                    body != null -> {
+                        val split = remember(body) { splitQuote(body.text.ifBlank { message.snippet }) }
+                        SelectionContainer {
+                            AutoLinkedText(
+                                if (translation?.showing == true) translation.body else split.main,
+                                Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.bodyLarge.merge(ContentDirection),
+                                onOpen = { onIntent(AppIntent.OpenUrl(it)) },
+                            )
+                        }
+                        if (split.hasQuote) {
+                            QuoteToggle(showQuoted) { showQuoted = !showQuoted }
+                            if (showQuoted) {
+                                SelectionContainer {
+                                    AutoLinkedText(
+                                        split.quoted,
+                                        Modifier.fillMaxWidth(),
+                                        style = MaterialTheme.typography.bodyMedium.merge(ContentDirection).copy(color = colors.onSurfaceVariant),
+                                        onOpen = { onIntent(AppIntent.OpenUrl(it)) },
+                                    )
+                                }
+                            }
+                        }
                     }
                     reader.failed -> Text(stringResource(Res.string.reader_body_failed), color = colors.error)
                     else -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 }
+                if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
             }
-            if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
         }
+    }
+}
+
+/** Subject (with its translation in brackets), account and labels, sender, attachments and the translation bar. */
+@Composable
+private fun ReaderHeader(reader: Reader, account: Account?, labels: List<Folder>, working: Boolean, onIntent: (AppIntent) -> Unit) {
+    val message = reader.message
+    val colors = MaterialTheme.colorScheme
+    val cards = cardStyle()
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SelectionContainer {
+                val translation = reader.translation
+                // Translated, the subject keeps its original and adds the translation in brackets.
+                val subject = if (translation?.showing == true && translation.subject.isNotBlank()) {
+                    buildAnnotatedString {
+                        append(message.subject)
+                        withStyle(SpanStyle(color = colors.onSurfaceVariant)) { append(" (${translation.subject})") }
+                    }
+                } else {
+                    AnnotatedString(message.subject)
+                }
+                Text(
+                    subject,
+                    style = MaterialTheme.typography.headlineSmall.merge(ContentDirection),
+                    fontWeight = FontWeight.Normal,
+                )
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (account != null) AccountChip(account)
+                labels.forEach { LabelChip(it, small = false) }
+            }
+        }
+        SenderLine(message, account)
+        val body = reader.body
+        // Images the HTML shows inline are part of the message, not attachments to list (as in Gmail).
+        val inlineIds = remember(body) { body?.html?.let(::cidRefs).orEmpty() }
+        val files = body?.attachments.orEmpty().withIndex().filter { it.value.contentId.isEmpty() || it.value.contentId !in inlineIds }
+        if (body != null && files.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                files.forEach { (index, attachment) ->
+                    AttachmentCard(attachment, enabled = !working) { onIntent(AppIntent.PreviewAttachment(message, index)) }
+                }
+                if (files.size > 1) {
+                    TextButton(onClick = { onIntent(AppIntent.DownloadAttachments(message)) }, enabled = !working) {
+                        Icon(Icons.Outlined.Download, null, Modifier.size(18.dp))
+                        Text(stringResource(Res.string.reader_download_all), Modifier.padding(start = 6.dp))
+                    }
+                }
+            }
+        }
+        if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+        if (body != null) TranslateBar(reader, onIntent)
+    }
+}
+
+/** Remote images, styles or fonts: what a sender can use to see that the message was opened. */
+private fun htmlLoadsRemote(html: String): Boolean =
+    Regex("(?i)(<img[^>]+src\\s*=\\s*[\"']?https?:|url\\(\\s*['\"]?https?:|<link[^>]+href\\s*=\\s*[\"']?https?:)").containsMatchIn(html)
+
+/** Gmail's three dots at the end of a message: fold or unfold the earlier messages it quotes. */
+@Composable
+private fun QuoteToggle(shown: Boolean, onToggle: () -> Unit) {
+    TextButton(onClick = onToggle) {
+        Icon(Icons.Outlined.MoreHoriz, null, Modifier.size(18.dp))
+        Text(stringResource(if (shown) Res.string.reader_hide_quoted else Res.string.reader_show_quoted), Modifier.padding(start = 6.dp))
+    }
+}
+
+/** Remote images are held back (the setting): say so, and let this message load them. */
+@Composable
+private fun ImagesBar(onShow: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().background(colors.surfaceContainerHigh, RoundedCornerShape(12.dp)).padding(start = 14.dp, end = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Outlined.HideImage, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+        Text(
+            stringResource(Res.string.reader_images_hidden),
+            Modifier.weight(1f).padding(vertical = 10.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurfaceVariant,
+        )
+        TextButton(onClick = onShow) { Text(stringResource(Res.string.reader_show_images)) }
     }
 }
 
 @Composable
 private fun ReplyButtons(message: MailMessage, onIntent: (AppIntent) -> Unit) {
     FlowRow(
-        Modifier.padding(top = 8.dp, bottom = 16.dp),
+        Modifier.padding(top = 4.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -288,7 +393,7 @@ private fun TranslateBar(reader: Reader, onIntent: (AppIntent) -> Unit) {
     if (translation == null && (!offer.enabled || !looksForeign(reader.message.subject + "\n" + body.text, offer.target))) return
     val colors = MaterialTheme.colorScheme
     Row(
-        Modifier.widthIn(max = 680.dp).fillMaxWidth().background(colors.surfaceContainerHigh, RoundedCornerShape(12.dp))
+        Modifier.fillMaxWidth().background(colors.surfaceContainerHigh, RoundedCornerShape(12.dp))
             .padding(start = 14.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -417,7 +522,7 @@ private fun SenderLine(message: MailMessage, account: Account?) {
 private fun AttachmentCard(attachment: Attachment, enabled: Boolean, onDownload: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val extension = attachment.name.substringAfterLast('.', "").take(4).uppercase().ifEmpty { "FILE" }
-    Tooltip(stringResource(Res.string.reader_download_one, attachment.name)) {
+    Tooltip(stringResource(Res.string.reader_preview_one, attachment.name)) {
         Row(
             Modifier.widthIn(min = 200.dp, max = 280.dp)
                 .clip(RoundedCornerShape(12.dp))
@@ -440,7 +545,7 @@ private fun AttachmentCard(attachment: Attachment, enabled: Boolean, onDownload:
                 )
                 Text(formatBytes(attachment.size), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
-            Icon(Icons.Outlined.Download, null, Modifier.size(18.dp), tint = colors.onSurfaceVariant)
+            Icon(Icons.Outlined.Visibility, null, Modifier.size(18.dp), tint = colors.onSurfaceVariant)
         }
     }
 }

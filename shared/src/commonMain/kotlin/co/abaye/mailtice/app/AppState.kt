@@ -1,5 +1,7 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.sync.PollPlan
+import co.abaye.mailtice.domain.Attachment
 import androidx.compose.runtime.Immutable
 import co.abaye.mailtice.auth.BrowserProfile
 import co.abaye.mailtice.data.Contact
@@ -178,9 +180,27 @@ data class Reader(
     val body: MailBody? = null,
     val failed: Boolean = false,
     val translation: ReaderTranslation? = null,
+    /** Inline images of the HTML, Content-ID to a data: URI, once downloaded. */
+    val inlineImages: Map<String, String> = emptyMap(),
 )
 
 enum class TranslationState { Loading, Done, Failed }
+
+/**
+ * An attachment in the viewer: [bytes] once downloaded ([failed] if that did not work). On desktop
+ * the file is also written to [tempPath], so it can open in its own app, and PDF, audio and video
+ * load in the webview from [pageUrl].
+ */
+@Immutable
+data class AttachmentPreview(
+    val message: MailMessage,
+    val index: Int,
+    val attachment: Attachment,
+    val bytes: ByteArray? = null,
+    val failed: Boolean = false,
+    val tempPath: String = "",
+    val pageUrl: String = "",
+)
 
 /** The open message in another language: its subject and body in [target], or where that stands. */
 @Immutable
@@ -190,6 +210,8 @@ data class ReaderTranslation(
     val sourceLanguage: String = "",
     val subject: String = "",
     val body: String = "",
+    /** The HTML with its text translated in place; "" when only the plain text was translated. */
+    val html: String = "",
     /** Translated, but the reader asked to see the original again. */
     val showOriginal: Boolean = false,
 ) {
@@ -208,8 +230,12 @@ data class AppState(
     val statuses: Map<String, AccountStatus> = emptyMap(),
     /** Why an account's last sync round failed; shown next to its "offline" status. */
     val syncErrors: Map<String, String> = emptyMap(),
+    /** The smart check's current pace per account, for the settings. */
+    val pollPlans: Map<String, PollPlan> = emptyMap(),
     val filter: InboxFilter = InboxFilter(),
     val reader: Reader? = null,
+    /** The attachment open in the viewer over everything, or null. */
+    val preview: AttachmentPreview? = null,
     val compose: ComposeDraft? = null,
     val older: OlderMail = OlderMail(),
     /** Address suggestions for the recipient being typed in the compose window. */

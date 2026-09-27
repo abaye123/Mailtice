@@ -1,6 +1,8 @@
 package co.abaye.mailtice
 
 import co.abaye.mailtice.translate.blocks
+import co.abaye.mailtice.translate.htmlTextSegments
+import co.abaye.mailtice.translate.replaceSegments
 import co.abaye.mailtice.translate.looksForeign
 import co.abaye.mailtice.translate.parseGtx
 import kotlin.test.Test
@@ -36,5 +38,18 @@ class TranslateTest {
         assertTrue(looksForeign("Ваш заказ отправлен и прибудет во вторник.", "en"))
         // Too few letters to judge.
         assertFalse(looksForeign("OK 👍", "he"))
+    }
+
+    @Test
+    fun htmlIsTranslatedInPlace() {
+        val html = "<html><head><style>p{color:red}</style><title>T</title></head><body>" +
+            "<p>Hello <b>Dana</b>,</p><p>Tom &amp; Jerry</p><img src=\"x.png\"><p> 42 </p>" +
+            "<div class=\"gmail_quote\">Old message</div></body></html>"
+        val segments = htmlTextSegments(html)
+        // Style, title, numbers and the quoted part are left alone.
+        assertEquals(listOf("Hello", "Dana", ",", "Tom & Jerry").filter { it.any(Char::isLetter) }, segments.map { it.text })
+        val out = replaceSegments(html, segments, listOf("שלום", "דנה", "טום & ג'רי"))
+        assertTrue("<p>שלום <b>דנה</b>,</p><p>טום &amp; ג'רי</p>" in out)
+        assertTrue("p{color:red}" in out && "<div class=\"gmail_quote\">Old message</div>" in out)
     }
 }

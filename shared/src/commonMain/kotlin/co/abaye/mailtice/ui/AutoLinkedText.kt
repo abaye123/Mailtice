@@ -37,9 +37,12 @@ fun AutoLinkedText(text: String, modifier: Modifier = Modifier, style: TextStyle
     Text(annotated, modifier, style = style)
 }
 
-/** 1536 -> "1.5 KB". Binary units, one decimal from KB up. */
+/**
+ * 1536 -> "1.5 KB". Binary units, one decimal from KB up. Wrapped in a left-to-right isolate so a
+ * Hebrew line shows "5.0 MB", not "MB 5.0".
+ */
 fun formatBytes(bytes: Long): String {
-    if (bytes < 1024) return "$bytes B"
+    if (bytes < 1024) return "⁦$bytes B⁩"
     val units = listOf("KB", "MB", "GB", "TB")
     var value = bytes / 1024.0
     var unit = 0
@@ -48,5 +51,5 @@ fun formatBytes(bytes: Long): String {
         unit++
     }
     val rounded = (value * 10).toLong() / 10.0
-    return "$rounded ${units[unit]}"
+    return "⁦$rounded ${units[unit]}⁩"
 }

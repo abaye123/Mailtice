@@ -36,7 +36,7 @@ class FirstSyncStatusTest {
         MailDatabase.Schema.create(driver)
         val repo = MailRepository(driver, Dispatchers.Unconfined)
         repo.addAccount(account)
-        return SyncEngine(repo) { provider }
+        return SyncEngine(repo, providers = { provider })
     }
 
     private fun SyncEngine.round() = runBlocking { runCatching { syncOnce(account) } }

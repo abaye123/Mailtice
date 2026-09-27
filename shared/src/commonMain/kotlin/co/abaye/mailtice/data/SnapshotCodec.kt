@@ -1,5 +1,6 @@
 package co.abaye.mailtice.data
 
+import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.AppFont
@@ -28,6 +29,8 @@ private const val KEY_HEBREW_DATE = "hebrewDate"
 private const val KEY_HEBREW_AT_SUNSET = "hebrewDateAtSunset"
 private const val KEY_SUNSET_CITY = "sunsetCity"
 private const val KEY_OFFER_TRANSLATION = "offerTranslation"
+private const val KEY_REMOTE_IMAGES = "loadRemoteImages"
+private const val KEY_DOWNLOAD_FOLDER = "downloadFolder"
 private const val KEY_PANE_STYLE = "paneStyle"
 private const val KEY_SIDEBAR_COLLAPSED = "sidebarCollapsed"
 private const val KEY_LIST_FRACTION = "listFraction"
@@ -42,6 +45,9 @@ private const val LIST_SEPARATOR = '\u001F'
 private const val KEY_LANGUAGE = "language"
 private const val KEY_LANGUAGE_AUTO = "languageAuto"
 private const val KEY_POLL = "pollSeconds"
+private const val KEY_SMART_POLL = "smartPolling"
+private const val KEY_OFFLINE = "offlineMode"
+private const val KEY_OFFLINE_ATTACHMENTS = "offlineAttachmentsMb"
 private const val KEY_NOTIFICATIONS = "notifications"
 private const val KEY_CLOSE_TO_TRAY = "closeToTray"
 private const val KEY_LAUNCH_AT_LOGIN = "launchAtLogin"
@@ -57,6 +63,8 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_HEBREW_AT_SUNSET=${s.hebrewDateAtSunset}")
         add("$KEY_SUNSET_CITY=${s.sunsetCity.name}")
         add("$KEY_OFFER_TRANSLATION=${s.offerTranslation}")
+        add("$KEY_REMOTE_IMAGES=${s.loadRemoteImages}")
+        add("$KEY_DOWNLOAD_FOLDER=${s.downloadFolder}")
         add("$KEY_PANE_STYLE=${s.paneStyle.name}")
         add("$KEY_SIDEBAR_COLLAPSED=${s.sidebarCollapsed}")
         add("$KEY_LIST_FRACTION=${s.listFraction}")
@@ -68,6 +76,9 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_LANGUAGE=${s.uiLanguage.code}")
         add("$KEY_LANGUAGE_AUTO=${s.uiLanguageAuto}")
         add("$KEY_POLL=${s.pollSeconds}")
+        add("$KEY_SMART_POLL=${s.smartPolling}")
+        add("$KEY_OFFLINE=${s.offlineMode}")
+        add("$KEY_OFFLINE_ATTACHMENTS=${s.offlineAttachmentsMb}")
         add("$KEY_NOTIFICATIONS=${s.notificationsEnabled}")
         add("$KEY_CLOSE_TO_TRAY=${s.closeToTray}")
         add("$KEY_LAUNCH_AT_LOGIN=${s.launchAtLogin}")
@@ -94,6 +105,8 @@ fun decodeSnapshot(raw: String): AppData {
         showHebrewDate = flag(KEY_HEBREW_DATE, defaults.showHebrewDate),
         hebrewDateAtSunset = flag(KEY_HEBREW_AT_SUNSET, defaults.hebrewDateAtSunset),
         offerTranslation = flag(KEY_OFFER_TRANSLATION, defaults.offerTranslation),
+        loadRemoteImages = flag(KEY_REMOTE_IMAGES, defaults.loadRemoteImages),
+        downloadFolder = map[KEY_DOWNLOAD_FOLDER].orEmpty(),
         sunsetCity = map[KEY_SUNSET_CITY]?.let { name -> SunsetCity.entries.firstOrNull { it.name == name } } ?: defaults.sunsetCity,
         paneStyle = map[KEY_PANE_STYLE]?.let { name -> PaneStyle.entries.firstOrNull { it.name == name } } ?: defaults.paneStyle,
         sidebarCollapsed = flag(KEY_SIDEBAR_COLLAPSED, defaults.sidebarCollapsed),
@@ -106,6 +119,9 @@ fun decodeSnapshot(raw: String): AppData {
         collapsedAccounts = list(KEY_COLLAPSED_ACCOUNTS)?.toSet() ?: defaults.collapsedAccounts,
         uiLanguage = map[KEY_LANGUAGE]?.let { UiLanguage.fromCode(it) } ?: defaults.uiLanguage,
         uiLanguageAuto = flag(KEY_LANGUAGE_AUTO, defaults.uiLanguageAuto),
+        smartPolling = flag(KEY_SMART_POLL, defaults.smartPolling),
+        offlineMode = flag(KEY_OFFLINE, defaults.offlineMode),
+        offlineAttachmentsMb = map[KEY_OFFLINE_ATTACHMENTS]?.toIntOrNull()?.takeIf { it in OfflineAttachmentLimits } ?: defaults.offlineAttachmentsMb,
         pollSeconds = map[KEY_POLL]?.toIntOrNull()?.takeIf { it in PollIntervals } ?: defaults.pollSeconds,
         notificationsEnabled = flag(KEY_NOTIFICATIONS, defaults.notificationsEnabled),
         closeToTray = flag(KEY_CLOSE_TO_TRAY, defaults.closeToTray),

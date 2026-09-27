@@ -298,13 +298,13 @@ class GmailProvider(
         withToken(account) { token ->
             val parts = mutableListOf<MessagePart>()
             fun walk(part: MessagePart) {
-                if (part.filename.isNotEmpty()) parts += part
+                if (part.isFilePart()) parts += part
                 part.parts.forEach(::walk)
             }
             api.message(token, message.id, full = true).payload?.let(::walk)
             parts.withIndex().filter { indices == null || it.index in indices }.map { (i, part) ->
                 val data = part.body?.data ?: part.body?.attachmentId?.let { api.attachment(token, message.id, it).data }.orEmpty()
-                AttachmentFile(i, part.filename, base64Url.decode(data))
+                AttachmentFile(i, part.fileName(), base64Url.decode(data))
             }
         }
 
@@ -423,7 +423,21 @@ fun splitAddress(raw: String): Pair<String, String> {
 @OptIn(ExperimentalEncodingApi::class)
 private val base64Url = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL)
 
-/** Walks the MIME tree Gmail returns: first text/plain, first text/html, and every named part. */
+private fun MessagePart.header(name: String): String? = headers.firstOrNull { it.name.equals(name, ignoreCase = true) }?.value
+
+/** The Content-ID without its angle brackets, "" when the part has none. */
+internal fun MessagePart.contentId(): String = header("Content-ID")?.trim()?.removePrefix("<")?.removeSuffix(">").orEmpty()
+
+/**
+ * A part that is a file rather than the text: anything with a file name, and images the HTML
+ * shows inline by Content-ID even without one. [GmailProvider.fetchAttachments] walks the same
+ * way, so the n-th such part is attachment n on both sides.
+ */
+internal fun MessagePart.isFilePart(): Boolean = filename.isNotEmpty() || (mimeType.startsWith("image/") && contentId().isNotEmpty())
+
+internal fun MessagePart.fileName(): String = filename.ifEmpty { "image." + mimeType.substringAfter('/').substringBefore(';').ifEmpty { "png" } }
+
+/** Walks the MIME tree Gmail returns: first text/plain, first text/html, and every file part. */
 @OptIn(ExperimentalEncodingApi::class)
 internal fun GmailMessage.body(): MailBody {
     var text: String? = null
@@ -436,7 +450,7 @@ internal fun GmailMessage.body(): MailBody {
     fun walk(part: MessagePart) {
         val data = part.body?.data
         when {
-            part.filename.isNotEmpty() -> attachments += Attachment(part.filename, part.body?.size ?: 0)
+            part.isFilePart() -> attachments += Attachment(part.fileName(), part.body?.size ?: 0, part.contentId(), part.mimeType)
             part.mimeType == "text/plain" && text == null && data != null -> text = decodeText(base64Url.decode(data), charsetOf(part))
             part.mimeType == "text/html" && html == null && data != null -> html = decodeText(base64Url.decode(data), charsetOf(part))
         }

@@ -1,0 +1,9 @@
+-- 3 -> 4: the offline action queue.
+-- What the user did while offline (offline mode), replayed in order when the connection is back.
+CREATE TABLE pending_action (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  accountId TEXT NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  messageId TEXT NOT NULL,
+  kind TEXT NOT NULL,                  -- PendingKind.name
+  createdAt INTEGER NOT NULL
+);

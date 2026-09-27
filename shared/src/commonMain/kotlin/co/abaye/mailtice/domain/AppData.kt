@@ -82,6 +82,9 @@ enum class AccountColor(val color: Color) {
 /** How far the list / reader divider may be dragged. */
 val ListFractionRange: ClosedFloatingPointRange<Float> = 0.25f..0.7f
 
+/** The attachment limits offline mode offers, in MB (0 = none, -1 = all). */
+val OfflineAttachmentLimits: List<Int> = listOf(0, 10, 25, -1)
+
 /** Allowed poll intervals. Gmail quota is generous, but a desktop app has no reason to go faster. */
 val PollIntervals: List<Int> = listOf(30, 60, 120, 300)
 
@@ -98,6 +101,10 @@ data class UserSettings(
     val sunsetCity: SunsetCity = SunsetCity.Jerusalem,
     /** A bar above messages in another language offers to translate them, like Gmail's. */
     val offerTranslation: Boolean = true,
+    /** Remote images in HTML mail load on their own; off, each message asks first (they can track opens). */
+    val loadRemoteImages: Boolean = true,
+    /** Where attachments are saved; "" = Downloads/Mailtice. */
+    val downloadFolder: String = "",
     val paneStyle: PaneStyle = PaneStyle.Cards,
     /** Sidebar reduced to icons. */
     val sidebarCollapsed: Boolean = false,
@@ -118,6 +125,12 @@ data class UserSettings(
     val uiLanguage: UiLanguage = UiLanguage.Hebrew,
     /** `true` while the interface follows the OS language rather than an explicit pick (the default). */
     val uiLanguageAuto: Boolean = true,
+    /** Checks at a pace learned from each account's week and recent mail; off, every [pollSeconds]. */
+    val smartPolling: Boolean = true,
+    /** Offline mode: the whole mailbox kept and downloaded ahead, actions queued without a connection. */
+    val offlineMode: Boolean = false,
+    /** Largest attachment offline mode downloads ahead, in MB; 0 = none, -1 = all. */
+    val offlineAttachmentsMb: Int = 10,
     val pollSeconds: Int = 60,
     val notificationsEnabled: Boolean = true,
     /** Closing the window hides it to the tray instead of quitting. */

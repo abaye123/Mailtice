@@ -27,6 +27,8 @@ androidx-nav3 = "1.2.0-alpha02"
 metro = "1.4.5"
 kotlinx-datetime = "0.8.0"
 kosherkotlin = "2.7.0"
+# Native webview (WebView2 / WKWebView / WebKitGTK / Android WebView) for HTML mail, built for Tao windows.
+composewebview = "1.0.3"
 materialKolor = "5.0.1"
 nucleus = "2.5.18"
 composenativetray = "2.1.6"
@@ -85,6 +87,7 @@ androidx-lifecycle-viewmodel-navigation3 = { module = "org.jetbrains.androidx.li
 compose-nav3 = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "androidx-nav3" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kosherkotlin = { module = "io.github.kdroidfilter:kosherkotlin", version.ref = "kosherkotlin" }
+composewebview = { module = "dev.nucleusframework:composewebview", version.ref = "composewebview" }
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 nucleus-application = { module = "dev.nucleusframework:nucleus.nucleus-application", version.ref = "nucleus" }
 nucleus-decorated-window-tao = { module = "dev.nucleusframework:nucleus.decorated-window-tao", version.ref = "nucleus" }

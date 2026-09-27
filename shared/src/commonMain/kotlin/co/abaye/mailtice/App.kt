@@ -1,5 +1,7 @@
 package co.abaye.mailtice
 
+import co.abaye.mailtice.main.ReaderPrefs
+import co.abaye.mailtice.main.LocalReaderPrefs
 import co.abaye.mailtice.translate.TranslationOffer
 import co.abaye.mailtice.translate.LocalTranslationOffer
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -69,6 +71,7 @@ fun App(
                 LocalLayoutDirection provides direction,
                 LocalHebrewDate provides hebrewDate,
                 LocalTranslationOffer provides translation,
+                LocalReaderPrefs provides ReaderPrefs(loadRemoteImages = settings.loadRemoteImages),
             ) {
                 RootScreen(state = state, backStack = vm.backStack, onIntent = vm::onIntent)
             }

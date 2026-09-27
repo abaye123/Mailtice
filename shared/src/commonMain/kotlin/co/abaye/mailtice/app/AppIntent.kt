@@ -117,7 +117,23 @@ sealed interface AppIntent {
     data class SetShowHebrewDate(val show: Boolean) : AppIntent
     data class SetHebrewDateAtSunset(val atSunset: Boolean) : AppIntent
     data class SetSunsetCity(val city: SunsetCity) : AppIntent
+    data class SetSmartPolling(val smart: Boolean) : AppIntent
+    data class SetOfflineMode(val on: Boolean) : AppIntent
+    data class SetOfflineAttachments(val mb: Int) : AppIntent
     data class SetOfferTranslation(val offer: Boolean) : AppIntent
+    data class SetLoadRemoteImages(val load: Boolean) : AppIntent
+
+    /** "" goes back to Downloads/Mailtice. */
+    data class SetDownloadFolder(val path: String) : AppIntent
+
+    /** Opens the folder dialog with [title]; the pick becomes the download folder. */
+    data class ChooseDownloadFolder(val title: String) : AppIntent
+
+    /** Opens attachment [index] of [message] in the viewer instead of downloading it. */
+    data class PreviewAttachment(val message: MailMessage, val index: Int) : AppIntent
+    data object ClosePreview : AppIntent
+    data object SavePreview : AppIntent
+    data object OpenPreviewExternally : AppIntent
 
     /** Translates the open message into the interface language. */
     data object TranslateMessage : AppIntent

@@ -72,7 +72,9 @@ internal actual object Platform {
     actual fun setLaunchAtLogin(enabled: Boolean): Boolean = false
 
     /** Android 10+: the shared Downloads collection (no permission needed). Older: the app's own downloads dir. */
-    actual fun saveDownload(folder: String, fileName: String, bytes: ByteArray): String? = runCatching {
+    actual fun defaultDownloadRoot(): String = "Downloads/Mailtice"
+
+    actual fun saveDownload(folder: String, fileName: String, bytes: ByteArray, root: String): String? = runCatching {
         val name = safeFileName(fileName, "attachment")
         val sub = safeFileName(folder, "")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -95,6 +97,24 @@ internal actual object Platform {
     }.getOrNull()
 
     actual val canPickFiles: Boolean = false
+
+    actual val canPickFolder: Boolean = false
+
+    actual suspend fun pickFolder(title: String): String? = null
+
+    actual val canOpenFiles: Boolean = false
+
+    actual fun openFile(path: String): Boolean = false
+
+    actual fun readBytes(path: String): ByteArray? = runCatching { File(path).takeIf { it.isFile }?.readBytes() }.getOrNull()
+
+    actual fun writeBytes(path: String, bytes: ByteArray) {
+        runCatching {
+            val file = File(path)
+            file.parentFile?.mkdirs()
+            file.writeBytes(bytes)
+        }
+    }
 
     // Picking needs an activity-result launcher wired through the Activity; not there yet.
     actual suspend fun pickFiles(title: String): List<PickedFile> = emptyList()
