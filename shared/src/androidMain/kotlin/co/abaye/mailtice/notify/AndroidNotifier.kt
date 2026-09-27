@@ -1,5 +1,6 @@
 package co.abaye.mailtice.notify
 
+import io.github.santimattius.structured.annotations.StructuredScope
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -110,6 +111,13 @@ fun handleNotificationIntent(intent: Intent?) {
     intent.removeExtra(EXTRA_ACTION)
 }
 
+/**
+ * Work a notification action starts after its receiver returned (goAsync). One process-wide scope,
+ * so every such job has a home instead of an orphan scope per broadcast.
+ */
+@StructuredScope
+private val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
 /** "Mark as read" from the notification, without opening the app. */
 class MarkReadReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -117,7 +125,7 @@ class MarkReadReceiver : BroadcastReceiver() {
         val messageId = intent.getStringExtra(EXTRA_MESSAGE) ?: return
         NotificationManagerCompat.from(context).cancel((accountId + messageId).hashCode())
         val pending = goAsync()
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        receiverScope.launch {
             try {
                 val graph = AppGraphHolder.graph
                 graph.repository.message(accountId, messageId)?.let { graph.sync.setRead(it, read = true) }
