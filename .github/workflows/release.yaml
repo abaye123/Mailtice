@@ -75,7 +75,8 @@ jobs:
       - name: Resolve version for manual runs
         if: github.event_name == 'workflow_dispatch'
         shell: bash
-        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0)" >> "$GITHUB_ENV"
+        # No tag yet (a test build before the first release): leave it empty, the build uses its default.
+        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_ENV"
 
       # JDK 25 for Gradle, Node for the electron-builder packaging step, and the native-image
       # prerequisites (MSVC/Xcode plus the toolchain cache). The GraalVM JDK itself is downloaded
@@ -201,7 +202,8 @@ jobs:
       - name: Resolve version for manual runs
         if: github.event_name == 'workflow_dispatch'
         shell: bash
-        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0)" >> "$GITHUB_ENV"
+        # No tag yet (a test build before the first release): leave it empty, the build uses its default.
+        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_ENV"
 
       # The JVM that runs Gradle, not the bytecode target: the modules still compile to 17, but
       # the Metro compiler plugin refuses to load on anything below 21.
@@ -248,6 +250,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${RELEASE_VERSION#v}"
+          version="${version:-dev}"
           mkdir -p out
           for f in androidApp/build/outputs/apk/release/*.apk; do
             [ -e "$f" ] || continue
