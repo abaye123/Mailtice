@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.translate.Translator
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModel
 import androidx.navigation3.runtime.NavBackStack
@@ -119,6 +120,7 @@ class AppViewModel(
     private val autoConfig: ImapAutoConfig,
     private val sync: SyncEngine,
     private val notifications: MailNotifications,
+    private val translator: Translator,
     @Io private val io: CoroutineDispatcher,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     @Assisted private val onQuit: () -> Unit = {},
@@ -397,6 +399,11 @@ class AppViewModel(
             is AppIntent.SetShowHebrewDate -> settings { it.copy(showHebrewDate = intent.show) }
             is AppIntent.SetHebrewDateAtSunset -> settings { it.copy(hebrewDateAtSunset = intent.atSunset) }
             is AppIntent.SetSunsetCity -> settings { it.copy(sunsetCity = intent.city) }
+            is AppIntent.SetOfferTranslation -> settings { it.copy(offerTranslation = intent.offer) }
+            AppIntent.TranslateMessage -> translateOpenMessage()
+            is AppIntent.ShowOriginal -> _state.value.reader?.let { reader ->
+                reader.translation?.let { setTranslation(reader.message, it.copy(showOriginal = intent.original)) }
+            }
             is AppIntent.SetPaneStyle -> settings { it.copy(paneStyle = intent.style) }
             is AppIntent.SetReadingPane -> settings { it.copy(readingPane = intent.pane) }
             is AppIntent.SetFolderHidden -> settings {
@@ -799,7 +806,13 @@ class AppViewModel(
         scope.launch {
             val body = runCatching { withContext(io) { sync.body(message) } }.getOrNull()
             mutate { s ->
-                if (s.reader?.message?.id != message.id) s else s.copy(reader = Reader(message, body, failed = body == null))
+                if (s.reader?.message?.id != message.id) {
+                    s
+                } else {
+                    // A message translated earlier this session opens translated again.
+                    val translated = translations[translationKey(message, s.data.settings.uiLanguage.code)]
+                    s.copy(reader = Reader(message, body, failed = body == null, translation = translated))
+                }
             }
             // Opening means reading, where the account can say so.
             val account = _state.value.account(message.accountId)
@@ -1435,6 +1448,53 @@ class AppViewModel(
             mutate { AppState(data = seedData(), availableProviders = it.availableProviders, message = AppMessage.ResetDone) }
             navigate(AppKey.Inbox)
             refreshStorage()
+        }
+    }
+
+    // ---- translation ------------------------------------------------------------------------
+
+    /** Finished translations this session, so reopening a message costs no second request. */
+    private val translations = mutableMapOf<String, ReaderTranslation>()
+
+    private fun translationKey(message: MailMessage, target: String) = "${message.key}|$target"
+
+    private fun translateOpenMessage() {
+        val reader = _state.value.reader ?: return
+        val body = reader.body ?: return
+        val message = reader.message
+        val target = _state.value.data.settings.uiLanguage.code
+        val key = translationKey(message, target)
+        translations[key]?.let {
+            setTranslation(message, it.copy(showOriginal = false))
+            return
+        }
+        setTranslation(message, ReaderTranslation(target, TranslationState.Loading))
+        scope.launch {
+            try {
+                val result = withContext(io) { translator.translate(listOf(message.subject, body.text.ifBlank { message.snippet }), target) }
+                val done = ReaderTranslation(
+                    target = target,
+                    state = TranslationState.Done,
+                    sourceLanguage = result.sourceLanguage,
+                    subject = result.texts[0],
+                    body = result.texts[1],
+                )
+                translations[key] = done
+                setTranslation(message, done)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                println("Translation failed: ${e::class.simpleName}: ${e.message?.take(200)}")
+                setTranslation(message, ReaderTranslation(target, TranslationState.Failed))
+            }
+        }
+    }
+
+    /** Only while [message] is still the one open; a translation finishing after the reader moved on is dropped. */
+    private fun setTranslation(message: MailMessage, translation: ReaderTranslation) {
+        mutate { s ->
+            val reader = s.reader
+            if (reader?.message?.key != message.key) s else s.copy(reader = reader.copy(translation = translation))
         }
     }
 

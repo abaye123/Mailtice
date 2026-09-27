@@ -117,6 +117,13 @@ sealed interface AppIntent {
     data class SetShowHebrewDate(val show: Boolean) : AppIntent
     data class SetHebrewDateAtSunset(val atSunset: Boolean) : AppIntent
     data class SetSunsetCity(val city: SunsetCity) : AppIntent
+    data class SetOfferTranslation(val offer: Boolean) : AppIntent
+
+    /** Translates the open message into the interface language. */
+    data object TranslateMessage : AppIntent
+
+    /** Between the translation of the open message and its original. */
+    data class ShowOriginal(val original: Boolean) : AppIntent
     data class SetPaneStyle(val style: PaneStyle) : AppIntent
     data class SetReadingPane(val pane: ReadingPane) : AppIntent
 

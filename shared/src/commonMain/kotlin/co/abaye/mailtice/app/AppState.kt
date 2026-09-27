@@ -173,7 +173,28 @@ val ComposeDraft.isBlank: Boolean
     get() = to.isBlank() && cc.isBlank() && bcc.isBlank() && subject.isBlank() && body.isBlank() && attachments.isEmpty()
 
 @Immutable
-data class Reader(val message: MailMessage, val body: MailBody? = null, val failed: Boolean = false)
+data class Reader(
+    val message: MailMessage,
+    val body: MailBody? = null,
+    val failed: Boolean = false,
+    val translation: ReaderTranslation? = null,
+)
+
+enum class TranslationState { Loading, Done, Failed }
+
+/** The open message in another language: its subject and body in [target], or where that stands. */
+@Immutable
+data class ReaderTranslation(
+    val target: String,
+    val state: TranslationState,
+    val sourceLanguage: String = "",
+    val subject: String = "",
+    val body: String = "",
+    /** Translated, but the reader asked to see the original again. */
+    val showOriginal: Boolean = false,
+) {
+    val showing: Boolean get() = state == TranslationState.Done && !showOriginal
+}
 
 @Immutable
 data class AppState(

@@ -1,5 +1,7 @@
 package co.abaye.mailtice
 
+import co.abaye.mailtice.translate.TranslationOffer
+import co.abaye.mailtice.translate.LocalTranslationOffer
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -62,7 +64,12 @@ fun App(
                     HebrewDateStyle(settings.hebrewDateAtSunset, settings.sunsetCity, hebrewLetters = language == UiLanguage.Hebrew)
                 }
             }
-            CompositionLocalProvider(LocalLayoutDirection provides direction, LocalHebrewDate provides hebrewDate) {
+            val translation = remember(settings.offerTranslation, language) { TranslationOffer(settings.offerTranslation, language.code) }
+            CompositionLocalProvider(
+                LocalLayoutDirection provides direction,
+                LocalHebrewDate provides hebrewDate,
+                LocalTranslationOffer provides translation,
+            ) {
                 RootScreen(state = state, backStack = vm.backStack, onIntent = vm::onIntent)
             }
         }

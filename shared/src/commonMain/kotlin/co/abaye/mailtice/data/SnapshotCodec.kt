@@ -27,6 +27,7 @@ private const val KEY_FONT = "font"
 private const val KEY_HEBREW_DATE = "hebrewDate"
 private const val KEY_HEBREW_AT_SUNSET = "hebrewDateAtSunset"
 private const val KEY_SUNSET_CITY = "sunsetCity"
+private const val KEY_OFFER_TRANSLATION = "offerTranslation"
 private const val KEY_PANE_STYLE = "paneStyle"
 private const val KEY_SIDEBAR_COLLAPSED = "sidebarCollapsed"
 private const val KEY_LIST_FRACTION = "listFraction"
@@ -55,6 +56,7 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_HEBREW_DATE=${s.showHebrewDate}")
         add("$KEY_HEBREW_AT_SUNSET=${s.hebrewDateAtSunset}")
         add("$KEY_SUNSET_CITY=${s.sunsetCity.name}")
+        add("$KEY_OFFER_TRANSLATION=${s.offerTranslation}")
         add("$KEY_PANE_STYLE=${s.paneStyle.name}")
         add("$KEY_SIDEBAR_COLLAPSED=${s.sidebarCollapsed}")
         add("$KEY_LIST_FRACTION=${s.listFraction}")
@@ -91,6 +93,7 @@ fun decodeSnapshot(raw: String): AppData {
         font = map[KEY_FONT]?.let { name -> AppFont.entries.firstOrNull { it.name == name } } ?: defaults.font,
         showHebrewDate = flag(KEY_HEBREW_DATE, defaults.showHebrewDate),
         hebrewDateAtSunset = flag(KEY_HEBREW_AT_SUNSET, defaults.hebrewDateAtSunset),
+        offerTranslation = flag(KEY_OFFER_TRANSLATION, defaults.offerTranslation),
         sunsetCity = map[KEY_SUNSET_CITY]?.let { name -> SunsetCity.entries.firstOrNull { it.name == name } } ?: defaults.sunsetCity,
         paneStyle = map[KEY_PANE_STYLE]?.let { name -> PaneStyle.entries.firstOrNull { it.name == name } } ?: defaults.paneStyle,
         sidebarCollapsed = flag(KEY_SIDEBAR_COLLAPSED, defaults.sidebarCollapsed),

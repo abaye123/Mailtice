@@ -401,4 +401,16 @@
     <string name="labels_hint">המוצמדות מופיעות ראשונות בסרגל הצד, והמוסתרות מופיעות רק כאן.</string>
     <string name="account_expand">הצגת התיקיות</string>
     <string name="account_collapse">כיווץ התיקיות</string>
+    <string name="translate_offer">ההודעה כתובה בשפה אחרת</string>
+    <string name="translate_action">תרגום ל%1$s</string>
+    <string name="translate_loading">מתרגם…</string>
+    <string name="translate_done">תורגם מ%1$s</string>
+    <string name="translate_show_original">הצגת המקור</string>
+    <string name="translate_showing_original">מוצג הטקסט המקורי</string>
+    <string name="translate_show_translation">הצגת התרגום</string>
+    <string name="translate_failed">לא ניתן היה לתרגם את ההודעה</string>
+    <string name="translate_retry">נסה שוב</string>
+    <string name="translate_menu">תרגום ההודעה</string>
+    <string name="settings_offer_translation">הצעת תרגום</string>
+    <string name="settings_offer_translation_desc">פס מעל הודעות שכתובות בשפה אחרת, כמו ב-Gmail.</string>
 </resources>

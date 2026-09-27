@@ -1,5 +1,7 @@
 package co.abaye.mailtice.main
 
+import mailtice.shared.generated.resources.settings_offer_translation_desc
+import mailtice.shared.generated.resources.settings_offer_translation
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import mailtice.shared.generated.resources.settings_hebrew_date
 import mailtice.shared.generated.resources.settings_hebrew_date_desc
@@ -178,6 +180,9 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                         CityPicker(settings.sunsetCity) { onIntent(AppIntent.SetSunsetCity(it)) }
                     }
                 }
+            }
+            SettingRow(stringResource(Res.string.settings_offer_translation), subtitle = stringResource(Res.string.settings_offer_translation_desc)) {
+                Switch(checked = settings.offerTranslation, onCheckedChange = { onIntent(AppIntent.SetOfferTranslation(it)) })
             }
             SettingRow(stringResource(Res.string.settings_language)) {
                 LanguagePicker(

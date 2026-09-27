@@ -401,4 +401,16 @@
     <string name="labels_hint">Pinned ones come first in the sidebar; hidden ones appear only here.</string>
     <string name="account_expand">Show folders</string>
     <string name="account_collapse">Fold folders</string>
+    <string name="translate_offer">This message is in another language</string>
+    <string name="translate_action">Translate to %1$s</string>
+    <string name="translate_loading">Translating…</string>
+    <string name="translate_done">Translated from %1$s</string>
+    <string name="translate_show_original">Show original</string>
+    <string name="translate_showing_original">Showing the original</string>
+    <string name="translate_show_translation">Show translation</string>
+    <string name="translate_failed">The message could not be translated</string>
+    <string name="translate_retry">Try again</string>
+    <string name="translate_menu">Translate message</string>
+    <string name="settings_offer_translation">Offer to translate</string>
+    <string name="settings_offer_translation_desc">A bar above messages written in another language, like Gmail\'s.</string>
 </resources>

@@ -96,6 +96,8 @@ data class UserSettings(
     /** The Hebrew date turns at sunset in [sunsetCity]; otherwise at midnight with the civil date. */
     val hebrewDateAtSunset: Boolean = true,
     val sunsetCity: SunsetCity = SunsetCity.Jerusalem,
+    /** A bar above messages in another language offers to translate them, like Gmail's. */
+    val offerTranslation: Boolean = true,
     val paneStyle: PaneStyle = PaneStyle.Cards,
     /** Sidebar reduced to icons. */
     val sidebarCollapsed: Boolean = false,

@@ -1,5 +1,24 @@
 package co.abaye.mailtice.main
 
+import mailtice.shared.generated.resources.translate_menu
+import mailtice.shared.generated.resources.translate_retry
+import mailtice.shared.generated.resources.translate_failed
+import mailtice.shared.generated.resources.translate_show_translation
+import mailtice.shared.generated.resources.translate_showing_original
+import mailtice.shared.generated.resources.translate_show_original
+import mailtice.shared.generated.resources.translate_done
+import mailtice.shared.generated.resources.translate_loading
+import mailtice.shared.generated.resources.translate_action
+import mailtice.shared.generated.resources.translate_offer
+import co.abaye.mailtice.translate.looksForeign
+import co.abaye.mailtice.translate.languageName
+import co.abaye.mailtice.translate.LocalTranslationOffer
+import co.abaye.mailtice.app.TranslationState
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.material.icons.outlined.Translate
 import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -128,8 +147,18 @@ fun ReaderPane(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SelectionContainer {
+                    val translation = reader.translation
+                    // Translated, the subject keeps its original and adds the translation in brackets.
+                    val subject = if (translation?.showing == true && translation.subject.isNotBlank()) {
+                        buildAnnotatedString {
+                            append(message.subject)
+                            withStyle(SpanStyle(color = colors.onSurfaceVariant)) { append(" (${translation.subject})") }
+                        }
+                    } else {
+                        AnnotatedString(message.subject)
+                    }
                     Text(
-                        message.subject,
+                        subject,
                         style = MaterialTheme.typography.headlineSmall.merge(ContentDirection),
                         fontWeight = FontWeight.Normal,
                     )
@@ -163,11 +192,13 @@ fun ReaderPane(
                 }
             }
             if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+            if (body != null) TranslateBar(reader, onIntent)
             Box(Modifier.widthIn(max = 680.dp)) {
                 when {
                     body != null -> SelectionContainer {
+                        val translation = reader.translation
                         AutoLinkedText(
-                            body.text.ifBlank { message.snippet },
+                            if (translation?.showing == true) translation.body else body.text.ifBlank { message.snippet },
                             style = MaterialTheme.typography.bodyLarge.merge(ContentDirection),
                             onOpen = { onIntent(AppIntent.OpenUrl(it)) },
                         )
@@ -243,13 +274,63 @@ private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppInten
     }
 }
 
-/** Conversation-wide actions: every attachment in the thread, and export. */
+/**
+ * Gmail's translation bar, between the sender and the body: an offer when the message looks like
+ * another language, then progress, then what it was translated from with a way back to the
+ * original. Hidden for a message in the reader's own language that nobody asked to translate.
+ */
+@Composable
+private fun TranslateBar(reader: Reader, onIntent: (AppIntent) -> Unit) {
+    val offer = LocalTranslationOffer.current
+    val translation = reader.translation
+    val body = reader.body ?: return
+    val hebrew = offer.target == "he"
+    if (translation == null && (!offer.enabled || !looksForeign(reader.message.subject + "\n" + body.text, offer.target))) return
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.widthIn(max = 680.dp).fillMaxWidth().background(colors.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .padding(start = 14.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (translation?.state == TranslationState.Loading) {
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Outlined.Translate, null, Modifier.size(20.dp), tint = colors.primary)
+        }
+        val target = languageName(offer.target, hebrew)
+        val (text, action) = when {
+            translation == null -> stringResource(Res.string.translate_offer) to
+                (stringResource(Res.string.translate_action, target) to AppIntent.TranslateMessage)
+            translation.state == TranslationState.Loading -> stringResource(Res.string.translate_loading) to null
+            translation.state == TranslationState.Failed -> stringResource(Res.string.translate_failed) to
+                (stringResource(Res.string.translate_retry) to AppIntent.TranslateMessage)
+            translation.showOriginal -> stringResource(Res.string.translate_showing_original) to
+                (stringResource(Res.string.translate_show_translation) to AppIntent.ShowOriginal(false))
+            else -> stringResource(Res.string.translate_done, languageName(translation.sourceLanguage, hebrew)) to
+                (stringResource(Res.string.translate_show_original) to AppIntent.ShowOriginal(true))
+        }
+        Text(text, Modifier.weight(1f).padding(vertical = 10.dp), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        if (action != null) TextButton(onClick = { onIntent(action.second) }) { Text(action.first) }
+    }
+}
+
+/** Conversation-wide actions: every attachment in the thread, export, and translation on request. */
 @Composable
 private fun MoreActions(message: MailMessage, enabled: Boolean, onIntent: (AppIntent) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         TooltipIconButton(Icons.Outlined.MoreVert, stringResource(Res.string.reader_more), { open = true }, enabled = enabled)
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            // For a language the bar cannot tell apart (French for an English reader), or with the offer off.
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.translate_menu)) },
+                leadingIcon = { Icon(Icons.Outlined.Translate, null) },
+                onClick = {
+                    open = false
+                    onIntent(AppIntent.TranslateMessage)
+                },
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(Res.string.reader_download_thread)) },
                 leadingIcon = { Icon(Icons.Outlined.Download, null) },

@@ -1,5 +1,7 @@
 package co.abaye.mailtice.di
 
+import co.abaye.mailtice.translate.GtxTranslator
+import co.abaye.mailtice.translate.Translator
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Authorizer
 import co.abaye.mailtice.data.MailRepository
@@ -88,6 +90,10 @@ object AppBindings {
     @Provides
     @SingleIn(AppScope::class)
     fun provideGmailApi(http: HttpClient): GmailApi = GmailApi(http)
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideTranslator(http: HttpClient): Translator = GtxTranslator(http)
 
     @Provides
     @SingleIn(AppScope::class)
