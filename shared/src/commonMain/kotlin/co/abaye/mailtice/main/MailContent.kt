@@ -98,6 +98,9 @@ fun cidRefs(html: String): Set<String> = CidRef.findAll(html).map { unescapeCid(
 
 private fun unescapeCid(raw: String): String = raw.replace("%40", "@").replace("%2E", ".", ignoreCase = true).replace("&amp;", "&")
 
+/** The target attribute of a link or image-map area, whatever its quoting. */
+private val LinkTarget = Regex("(?i)(<(?:a|area)\\b[^>]*?)\\s+target\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)")
+
 private const val BASE_CSS = """
 html, body { margin: 0; padding: 0; background: #ffffff; }
 body { padding: 4px 2px 16px; color: #202124; font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
@@ -126,6 +129,9 @@ fun emailDocument(html: String, hideQuotes: Boolean, remoteImages: Boolean, inli
     val clean = withImages
         .replace(Regex("(?is)<script\\b.*?</script\\s*>"), "")
         .replace(Regex("(?is)<(iframe|object|embed)\\b.*?(</\\1\\s*>|/?>)"), "")
+        // A link with target="_blank" asks WebView2 for a new window, which bypasses the navigation
+        // check that hands links to the browser; without a target every click is a navigation.
+        .replace(LinkTarget, "$1")
     val headTag = Regex("(?i)<head\\b[^>]*>").find(clean)
     if (headTag != null) return clean.replaceRange(headTag.range.last + 1, headTag.range.last + 1, head)
     val htmlTag = Regex("(?i)<html\\b[^>]*>").find(clean)

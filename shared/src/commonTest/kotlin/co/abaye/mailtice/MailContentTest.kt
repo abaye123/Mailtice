@@ -68,4 +68,15 @@ class MailContentTest {
         assertTrue("src=\"data:image/png;base64,AAAA\"" in doc)
         assertTrue("cid:missing" in doc)
     }
+
+    @Test
+    fun linksNeverAskForANewWindow() {
+        val doc = emailDocument(
+            "<a href=\"https://x.com\" target=\"_blank\" class=\"b\">X</a><a target='_new' href='https://y.com'>Y</a><area href=\"https://z.com\" target=_blank>",
+            hideQuotes = false,
+            remoteImages = false,
+        )
+        assertFalse("target=" in doc.substringAfter("</head>"))
+        assertTrue("<a href=\"https://x.com\" class=\"b\">X</a>" in doc)
+    }
 }
