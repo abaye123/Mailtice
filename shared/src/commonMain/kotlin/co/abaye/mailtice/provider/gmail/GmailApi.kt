@@ -26,6 +26,28 @@ class GmailApi(private val http: HttpClient) {
 
     suspend fun labels(token: String): List<GmailLabel> = http.get("$BASE/labels") { bearerAuth(token) }.parsed<LabelList>().labels
 
+    suspend fun label(token: String, id: String): GmailLabel = http.get("$BASE/labels/$id") { bearerAuth(token) }.parsed()
+
+    suspend fun createLabel(token: String, label: LabelWrite): GmailLabel =
+        http.post("$BASE/labels") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(label)
+        }.parsed()
+
+    /** A full replace (PUT), so leaving the colour out removes it - PATCH cannot clear one. */
+    suspend fun updateLabel(token: String, id: String, label: LabelWrite): GmailLabel =
+        http.put("$BASE/labels/$id") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(label.copy(id = id))
+        }.parsed()
+
+    suspend fun deleteLabel(token: String, id: String) {
+        val response = http.delete("$BASE/labels/$id") { bearerAuth(token) }
+        if (!response.status.isSuccess() && response.status.value != 404) throw ProviderException.of(response.status.value, response.bodyAsText())
+    }
+
     /**
      * Ids in [labelId] (null = any label) received after [afterEpochSeconds] (null = all) and matching
      * the Gmail search [query], newest first, paged.

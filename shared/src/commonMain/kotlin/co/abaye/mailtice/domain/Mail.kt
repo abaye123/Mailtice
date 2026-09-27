@@ -59,20 +59,25 @@ data class Capabilities(
     val trash: Boolean = false,
     /** Drafts saved on the server (Gmail drafts, or an IMAP folder with the Drafts role). */
     val drafts: Boolean = false,
+    /** Create, rename and delete the account's own labels or folders. */
+    val manageLabels: Boolean = false,
+    /** Labels carry a colour the user can pick ([LabelPalette]); Gmail only. */
+    val labelColors: Boolean = false,
 ) {
-    fun encode(): String = listOf(markRead, archive, labels, openInWeb, incremental, idle, send, trash, drafts)
+    fun encode(): String = listOf(markRead, archive, labels, openInWeb, incremental, idle, send, trash, drafts, manageLabels, labelColors)
         .joinToString("") { if (it) "1" else "0" }
 
     companion object {
         val Gmail = Capabilities(
             markRead = true, archive = true, labels = true, openInWeb = true, incremental = true, send = true, trash = true, drafts = true,
+            manageLabels = true, labelColors = true,
         )
 
         /** Older snapshots have fewer digits; the missing capabilities read as false until the next refresh. */
         fun decode(raw: String): Capabilities {
             fun at(i: Int) = raw.getOrNull(i) == '1'
             if (raw.isEmpty()) return Capabilities()
-            return Capabilities(at(0), at(1), at(2), at(3), at(4), at(5), at(6), at(7), at(8))
+            return Capabilities(at(0), at(1), at(2), at(3), at(4), at(5), at(6), at(7), at(8), at(9), at(10))
         }
     }
 }
@@ -115,6 +120,36 @@ data class Folder(
     /** "#rrggbb" the provider paints the label with (Gmail); "" = no colour of its own. */
     val color: String = "",
 )
+
+/**
+ * A label colour as Gmail takes it: the API accepts only pairs from its own palette, so these are
+ * the pairs its label menu offers, background first.
+ */
+@Immutable
+data class LabelColors(val background: String, val text: String)
+
+val LabelPalette: List<LabelColors> = listOf(
+    LabelColors("#fb4c2f", "#ffffff"),
+    LabelColors("#ffad47", "#ffffff"),
+    LabelColors("#fad165", "#000000"),
+    LabelColors("#16a766", "#ffffff"),
+    LabelColors("#43d692", "#ffffff"),
+    LabelColors("#4a86e8", "#ffffff"),
+    LabelColors("#a479e2", "#ffffff"),
+    LabelColors("#f691b3", "#ffffff"),
+    LabelColors("#2da2bb", "#ffffff"),
+    LabelColors("#cc3a21", "#ffffff"),
+    LabelColors("#285bac", "#ffffff"),
+    LabelColors("#653e9b", "#ffffff"),
+    LabelColors("#999999", "#ffffff"),
+    LabelColors("#434343", "#ffffff"),
+)
+
+/**
+ * The account's own labels or folders, the ones the user may rename, colour, pin and hide. Gmail's
+ * category tabs are folders of role Other too, but they belong to Gmail.
+ */
+val Folder.isUserLabel: Boolean get() = role == FolderRole.Other && !id.startsWith("CATEGORY_")
 
 /** A row in the unified list. */
 @Immutable

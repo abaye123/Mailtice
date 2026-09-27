@@ -104,7 +104,9 @@ internal object DemoAccounts {
         ),
     )
 
-    fun imapCapabilities() = Capabilities(markRead = true, archive = true, incremental = true, idle = true, send = true, trash = true, drafts = true)
+    fun imapCapabilities() = Capabilities(
+        markRead = true, archive = true, incremental = true, idle = true, send = true, trash = true, drafts = true, manageLabels = true,
+    )
 
     /** Mail for an account id. Accounts added from the UI in demo mode get the generic mailbox. */
     fun mailFor(accountId: String): List<DemoMail> = when (accountId) {

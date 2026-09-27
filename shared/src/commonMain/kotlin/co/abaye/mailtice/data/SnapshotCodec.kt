@@ -33,6 +33,8 @@ private const val KEY_LIST_FRACTION = "listFraction"
 private const val KEY_BROWSER_PROFILE = "browserProfile"
 private const val KEY_READING_PANE = "readingPane"
 private const val KEY_HIDDEN_FOLDERS = "hiddenFolders"
+private const val KEY_PINNED_LABELS = "pinnedLabels"
+private const val KEY_COLLAPSED_ACCOUNTS = "collapsedAccounts"
 
 /** Separates the hidden folder keys; never part of a folder id (ids are label ids or IMAP names). */
 private const val LIST_SEPARATOR = '\u001F'
@@ -59,6 +61,8 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_BROWSER_PROFILE=${s.browserProfile}")
         add("$KEY_READING_PANE=${s.readingPane.name}")
         add("$KEY_HIDDEN_FOLDERS=${s.hiddenFolders.joinToString(LIST_SEPARATOR.toString())}")
+        add("$KEY_PINNED_LABELS=${s.pinnedLabels.joinToString(LIST_SEPARATOR.toString())}")
+        add("$KEY_COLLAPSED_ACCOUNTS=${s.collapsedAccounts.joinToString(LIST_SEPARATOR.toString())}")
         add("$KEY_LANGUAGE=${s.uiLanguage.code}")
         add("$KEY_LANGUAGE_AUTO=${s.uiLanguageAuto}")
         add("$KEY_POLL=${s.pollSeconds}")
@@ -77,6 +81,7 @@ fun decodeSnapshot(raw: String): AppData {
         .toMap()
 
     fun flag(key: String, fallback: Boolean) = map[key]?.toBooleanStrictOrNull() ?: fallback
+    fun list(key: String) = map[key]?.split(LIST_SEPARATOR)?.filter { it.isNotEmpty() }
 
     val defaults = UserSettings()
     val settings = UserSettings(
@@ -92,7 +97,10 @@ fun decodeSnapshot(raw: String): AppData {
         listFraction = map[KEY_LIST_FRACTION]?.toFloatOrNull()?.takeIf { it in ListFractionRange } ?: defaults.listFraction,
         browserProfile = map[KEY_BROWSER_PROFILE].orEmpty(),
         readingPane = map[KEY_READING_PANE]?.let { name -> ReadingPane.entries.firstOrNull { it.name == name } } ?: defaults.readingPane,
-        hiddenFolders = map[KEY_HIDDEN_FOLDERS]?.split(LIST_SEPARATOR)?.filter { it.isNotEmpty() }?.toSet() ?: defaults.hiddenFolders,
+        // "view:" keys hid standard folders once; those can no longer be hidden.
+        hiddenFolders = list(KEY_HIDDEN_FOLDERS)?.filterNot { it.startsWith("view:") }?.toSet() ?: defaults.hiddenFolders,
+        pinnedLabels = list(KEY_PINNED_LABELS)?.toSet() ?: defaults.pinnedLabels,
+        collapsedAccounts = list(KEY_COLLAPSED_ACCOUNTS)?.toSet() ?: defaults.collapsedAccounts,
         uiLanguage = map[KEY_LANGUAGE]?.let { UiLanguage.fromCode(it) } ?: defaults.uiLanguage,
         uiLanguageAuto = flag(KEY_LANGUAGE_AUTO, defaults.uiLanguageAuto),
         pollSeconds = map[KEY_POLL]?.toIntOrNull()?.takeIf { it in PollIntervals } ?: defaults.pollSeconds,

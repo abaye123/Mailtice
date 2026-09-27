@@ -1,5 +1,16 @@
 package co.abaye.mailtice.main
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.ui.unit.Dp
+import mailtice.shared.generated.resources.account_collapse
+import mailtice.shared.generated.resources.account_expand
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.CubicBezierEasing
@@ -27,13 +38,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuOpen
-import androidx.compose.material.icons.outlined.AllInbox
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Menu
@@ -86,16 +93,8 @@ import mailtice.shared.generated.resources.close_to_mail
 import mailtice.shared.generated.resources.compose_new
 import mailtice.shared.generated.resources.compose_new_hint
 import mailtice.shared.generated.resources.nav_accounts
-import mailtice.shared.generated.resources.nav_all_accounts
-import mailtice.shared.generated.resources.nav_folders_of
 import mailtice.shared.generated.resources.nav_manage_accounts
 import mailtice.shared.generated.resources.sidebar_collapse
-import mailtice.shared.generated.resources.sidebar_edit
-import mailtice.shared.generated.resources.sidebar_edit_done
-import mailtice.shared.generated.resources.sidebar_hide
-import mailtice.shared.generated.resources.sidebar_less
-import mailtice.shared.generated.resources.sidebar_more
-import mailtice.shared.generated.resources.sidebar_show
 import mailtice.shared.generated.resources.sidebar_expand
 import mailtice.shared.generated.resources.status_needs_reauth
 import mailtice.shared.generated.resources.status_offline
@@ -210,9 +209,11 @@ private fun BrandBar(modifier: Modifier = Modifier) {
 }
 
 /**
- * The wide layout's sidebar, after the approved design: the compose button, the unified inbox, then
- * every account on its own (its inbox alone, with its unread count), then account management,
- * settings and about. It collapses to an icon rail; every icon then names itself on hover.
+ * The wide layout's sidebar: the compose button, the standard folders across every account, then
+ * each account as a tree of its own - its standard folders, its labels (pinned first, hidden ones
+ * left out) and a row to manage them. One arrow folds an account's whole tree. Account management,
+ * settings and about sit at the foot. It collapses to an icon rail; every icon then names itself on
+ * hover.
  */
 @Composable
 private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
@@ -228,10 +229,8 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
         tween(220),
         label = "sidebar-width",
     )
-    val inInbox = selected == AppKey.Inbox || selected == AppKey.Reader
-    val filtered = state.filter.accountId
-    var moreOpen by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf(false) }
+    val inMail = selected == AppKey.Inbox || selected == AppKey.Reader
+    val filter = state.filter
     Column(
         modifier.width(width).fillMaxHeight()
             .background(if (cards) colors.surfaceContainerLow else colors.surfaceContainer)
@@ -246,143 +245,39 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
             onCompose = { onIntent(AppIntent.StartCompose(ComposeMode.New)) },
         )
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            // The standard folders, across whichever accounts are in scope below. Hidden ones (and the
-            // account's hidden labels further down) wait under "More", like Gmail's label list.
-            val customOpen = state.filter.folderId.isNotEmpty()
-            val hidden = state.data.settings.hiddenFolders
-            val scoped = state.account(filtered)
-            val custom = scoped?.let { state.customFolders(it.id) }.orEmpty()
-            val hiddenViews = state.availableViews.filter { it != MailView.Inbox && viewKey(it) in hidden }
-            val hiddenCustom = custom.filter { folderKey(it) in hidden }
-            // The open folder always shows, even when hidden, so the highlight is never lost.
-            fun showView(v: MailView) = viewKey(v) !in hidden || (!customOpen && state.filter.view == v) || editing
-            state.availableViews.filter(::showView).forEach { view ->
+            fun viewOpen(accountId: String, view: MailView) =
+                inMail && filter.accountId == accountId && filter.folderId.isEmpty() && filter.view == view
+
+            // Every account together; the standard folders are always there and cannot be hidden.
+            state.viewsFor("").forEach { view ->
                 SidebarItem(
                     label = view.label(),
-                    selected = inInbox && !customOpen && state.filter.view == view,
+                    selected = viewOpen("", view),
                     collapsed = collapsed,
-                    count = if (editing) 0 else when (view) {
-                        MailView.Inbox -> state.scopeAccounts.sumOf { state.unread[it.id] ?: 0L }.toInt()
-                        MailView.Spam -> state.unreadIn(view).toInt()
-                        MailView.Scheduled -> state.scheduled.count { filtered.isEmpty() || it.accountId == filtered }
-                        else -> 0
-                    },
+                    count = state.viewCount(view, ""),
                     leading = { tint -> Icon(view.icon(), null, tint = tint) },
-                    trailing = {
-                        if (editing && view != MailView.Inbox) {
-                            VisibilityToggle(viewKey(view) !in hidden) { shown -> onIntent(AppIntent.SetFolderHidden(viewKey(view), !shown)) }
-                        }
-                    },
-                ) {
-                    onIntent(AppIntent.Navigate(AppKey.Inbox))
-                    onIntent(AppIntent.SetView(view))
-                }
+                ) { onIntent(AppIntent.OpenView("", view)) }
             }
-            if (!collapsed) {
-                val hiddenCount = hiddenViews.size + hiddenCustom.size
-                SidebarItem(
-                    label = stringResource(
-                        when {
-                            editing -> Res.string.sidebar_edit_done
-                            moreOpen -> Res.string.sidebar_less
-                            else -> Res.string.sidebar_more
-                        },
-                    ),
-                    selected = false,
-                    collapsed = false,
-                    count = if (editing || moreOpen) 0 else hiddenCount,
-                    leading = { tint ->
-                        Icon(
-                            when {
-                                editing -> Icons.Outlined.Check
-                                moreOpen -> Icons.Outlined.ExpandLess
-                                else -> Icons.Outlined.ExpandMore
-                            },
-                            null,
-                            tint = tint,
-                        )
-                    },
-                ) {
-                    if (editing) editing = false else moreOpen = !moreOpen
-                }
-                if (moreOpen && !editing) {
-                    hiddenViews.filter { !showView(it) }.forEach { view ->
-                        SidebarItem(label = view.label(), selected = false, collapsed = false, leading = { tint -> Icon(view.icon(), null, tint = tint) }) {
-                            onIntent(AppIntent.Navigate(AppKey.Inbox))
-                            onIntent(AppIntent.SetView(view))
-                        }
-                    }
-                    hiddenCustom.forEach { folder ->
-                        SidebarItem(
-                            label = folder.name,
-                            selected = inInbox && state.filter.folderId == folder.id,
-                            collapsed = false,
-                            leading = { tint -> Icon(FolderIcon, null, tint = folder.labelColor() ?: tint) },
-                        ) {
-                            onIntent(AppIntent.Navigate(AppKey.Inbox))
-                            onIntent(AppIntent.SetFilterFolder(folder.id))
-                        }
-                    }
-                    SidebarItem(
-                        label = stringResource(Res.string.sidebar_edit),
-                        selected = false,
-                        collapsed = false,
-                        leading = { tint -> Icon(Icons.Outlined.Visibility, null, tint = tint) },
-                    ) {
-                        editing = true
-                        moreOpen = false
-                    }
-                }
-            }
-            if (state.accounts.isNotEmpty()) {
-                SidebarSection(stringResource(Res.string.nav_accounts), collapsed)
-                SidebarItem(
-                    label = stringResource(Res.string.nav_all_accounts),
-                    selected = inInbox && filtered.isEmpty(),
-                    collapsed = collapsed,
-                    count = state.unreadTotal,
-                    leading = { tint -> Icon(Icons.Outlined.AllInbox, null, tint = tint) },
-                ) {
-                    onIntent(AppIntent.Navigate(AppKey.Inbox))
-                    onIntent(AppIntent.SetFilterAccount(""))
-                }
-            }
+            if (state.accounts.isNotEmpty()) SidebarSection(stringResource(Res.string.nav_accounts), collapsed)
             state.accounts.forEach { account ->
+                val expanded = !collapsed && account.id !in state.data.settings.collapsedAccounts
                 AccountSidebarItem(
                     account = account,
                     status = state.status(account.id),
                     error = state.syncErrors[account.id],
                     unread = state.unread[account.id]?.toInt() ?: 0,
-                    selected = inInbox && filtered == account.id,
+                    // Folded, the account row stands for whatever of it is open.
+                    selected = inMail && filter.accountId == account.id && !expanded,
                     collapsed = collapsed,
+                    expanded = expanded,
+                    onToggle = { onIntent(AppIntent.ToggleAccountExpanded(account.id)) },
                 ) {
-                    onIntent(AppIntent.Navigate(AppKey.Inbox))
-                    onIntent(AppIntent.SetFilterAccount(account.id))
+                    if (!collapsed && !expanded) onIntent(AppIntent.ToggleAccountExpanded(account.id))
+                    onIntent(AppIntent.OpenView(account.id, MailView.Inbox))
                 }
-            }
-            // Labels and custom folders belong to one account, so they show once it is picked.
-            val shownCustom = custom.filter { folderKey(it) !in hidden || state.filter.folderId == it.id || editing }
-            if (scoped != null && shownCustom.isNotEmpty()) {
-                SidebarSection(stringResource(Res.string.nav_folders_of, scoped.displayName), collapsed)
-                val counts = state.unreadByFolder[scoped.id].orEmpty()
-                shownCustom.forEach { folder ->
-                    SidebarItem(
-                        label = folder.name,
-                        selected = inInbox && state.filter.folderId == folder.id,
-                        collapsed = collapsed,
-                        count = if (editing) 0 else (counts[folder.id] ?: 0L).toInt(),
-                        // The label's own colour where the provider has one (Gmail), like its web client.
-                        leading = { tint -> Icon(FolderIcon, null, tint = folder.labelColor() ?: tint) },
-                        trailing = {
-                            if (editing) {
-                                VisibilityToggle(folderKey(folder) !in hidden) { shown ->
-                                    onIntent(AppIntent.SetFolderHidden(folderKey(folder), !shown))
-                                }
-                            }
-                        },
-                    ) {
-                        onIntent(AppIntent.Navigate(AppKey.Inbox))
-                        onIntent(AppIntent.SetFilterFolder(folder.id))
+                AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        AccountTree(state, account, inMail, onIntent)
                     }
                 }
             }
@@ -416,6 +311,54 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
         }
     }
 }
+
+/** One account unfolded: its standard folders, its labels, and the row that manages them. */
+@Composable
+private fun AccountTree(state: AppState, account: Account, inMail: Boolean, onIntent: (AppIntent) -> Unit) {
+    val filter = state.filter
+    val settings = state.data.settings
+    state.viewsFor(account.id).forEach { view ->
+        SidebarItem(
+            label = view.label(),
+            selected = inMail && filter.accountId == account.id && filter.folderId.isEmpty() && filter.view == view,
+            collapsed = false,
+            count = state.viewCount(view, account.id),
+            indent = TreeIndent,
+            leading = { tint -> Icon(view.icon(), null, tint = tint) },
+        ) { onIntent(AppIntent.OpenView(account.id, view)) }
+    }
+    val counts = state.unreadByFolder[account.id].orEmpty()
+    // A hidden label stays while it is the one open, so the highlight is never lost.
+    state.sidebarLabels(account.id, withHidden = true)
+        .filter { it.key !in settings.hiddenFolders || (filter.accountId == account.id && filter.folderId == it.id) }
+        .forEach { folder ->
+            var menuOpen by remember { mutableStateOf(false) }
+            SidebarItem(
+                label = folder.name,
+                selected = inMail && filter.accountId == account.id && filter.folderId == folder.id,
+                collapsed = false,
+                count = (counts[folder.id] ?: 0L).toInt(),
+                indent = TreeIndent,
+                // The label's own colour where the provider has one (Gmail), like its web client.
+                leading = { tint -> Icon(FolderIcon, null, tint = folder.labelColor() ?: tint) },
+                hoverTrailing = {
+                    LabelControls(account, folder, pinned = folder.key in settings.pinnedLabels, onIntent = onIntent, onMenuOpen = { menuOpen = it })
+                },
+                keepHoverTrailing = menuOpen,
+            ) { onIntent(AppIntent.OpenLabel(account.id, folder.id)) }
+        }
+    SidebarItem(
+        label = account.manageLabelsTitle(),
+        selected = false,
+        collapsed = false,
+        indent = TreeIndent,
+        muted = true,
+        leading = { tint -> Icon(Icons.Outlined.Tune, null, tint = tint) },
+    ) { onIntent(AppIntent.Navigate(AppKey.Labels(account.id))) }
+}
+
+/** How far an account's folders sit in from the account row. */
+private val TreeIndent = 12.dp
 
 /**
  * The top of the sidebar: the menu button and "New email" on one row - the menu at the leading
@@ -477,22 +420,6 @@ private fun SidebarHeader(collapsed: Boolean, canCompose: Boolean, onToggle: () 
     }
 }
 
-private fun viewKey(view: MailView) = "view:${view.name}"
-
-private fun folderKey(folder: Folder) = "${folder.accountId}/${folder.id}"
-
-/** The eye in edit mode: shown in the sidebar, or tucked away under "More". */
-@Composable
-private fun VisibilityToggle(shown: Boolean, onChange: (Boolean) -> Unit) {
-    TooltipIconButton(
-        if (shown) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-        stringResource(if (shown) Res.string.sidebar_hide else Res.string.sidebar_show),
-        { onChange(!shown) },
-        modifier = Modifier.size(32.dp),
-        tint = if (shown) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
-    )
-}
-
 /** A divider with a small heading; collapsed, the divider alone. */
 @Composable
 private fun SidebarSection(title: String, collapsed: Boolean) {
@@ -518,6 +445,8 @@ private fun AccountSidebarItem(
     unread: Int,
     selected: Boolean,
     collapsed: Boolean,
+    expanded: Boolean,
+    onToggle: () -> Unit,
     onClick: () -> Unit,
 ) {
     val problem = when (status) {
@@ -533,12 +462,23 @@ private fun AccountSidebarItem(
             label = account.displayName,
             selected = selected,
             collapsed = collapsed,
-            count = unread,
+            // Unfolded, the inbox row under it carries the count.
+            count = if (expanded) 0 else unread,
             leading = { AccountAvatar(account, size = 28.dp) },
             trailing = {
                 if (problem != null) {
                     Icon(Icons.Outlined.ErrorOutline, problem, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
                 }
+            },
+            end = {
+                // One arrow folds or unfolds everything the account shows.
+                TooltipIconButton(
+                    if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                    stringResource(if (expanded) Res.string.account_collapse else Res.string.account_expand),
+                    onToggle,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             },
             // Collapsed, the tooltip above already names the account.
             tooltip = false,
@@ -547,14 +487,23 @@ private fun AccountSidebarItem(
     }
 }
 
+/**
+ * A sidebar row. [hoverTrailing] takes the place of the count while the pointer is over the row
+ * (or while [keepHoverTrailing], say with its menu open); [end] is always at the far end.
+ */
 @Composable
 private fun SidebarItem(
     label: String,
     selected: Boolean,
     collapsed: Boolean,
     count: Int = 0,
+    indent: Dp = 0.dp,
+    muted: Boolean = false,
     leading: @Composable (tint: Color) -> Unit,
     trailing: @Composable () -> Unit = {},
+    hoverTrailing: (@Composable () -> Unit)? = null,
+    keepHoverTrailing: Boolean = false,
+    end: (@Composable () -> Unit)? = null,
     tooltip: Boolean = true,
     onClick: () -> Unit,
 ) {
@@ -589,9 +538,16 @@ private fun SidebarItem(
         if (tooltip) Tooltip(if (count > 0) "$label ($countText)" else label) { item() } else item()
         return
     }
+    // Rows inside an account's tree are a step shorter, so a few unfolded accounts still fit.
+    val rowHeight = if (indent > 0.dp) (height - 8.dp).coerceAtLeast(32.dp) else height
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    val showHover = hoverTrailing != null && (hovered || keepHoverTrailing)
     Row(
-        Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(height / 2)).background(background)
-            .clickable(onClick = onClick).padding(horizontal = 16.dp),
+        Modifier.fillMaxWidth().padding(start = indent).height(rowHeight).clip(RoundedCornerShape(rowHeight / 2)).background(background)
+            .hoverable(interaction)
+            .clickable(interactionSource = interaction, indication = LocalIndication.current, onClick = onClick)
+            .padding(start = 16.dp, end = if (showHover || end != null) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -601,12 +557,21 @@ private fun SidebarItem(
             Modifier.weight(1f),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (selected || count > 0) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (selected) foreground else colors.onSurface,
+            color = when {
+                selected -> foreground
+                muted -> colors.onSurfaceVariant
+                else -> colors.onSurface
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         trailing()
-        if (count > 0) Text(countText, style = MaterialTheme.typography.labelLarge, color = foreground)
+        if (showHover) {
+            hoverTrailing()
+        } else if (count > 0) {
+            Text(countText, style = MaterialTheme.typography.labelLarge, color = foreground)
+        }
+        end?.invoke()
     }
 }
 

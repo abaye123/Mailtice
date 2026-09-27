@@ -255,8 +255,6 @@
     <string name="view_archive">ארכיון</string>
     <string name="view_spam">ספאם</string>
     <string name="view_trash">אשפה</string>
-    <string name="nav_all_accounts">כל החשבונות</string>
-    <string name="nav_folders_of">תיקיות ב-%1$s</string>
 
     <!-- Sign-in dialog, close button -->
     <string name="close_to_mail">חזרה לדואר</string>
@@ -347,12 +345,6 @@
     <string name="message_attachments_too_large">הקבצים גדולים מדי: עד 25MB להודעה.</string>
 
     <!-- Folder visibility, reading pane -->
-    <string name="sidebar_more">עוד</string>
-    <string name="sidebar_less">פחות</string>
-    <string name="sidebar_edit">הצגה והסתרה של תיקיות</string>
-    <string name="sidebar_edit_done">סיום</string>
-    <string name="sidebar_hide">הסתרה מהרשימה</string>
-    <string name="sidebar_show">הצגה ברשימה</string>
     <string name="settings_reading_pane">חלונית קריאה</string>
     <string name="settings_reading_pane_desc">לצד הרשימה, או ללא: הודעה שנפתחת תופסת את מקום הרשימה.</string>
     <string name="reading_split">לצד הרשימה</string>
@@ -380,4 +372,33 @@
     <string name="city_eilat">אילת</string>
     <string name="city_new_york">ניו יורק</string>
     <string name="city_london">לונדון</string>
+    <string name="labels_manage">ניהול תגיות</string>
+    <string name="folders_manage">ניהול תיקיות</string>
+    <string name="labels_new">תגית חדשה</string>
+    <string name="folders_new">תיקייה חדשה</string>
+    <string name="label_pin">הצמדה למעלה</string>
+    <string name="label_unpin">ביטול הצמדה</string>
+    <string name="label_more">אפשרויות נוספות</string>
+    <string name="label_edit">עריכה</string>
+    <string name="label_hide">הסתרה מסרגל הצד</string>
+    <string name="label_show">הצגה בסרגל הצד</string>
+    <string name="label_delete">מחיקה</string>
+    <string name="label_name">שם</string>
+    <string name="label_color">צבע</string>
+    <string name="label_no_color">ללא צבע</string>
+    <string name="label_save">שמירה</string>
+    <string name="label_edit_title">עריכת תגית</string>
+    <string name="folder_edit_title">עריכת תיקייה</string>
+    <string name="label_delete_title">למחוק את התגית \"%1$s\"?</string>
+    <string name="label_delete_body">המיילים יישארו בתיבה, רק התגית תוסר מהם.</string>
+    <string name="folder_delete_title">למחוק את התיקייה \"%1$s\"?</string>
+    <string name="folder_delete_body">התיקייה והמיילים שבה יימחקו מהשרת.</string>
+    <string name="labels_section_pinned">מוצמדות</string>
+    <string name="labels_section_shown">בסרגל הצד</string>
+    <string name="labels_section_hidden">מוסתרות</string>
+    <string name="labels_empty">אין עדיין תגיות.</string>
+    <string name="folders_empty">אין עדיין תיקיות משלך.</string>
+    <string name="labels_hint">המוצמדות מופיעות ראשונות בסרגל הצד, והמוסתרות מופיעות רק כאן.</string>
+    <string name="account_expand">הצגת התיקיות</string>
+    <string name="account_collapse">כיווץ התיקיות</string>
 </resources>

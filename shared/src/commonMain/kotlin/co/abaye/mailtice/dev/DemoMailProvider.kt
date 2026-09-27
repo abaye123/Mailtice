@@ -1,5 +1,7 @@
 package co.abaye.mailtice.dev
 
+import co.abaye.mailtice.domain.FolderRole
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
@@ -47,8 +49,36 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
     override suspend fun capabilities(account: Account): Capabilities =
         if (account.kind == ProviderKind.Gmail) Capabilities.Gmail else DemoAccounts.imapCapabilities()
 
-    override suspend fun listFolders(account: Account): List<RemoteFolder> =
-        DemoFolders.of(account.kind).map { RemoteFolder(folderId(account, it.key), it.name, it.role, it.color) }
+    override suspend fun listFolders(account: Account): List<RemoteFolder> = mutex.withLock { foldersOf(account).toList() }
+
+    /** The fixture's folders, then whatever the user created, renamed or deleted in this session. */
+    private val folders = mutableMapOf<String, MutableList<RemoteFolder>>()
+
+    private fun foldersOf(account: Account): MutableList<RemoteFolder> = folders.getOrPut(account.id) {
+        DemoFolders.of(account.kind).map { RemoteFolder(folderId(account, it.key), it.name, it.role, it.color) }.toMutableList()
+    }
+
+    override suspend fun createLabel(account: Account, name: String, color: LabelColors?) {
+        mutex.withLock {
+            val list = foldersOf(account)
+            val id = if (account.kind == ProviderKind.Gmail) "Label_${list.size + 1}" else name
+            list += RemoteFolder(id, name, FolderRole.Other, color?.background.orEmpty())
+        }
+    }
+
+    override suspend fun updateLabel(account: Account, id: String, name: String, color: LabelColors?): String = mutex.withLock {
+        val list = foldersOf(account)
+        val i = list.indexOfFirst { it.id == id }
+        check(i >= 0) { "No such label" }
+        // Like IMAP, a demo folder of a non-Gmail account is known by its name.
+        val newId = if (account.kind == ProviderKind.Gmail) id else name
+        list[i] = list[i].copy(id = newId, name = name, color = color?.background.orEmpty())
+        newId
+    }
+
+    override suspend fun deleteLabel(account: Account, id: String) {
+        mutex.withLock { foldersOf(account).removeAll { it.id == id } }
+    }
 
     override suspend fun sync(account: Account, folders: List<Folder>, sinceMillis: Long?, knownIds: Set<String>): SyncBatch {
         delay(SYNC_LATENCY_MS)

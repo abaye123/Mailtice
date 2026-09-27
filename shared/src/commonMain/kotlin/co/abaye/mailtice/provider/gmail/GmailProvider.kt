@@ -6,6 +6,7 @@ import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
@@ -60,6 +61,31 @@ class GmailProvider(
             .filter { it.id !in HIDDEN_LABELS }
             .map { RemoteFolder(it.id, friendlyName(it), roleOf(it.id), it.color?.backgroundColor.orEmpty()) }
     }
+
+    override suspend fun createLabel(account: Account, name: String, color: LabelColors?) {
+        withToken(account) { token -> api.createLabel(token, LabelWrite(name, color?.toGmail())) }
+    }
+
+    override suspend fun updateLabel(account: Account, id: String, name: String, color: LabelColors?): String = withToken(account) { token ->
+        // Keep how Gmail shows the label in its own lists; only the name and colour change here.
+        val current = api.label(token, id)
+        api.updateLabel(
+            token,
+            id,
+            LabelWrite(
+                name = name,
+                color = color?.toGmail(),
+                labelListVisibility = current.labelListVisibility ?: "labelShow",
+                messageListVisibility = current.messageListVisibility ?: "show",
+            ),
+        ).id
+    }
+
+    override suspend fun deleteLabel(account: Account, id: String) {
+        withToken(account) { token -> api.deleteLabel(token, id) }
+    }
+
+    private fun LabelColors.toGmail() = LabelColor(textColor = text, backgroundColor = background)
 
     override suspend fun sync(account: Account, folders: List<Folder>, sinceMillis: Long?, knownIds: Set<String>): SyncBatch =
         withToken(account) { token ->

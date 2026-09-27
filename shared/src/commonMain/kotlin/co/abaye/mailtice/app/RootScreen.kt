@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.main.LabelsScreen
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -88,6 +89,7 @@ private fun AppNavDisplay(backStack: NavBackStack<AppKey>, state: AppState, onIn
             entry<AppKey.Settings> { SettingsScreen(state, onIntent) }
             entry<AppKey.About> { AboutScreen() }
             entry<AppKey.AccountDetail> { key -> AccountDetailScreen(key.accountId, state, onIntent) }
+            entry<AppKey.Labels> { key -> LabelsScreen(key.accountId, state, onIntent) }
             entry<AppKey.Reader> { ReaderScreen(state, onIntent) }
         },
     )

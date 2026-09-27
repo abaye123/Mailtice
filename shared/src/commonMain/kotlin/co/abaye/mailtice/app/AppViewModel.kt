@@ -402,6 +402,38 @@ class AppViewModel(
             is AppIntent.SetFolderHidden -> settings {
                 it.copy(hiddenFolders = if (intent.hidden) it.hiddenFolders + intent.key else it.hiddenFolders - intent.key)
             }
+            is AppIntent.SetLabelPinned -> settings {
+                it.copy(pinnedLabels = if (intent.pinned) it.pinnedLabels + intent.key else it.pinnedLabels - intent.key)
+            }
+            is AppIntent.ToggleAccountExpanded -> settings {
+                val folded = intent.accountId in it.collapsedAccounts
+                it.copy(collapsedAccounts = if (folded) it.collapsedAccounts - intent.accountId else it.collapsedAccounts + intent.accountId)
+            }
+            is AppIntent.OpenView -> {
+                navigateToMail()
+                mutate {
+                    it.copy(filter = it.filter.copy(accountId = intent.accountId, view = intent.view, folderId = ""), selection = emptySet())
+                }
+                ensureSynced()
+            }
+            is AppIntent.OpenLabel -> {
+                navigateToMail()
+                mutate {
+                    it.copy(filter = it.filter.copy(accountId = intent.accountId, folderId = intent.folderId), selection = emptySet())
+                }
+                ensureSynced()
+            }
+            is AppIntent.CreateLabel -> labelAction(intent.accountId) { account ->
+                sync.createLabel(account, intent.name.trim(), intent.color)
+            }
+            is AppIntent.UpdateLabel -> labelAction(intent.accountId) { account ->
+                val newId = sync.updateLabel(account, intent.folderId, intent.name.trim(), intent.color)
+                if (newId != intent.folderId) moveLabelKeys(account.id, intent.folderId, newId)
+            }
+            is AppIntent.DeleteLabel -> labelAction(intent.accountId) { account ->
+                sync.deleteLabel(account, intent.folderId)
+                moveLabelKeys(account.id, intent.folderId, null)
+            }
             is AppIntent.SetUiLanguage -> settings {
                 it.copy(uiLanguage = intent.language ?: systemUiLanguage(), uiLanguageAuto = intent.language == null)
             }
@@ -1404,6 +1436,38 @@ class AppViewModel(
             navigate(AppKey.Inbox)
             refreshStorage()
         }
+    }
+
+    // ---- labels -----------------------------------------------------------------------------
+
+    private fun labelAction(accountId: String, block: suspend (Account) -> Unit) {
+        val account = _state.value.account(accountId) ?: return
+        if (!account.capabilities.manageLabels) return
+        background { block(account) }
+    }
+
+    /**
+     * A label's id changed (an IMAP rename) or it is gone ([newId] null): its pin and hidden marks
+     * follow it, and a list showing it moves along or falls back to the inbox.
+     */
+    private fun moveLabelKeys(accountId: String, oldId: String, newId: String?) {
+        val old = "$accountId/$oldId"
+        val new = newId?.let { "$accountId/$it" }
+        fun Set<String>.moved() = if (old in this) (this - old) + listOfNotNull(new) else this
+        settings { it.copy(hiddenFolders = it.hiddenFolders.moved(), pinnedLabels = it.pinnedLabels.moved()) }
+        mutate {
+            if (it.filter.accountId != accountId || it.filter.folderId != oldId) {
+                it
+            } else {
+                it.copy(filter = it.filter.copy(folderId = newId.orEmpty(), view = if (newId == null) MailView.Inbox else it.filter.view))
+            }
+        }
+    }
+
+    /** Folders open over the mail list; picking one from a settings page goes back to the mail. */
+    private fun navigateToMail() {
+        val top = backStack.lastOrNull()
+        if (top != AppKey.Inbox && top != AppKey.Reader) onIntent(AppIntent.Navigate(AppKey.Inbox))
     }
 
     // ---- plumbing ---------------------------------------------------------------------------

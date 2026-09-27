@@ -255,8 +255,6 @@
     <string name="view_archive">Archive</string>
     <string name="view_spam">Spam</string>
     <string name="view_trash">Trash</string>
-    <string name="nav_all_accounts">All accounts</string>
-    <string name="nav_folders_of">Folders in %1$s</string>
 
     <!-- Sign-in dialog, close button -->
     <string name="close_to_mail">Back to mail</string>
@@ -347,12 +345,6 @@
     <string name="message_attachments_too_large">The files are too large: up to 25 MB per message.</string>
 
     <!-- Folder visibility, reading pane -->
-    <string name="sidebar_more">More</string>
-    <string name="sidebar_less">Less</string>
-    <string name="sidebar_edit">Show or hide folders</string>
-    <string name="sidebar_edit_done">Done</string>
-    <string name="sidebar_hide">Hide from the list</string>
-    <string name="sidebar_show">Show in the list</string>
     <string name="settings_reading_pane">Reading pane</string>
     <string name="settings_reading_pane_desc">Next to the list, or none: an opened message replaces the list.</string>
     <string name="reading_split">Next to the list</string>
@@ -380,4 +372,33 @@
     <string name="city_eilat">Eilat</string>
     <string name="city_new_york">New York</string>
     <string name="city_london">London</string>
+    <string name="labels_manage">Manage labels</string>
+    <string name="folders_manage">Manage folders</string>
+    <string name="labels_new">New label</string>
+    <string name="folders_new">New folder</string>
+    <string name="label_pin">Pin to the top</string>
+    <string name="label_unpin">Unpin</string>
+    <string name="label_more">More options</string>
+    <string name="label_edit">Edit</string>
+    <string name="label_hide">Hide from the sidebar</string>
+    <string name="label_show">Show in the sidebar</string>
+    <string name="label_delete">Delete</string>
+    <string name="label_name">Name</string>
+    <string name="label_color">Colour</string>
+    <string name="label_no_color">No colour</string>
+    <string name="label_save">Save</string>
+    <string name="label_edit_title">Edit label</string>
+    <string name="folder_edit_title">Edit folder</string>
+    <string name="label_delete_title">Delete the label \"%1$s\"?</string>
+    <string name="label_delete_body">The messages stay in the mailbox; only the label is taken off them.</string>
+    <string name="folder_delete_title">Delete the folder \"%1$s\"?</string>
+    <string name="folder_delete_body">The folder and the messages in it are deleted from the server.</string>
+    <string name="labels_section_pinned">Pinned</string>
+    <string name="labels_section_shown">In the sidebar</string>
+    <string name="labels_section_hidden">Hidden</string>
+    <string name="labels_empty">No labels yet.</string>
+    <string name="folders_empty">No folders of your own yet.</string>
+    <string name="labels_hint">Pinned ones come first in the sidebar; hidden ones appear only here.</string>
+    <string name="account_expand">Show folders</string>
+    <string name="account_collapse">Fold folders</string>
 </resources>

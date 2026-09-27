@@ -103,10 +103,14 @@ data class UserSettings(
     val listFraction: Float = 0.42f,
     val readingPane: ReadingPane = ReadingPane.Split,
     /**
-     * Sidebar entries the user hid (they move under "More"): "view:<MailView>" for a standard folder,
-     * "<accountId>/<folderId>" for a label or custom folder.
+     * Labels and custom folders the user hid from the sidebar, as "<accountId>/<folderId>"; they
+     * stay reachable from the account's label management. The standard folders cannot be hidden.
      */
     val hiddenFolders: Set<String> = emptySet(),
+    /** Labels pinned to the top of their account's list, same keys as [hiddenFolders]. */
+    val pinnedLabels: Set<String> = emptySet(),
+    /** Accounts whose folder tree is folded in the sidebar. */
+    val collapsedAccounts: Set<String> = emptySet(),
     /** The browser profile picked for the last sign-in ([co.abaye.mailtice.auth.BrowserProfile.key]), "" = default browser. */
     val browserProfile: String = "",
     val uiLanguage: UiLanguage = UiLanguage.Hebrew,

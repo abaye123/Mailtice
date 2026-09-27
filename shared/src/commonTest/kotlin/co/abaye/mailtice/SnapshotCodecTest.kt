@@ -25,10 +25,17 @@ class SnapshotCodecTest {
             UserSettings(
                 theme = ThemeMode.Dark, accent = AccentColor.Teal, density = ListDensity.Spacious, font = AppFont.Heebo, paneStyle = PaneStyle.Lines,
                 uiLanguage = UiLanguage.English, pollSeconds = 120,
-                readingPane = ReadingPane.Off, hiddenFolders = setOf("view:Spam", "acc-1/Label_7"),
+                readingPane = ReadingPane.Off, hiddenFolders = setOf("acc-1/Label_7"),
+                pinnedLabels = setOf("acc-1/Label_3", "acc-2/Receipts"), collapsedAccounts = setOf("acc-2"),
             ),
         )
         assertEquals(data, decodeSnapshot(encodeSnapshot(data)))
+    }
+
+    @Test
+    fun standardFoldersCanNoLongerBeHidden() {
+        val data = decodeSnapshot("hiddenFolders=view:Spamacc-1/Label_7")
+        assertEquals(setOf("acc-1/Label_7"), data.settings.hiddenFolders)
     }
 
     @Test
@@ -39,7 +46,7 @@ class SnapshotCodecTest {
 
     @Test
     fun capabilitiesRoundTrip() {
-        val caps = Capabilities(markRead = true, archive = false, labels = true, openInWeb = false, incremental = true, idle = true)
+        val caps = Capabilities(markRead = true, archive = false, labels = true, openInWeb = false, incremental = true, idle = true, labelColors = true)
         assertEquals(caps, Capabilities.decode(caps.encode()))
         assertEquals(Capabilities(), Capabilities.decode(""))
     }

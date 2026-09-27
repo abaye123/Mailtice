@@ -11,7 +11,24 @@ data class GmailProfile(val emailAddress: String, val historyId: String = "")
 data class LabelColor(val textColor: String = "", val backgroundColor: String = "")
 
 @Serializable
-data class GmailLabel(val id: String, val name: String, val type: String = "user", val color: LabelColor? = null)
+data class GmailLabel(
+    val id: String,
+    val name: String,
+    val type: String = "user",
+    val color: LabelColor? = null,
+    val labelListVisibility: String? = null,
+    val messageListVisibility: String? = null,
+)
+
+/** The body of labels.create and labels.update; a missing colour clears it on update. */
+@Serializable
+data class LabelWrite(
+    val name: String,
+    val color: LabelColor? = null,
+    val labelListVisibility: String = "labelShow",
+    val messageListVisibility: String = "show",
+    val id: String? = null,
+)
 
 @Serializable
 data class LabelList(val labels: List<GmailLabel> = emptyList())

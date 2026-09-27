@@ -1,5 +1,6 @@
 package co.abaye.mailtice.sync
 
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.auth.ReauthRequiredException
 import co.abaye.mailtice.data.MailRepository
 import co.abaye.mailtice.domain.Account
@@ -295,6 +296,23 @@ class SyncEngine(
         // Older mail looked at from the server has no stored row, so its body is not stored either.
         if (repo.message(message.accountId, message.id) != null) repo.saveBody(message.accountId, message.id, body)
         return body
+    }
+
+    /** Label management: the change goes to the server, then the folder list is read back. */
+    suspend fun createLabel(account: Account, name: String, color: LabelColors?) {
+        providers.forAccount(account).createLabel(account, name, color)
+        refreshFolders(account)
+    }
+
+    suspend fun updateLabel(account: Account, id: String, name: String, color: LabelColors?): String {
+        val newId = providers.forAccount(account).updateLabel(account, id, name, color)
+        refreshFolders(account)
+        return newId
+    }
+
+    suspend fun deleteLabel(account: Account, id: String) {
+        providers.forAccount(account).deleteLabel(account, id)
+        refreshFolders(account)
     }
 
     /** Re-reads the folder list now (account details screen). */

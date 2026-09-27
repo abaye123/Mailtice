@@ -3,6 +3,7 @@ package co.abaye.mailtice.provider
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
@@ -160,6 +161,20 @@ interface MailProvider {
 
     /** Releases connections held for [account]. */
     suspend fun close(account: Account) = Unit
+
+    /** A new label (Gmail) or folder (IMAP) named [name]. Only when [Capabilities.manageLabels]. */
+    suspend fun createLabel(account: Account, name: String, color: LabelColors?): Unit =
+        throw UnsupportedOperationException("Labels cannot be managed here")
+
+    /**
+     * Renames and recolours label [id] ([color] null = no colour). Returns its id afterwards, which
+     * changes with the name on IMAP, where the folder's name is its id.
+     */
+    suspend fun updateLabel(account: Account, id: String, name: String, color: LabelColors?): String =
+        throw UnsupportedOperationException("Labels cannot be managed here")
+
+    /** Deletes label [id]. On Gmail the messages stay; on IMAP the folder goes with its mail. */
+    suspend fun deleteLabel(account: Account, id: String): Unit = throw UnsupportedOperationException("Labels cannot be managed here")
 }
 
 /** Transport failures, split by what the caller should do about them. */

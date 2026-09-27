@@ -1,5 +1,7 @@
 package co.abaye.mailtice.app
 
+import mailtice.shared.generated.resources.labels_manage
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Info
@@ -26,6 +28,9 @@ sealed interface AppKey : NavKey {
     /** Per-account settings: folders, retention, storage. */
     data class AccountDetail(val accountId: String) : AppKey
 
+    /** One account's labels or folders: pin, hide, rename, colour, create and delete. */
+    data class Labels(val accountId: String) : AppKey
+
     /** The reader as its own page, on narrow (phone) layouts only. */
     data object Reader : AppKey
 }
@@ -46,6 +51,7 @@ fun AppKey.label(): String = when (this) {
     AppKey.Settings -> stringResource(Res.string.nav_settings)
     AppKey.About -> stringResource(Res.string.nav_about)
     is AppKey.AccountDetail -> stringResource(Res.string.nav_accounts)
+    is AppKey.Labels -> stringResource(Res.string.labels_manage)
     AppKey.Reader -> stringResource(Res.string.nav_inbox)
 }
 
@@ -55,5 +61,6 @@ fun AppKey.icon(): ImageVector = when (this) {
     AppKey.Settings -> Icons.Outlined.Settings
     AppKey.About -> Icons.Outlined.Info
     is AppKey.AccountDetail -> Icons.Outlined.ManageAccounts
+    is AppKey.Labels -> Icons.AutoMirrored.Outlined.Label
     AppKey.Reader -> Icons.Outlined.Inbox
 }

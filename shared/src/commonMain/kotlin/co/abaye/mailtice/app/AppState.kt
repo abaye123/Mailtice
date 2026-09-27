@@ -233,13 +233,31 @@ data class AppState(
     val scopeAccounts: List<Account> get() = if (filter.accountId.isEmpty()) accounts else accounts.filter { it.id == filter.accountId }
 
     /** Views some account in scope actually has a folder for (Inbox and Starred always). */
-    val availableViews: List<MailView> get() {
-        val roles = scopeAccounts.flatMap { foldersOf(it.id) }.map { it.role }.toSet()
+    val availableViews: List<MailView> get() = viewsFor(filter.accountId)
+
+    /** The standard folders [accountId] ("" = any account) has. */
+    fun viewsFor(accountId: String): List<MailView> {
+        val accounts = if (accountId.isEmpty()) accounts else accounts.filter { it.id == accountId }
+        val roles = accounts.flatMap { foldersOf(it.id) }.map { it.role }.toSet()
         return MailView.entries.filter {
             when (it) {
-                MailView.Scheduled -> scheduled.any { s -> filter.accountId.isEmpty() || s.accountId == filter.accountId }
+                MailView.Scheduled -> scheduled.any { s -> accountId.isEmpty() || s.accountId == accountId }
                 else -> it.role == null || it.role == FolderRole.Inbox || it.role in roles
             }
+        }
+    }
+
+    /** The count a standard folder shows in the sidebar for [accountId] ("" = every account). */
+    fun viewCount(view: MailView, accountId: String): Int {
+        val accounts = if (accountId.isEmpty()) accounts else accounts.filter { it.id == accountId }
+        return when (view) {
+            MailView.Inbox -> accounts.sumOf { unread[it.id] ?: 0L }.toInt()
+            MailView.Spam -> accounts.sumOf { account ->
+                val counts = unreadByFolder[account.id].orEmpty()
+                foldersOf(account.id).filter { it.role == FolderRole.Spam }.sumOf { counts[it.id] ?: 0L }
+            }.toInt()
+            MailView.Scheduled -> scheduled.count { accountId.isEmpty() || it.accountId == accountId }
+            else -> 0
         }
     }
 

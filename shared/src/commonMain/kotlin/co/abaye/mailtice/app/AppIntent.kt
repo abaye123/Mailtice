@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.ListDensity
@@ -121,6 +122,19 @@ sealed interface AppIntent {
 
     /** Shows or hides a sidebar entry (see [co.abaye.mailtice.domain.UserSettings.hiddenFolders]). */
     data class SetFolderHidden(val key: String, val hidden: Boolean) : AppIntent
+    data class SetLabelPinned(val key: String, val pinned: Boolean) : AppIntent
+
+    /** Folds or unfolds an account's folder tree in the sidebar. */
+    data class ToggleAccountExpanded(val accountId: String) : AppIntent
+
+    /** Opens a standard folder of one account ("" = every account). */
+    data class OpenView(val accountId: String, val view: MailView) : AppIntent
+
+    /** Opens one account's label or custom folder. */
+    data class OpenLabel(val accountId: String, val folderId: String) : AppIntent
+    data class CreateLabel(val accountId: String, val name: String, val color: LabelColors?) : AppIntent
+    data class UpdateLabel(val accountId: String, val folderId: String, val name: String, val color: LabelColors?) : AppIntent
+    data class DeleteLabel(val accountId: String, val folderId: String) : AppIntent
 
     /** `null` follows the OS language. */
     data class SetUiLanguage(val language: UiLanguage?) : AppIntent

@@ -7,6 +7,7 @@ import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ImapServer
@@ -335,6 +336,31 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         return handle
     }
 
+    override suspend fun createLabel(account: Account, name: String, color: LabelColors?) {
+        withStore(account) { store ->
+            val folder = store.getFolder(name)
+            if (!folder.exists()) check(folder.create(JFolder.HOLDS_MESSAGES)) { "The server refused to create the folder" }
+        }
+    }
+
+    override suspend fun updateLabel(account: Account, id: String, name: String, color: LabelColors?): String {
+        if (name == id) return id
+        return withStore(account) { store ->
+            val folder = store.getFolder(id)
+            if (folder.isOpen) runCatching { folder.close(false) }
+            check(folder.renameTo(store.getFolder(name))) { "The server refused to rename the folder" }
+            name
+        }
+    }
+
+    override suspend fun deleteLabel(account: Account, id: String) {
+        withStore(account) { store ->
+            val folder = store.getFolder(id)
+            if (folder.isOpen) runCatching { folder.close(false) }
+            if (folder.exists()) check(folder.delete(true)) { "The server refused to delete the folder" }
+        }
+    }
+
     override suspend fun deleteDraft(account: Account, handle: String) {
         val folderName = handle.substringBeforeLast('/')
         val uid = handle.substringAfterLast('/').toLongOrNull() ?: return
@@ -618,6 +644,7 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         trash = folders.any { it.role == FolderRole.Trash },
         drafts = folders.any { it.role == FolderRole.Drafts },
         labels = false,
+        manageLabels = true,
         openInWeb = false,
         incremental = store.hasCapability("CONDSTORE"),
         idle = store.hasCapability("IDLE"),
