@@ -28,7 +28,7 @@
     <string name="status_idle">Waiting</string>
     <string name="status_syncing">Syncing…</string>
     <string name="status_ok">Up to date</string>
-    <string name="status_offline">Can\'t reach Gmail, retrying</string>
+    <string name="status_offline">No connection to the mail server, retrying</string>
     <string name="status_needs_reauth">Sign-in expired</string>
 
     <string name="notif_open">Open</string>

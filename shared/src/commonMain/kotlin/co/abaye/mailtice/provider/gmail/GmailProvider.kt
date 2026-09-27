@@ -1,5 +1,8 @@
 package co.abaye.mailtice.provider.gmail
 
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.io.IOException
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Credential
 import co.abaye.mailtice.domain.Account
@@ -38,13 +41,16 @@ private const val FETCH_PARALLELISM = 6
 private const val JSON_SEND_LIMIT = 3_500_000
 
 /** Metadata is small, so more of it can be in flight at once. */
-private const val METADATA_PARALLELISM = 10
+// Each metadata read costs 5 of Gmail's 250 quota units per second; 5 at a time stays under it.
+private const val METADATA_PARALLELISM = 5
 
 /** Messages stored per round of a first sync; the rest follow in the next rounds. */
 private const val FULL_SYNC_PAGE = 300
 
 /** Attempts per request on a rate limit (429) or a Gmail server error before the round gives up. */
-private const val TRANSIENT_RETRIES = 4
+private const val TRANSIENT_RETRIES = 6
+private const val LISTING_TTL_MS = 10 * 60_000L
+private const val DAY_SECONDS_MS = 86_400_000L
 
 /** Labels that are states, not places - never offered as folders. */
 private val HIDDEN_LABELS = setOf("UNREAD", "STARRED", "IMPORTANT", "CHAT")
@@ -110,16 +116,12 @@ class GmailProvider(
      * is saved with the last page, which ends the first sync.
      */
     private suspend fun fullSync(token: String, account: Account, folders: List<Folder>, since: Long?, known: Set<String>): SyncBatch {
-        val profile = retrying { api.profile(token) }
-        val after = since?.let { it / 1000 }
-        val membership = linkedMapOf<String, MutableSet<String>>()
-        folders.sortedBy { if (it.role == FolderRole.Inbox) 0 else 1 }.forEach { folder ->
-            retrying { api.messageIds(token, folder.id, after) }.forEach { ref -> membership.getOrPut(ref.id) { mutableSetOf() } += folder.id }
-        }
-        val unread = retrying { api.messageIds(token, LABEL_UNREAD, after) }.map { it.id }.toSet()
-        val starred = retrying { api.messageIds(token, LABEL_STARRED, after) }.map { it.id }.toSet()
-        // Metadata carries no MIME parts, so which messages have files comes from a search.
-        val withFiles = retrying { api.messageIds(token, null, after, query = "has:attachment") }.map { it.id }.toSet()
+        val listing = firstSyncListing(token, account, folders, since)
+        val profile = listing.profile
+        val membership = listing.membership
+        val unread = listing.unread
+        val starred = listing.starred
+        val withFiles = listing.withFiles
 
         val fresh = membership.keys.filter { it !in known }
         val page = fresh.take(FULL_SYNC_PAGE)
@@ -129,6 +131,7 @@ class GmailProvider(
         }
         val existing = membership.keys.filter { it in known }
         if (more) println("Gmail: first sync stored ${known.size + newMessages.size} of ${membership.size}, continuing")
+        if (!more) listingsLock.withLock { listings.remove(account.id) }
         return SyncBatch(
             newMessages = newMessages,
             flagChanges = existing.map { FlagChange(it, unread = it in unread, flagged = it in starred) },
@@ -139,6 +142,43 @@ class GmailProvider(
             more = more,
         )
     }
+
+    /**
+     * What the synced labels hold, listed once for the whole first sync rather than again for every
+     * page: on a big mailbox with many labels that listing alone is dozens of requests, and doing it
+     * per page is what ran into Gmail's rate limit. Kept for a few minutes, keyed by the folders and
+     * window it was made for; the history cursor catches anything that changed meanwhile.
+     */
+    private suspend fun firstSyncListing(token: String, account: Account, folders: List<Folder>, since: Long?): FirstSyncListing {
+        val key = folders.map { it.id }.sorted().joinToString(",") + "|" + since?.let { it / DAY_SECONDS_MS }
+        listingsLock.withLock { listings[account.id] }?.takeIf { it.key == key && Platform.now() - it.madeAt < LISTING_TTL_MS }?.let { return it }
+        // The cursor comes from before the listing, so nothing that lands during the pages is lost.
+        val profile = retrying { api.profile(token) }
+        val after = since?.let { it / 1000 }
+        val membership = linkedMapOf<String, MutableSet<String>>()
+        folders.sortedBy { if (it.role == FolderRole.Inbox) 0 else 1 }.forEach { folder ->
+            retrying { api.messageIds(token, folder.id, after) }.forEach { ref -> membership.getOrPut(ref.id) { mutableSetOf() } += folder.id }
+        }
+        val unread = retrying { api.messageIds(token, LABEL_UNREAD, after) }.map { it.id }.toSet()
+        val starred = retrying { api.messageIds(token, LABEL_STARRED, after) }.map { it.id }.toSet()
+        // Metadata carries no MIME parts, so which messages have files comes from a search.
+        val withFiles = retrying { api.messageIds(token, null, after, query = "has:attachment") }.map { it.id }.toSet()
+        return FirstSyncListing(key, Platform.now(), profile, membership, unread, starred, withFiles).also { listingsLock.withLock { listings[account.id] = it } }
+    }
+
+    private class FirstSyncListing(
+        val key: String,
+        val madeAt: Long,
+        val profile: GmailProfile,
+        val membership: Map<String, Set<String>>,
+        val unread: Set<String>,
+        val starred: Set<String>,
+        val withFiles: Set<String>,
+    )
+
+    // Several accounts sync at once, each on its own coroutine.
+    private val listings = mutableMapOf<String, FirstSyncListing>()
+    private val listingsLock = Mutex()
 
     /** Headers, labels and snippet only; a message deleted in between is skipped. */
     private suspend fun fetchMetadata(token: String, ids: List<String>): List<GmailMessage> = coroutineScope {
@@ -181,13 +221,19 @@ class GmailProvider(
                 .take(query.limit)
         }
 
-    /** Gmail answers bursts with 429 and occasional 5xx: wait a little longer each time and try again. */
+    /**
+     * Gmail answers bursts with 429 (or 403 rateLimitExceeded) and the odd 5xx, and a connection may
+     * drop or time out: wait a little longer each time (1s up to 32s) and try again.
+     */
     private suspend fun <T> retrying(block: suspend () -> T): T {
         var wait = 1_000L
         repeat(TRANSIENT_RETRIES - 1) {
             try {
                 return block()
             } catch (e: ProviderException.Transient) {
+                delay(wait)
+                wait *= 2
+            } catch (e: IOException) {
                 delay(wait)
                 wait *= 2
             }

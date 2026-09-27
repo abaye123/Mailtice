@@ -177,6 +177,8 @@ interface MailProvider {
     suspend fun deleteLabel(account: Account, id: String): Unit = throw UnsupportedOperationException("Labels cannot be managed here")
 }
 
+private val RATE_LIMIT_REASONS = listOf("rateLimitExceeded", "userRateLimitExceeded", "RATE_LIMIT_EXCEEDED", "quotaExceeded")
+
 /** Transport failures, split by what the caller should do about them. */
 sealed class ProviderException(message: String) : Exception(message) {
     /** 401 / auth failure on a request: refresh once and retry. */
@@ -185,7 +187,7 @@ sealed class ProviderException(message: String) : Exception(message) {
     /** Gmail 404 on history (cursor too old), or an IMAP folder that vanished. Resync. */
     class NotFound(message: String) : ProviderException(message)
 
-    /** 429 / 5xx / network: back off and retry. */
+    /** 429 / 5xx / a rate limit sent as 403 / network: back off and retry. */
     class Transient(message: String) : ProviderException(message)
 
     /** Other 4xx: a bug in the request. */
@@ -204,6 +206,8 @@ sealed class ProviderException(message: String) : Exception(message) {
                 status == 401 -> Unauthorized(msg)
                 status == 404 -> NotFound(msg)
                 status == 429 || status >= 500 -> Transient(msg)
+                // Gmail reports its per-user quota as 403 rateLimitExceeded as often as 429.
+                status == 403 && RATE_LIMIT_REASONS.any { it in body } -> Transient(msg)
                 else -> Client(msg)
             }
         }

@@ -42,6 +42,10 @@ private const val BACKOFF_BASE_MS = 60_000L
 private const val BACKOFF_MAX_MS = 15 * 60_000L
 private const val FOLDER_REFRESH_MS = 60 * 60_000L
 
+
+/** Failed rounds in a row a first sync rides out before the account is shown as offline. */
+private const val FIRST_SYNC_PATIENCE = 5
+
 /**
  * One sync round per account ([syncOnce]) - used by the desktop loop, the open Android app and the
  * Android background worker alike - plus the loops that repeat it. A per-account mutex keeps the
@@ -66,6 +70,9 @@ class SyncEngine(
 
     /** Accounts whose last round left work for the next one (a first sync in pages). */
     private val pending = mutableSetOf<String>()
+
+    /** Rounds in a row that failed, per account; reset by the first one that succeeds. */
+    private val failuresInRow = mutableMapOf<String, Int>()
 
     private val _errors = MutableStateFlow<Map<String, String>>(emptyMap())
 
@@ -158,6 +165,7 @@ class SyncEngine(
             // Still "syncing" while a first sync has pages left, so the UI keeps saying so.
             setStatus(account.id, if (batch.more) AccountStatus.Syncing else AccountStatus.Ok)
             _errors.update { it - account.id }
+            failuresInRow.remove(account.id)
 
             val pending = repo.toNotify(account.id)
             repo.markNotified(account.id, pending.map { it.id })
@@ -168,7 +176,13 @@ class SyncEngine(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            setStatus(account.id, AccountStatus.Offline)
+            // A first sync (or one that has not started) that hiccups is still under way: the loop
+            // retries it, and the user is told the mail is on its way, not that the connection is
+            // gone. Only a few failures in a row, or one on an account already synced, mean offline.
+            val failures = (failuresInRow[account.id] ?: 0) + 1
+            failuresInRow[account.id] = failures
+            val firstSync = statusOf(account.id).let { it == AccountStatus.Syncing || it == AccountStatus.Idle }
+            setStatus(account.id, if (firstSync && failures < FIRST_SYNC_PATIENCE) AccountStatus.Syncing else AccountStatus.Offline)
             _errors.update { it + (account.id to describe(e)) }
             throw e
         }

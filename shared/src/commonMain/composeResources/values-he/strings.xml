@@ -28,7 +28,7 @@
     <string name="status_idle">ממתין</string>
     <string name="status_syncing">מסתנכרן…</string>
     <string name="status_ok">מעודכן</string>
-    <string name="status_offline">אין חיבור ל-Gmail, מנסה שוב</string>
+    <string name="status_offline">אין חיבור לשרת הדואר, מנסה שוב</string>
     <string name="status_needs_reauth">פג תוקף ההתחברות</string>
 
     <string name="notif_open">פתח</string>

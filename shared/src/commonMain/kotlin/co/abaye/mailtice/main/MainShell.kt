@@ -455,7 +455,7 @@ private fun AccountSidebarItem(
         else -> null
     }
     // The full address on hover: the label may be a nickname, or the address cut short.
-    val detail = error?.takeIf { status == AccountStatus.Offline }
+    val detail = error?.takeIf { status == AccountStatus.Offline || status == AccountStatus.Syncing }
     val hint = listOfNotNull(if (collapsed) account.displayName else null, account.email, problem, detail).distinct().joinToString("\n")
     Tooltip(hint) {
         SidebarItem(
