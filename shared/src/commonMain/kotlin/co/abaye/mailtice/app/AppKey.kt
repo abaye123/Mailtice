@@ -1,5 +1,7 @@
 package co.abaye.mailtice.app
 
+import mailtice.shared.generated.resources.nav_home
+import androidx.compose.material.icons.outlined.Dashboard
 import mailtice.shared.generated.resources.labels_manage
 import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.Icons
@@ -20,6 +22,8 @@ import org.jetbrains.compose.resources.stringResource
 
 @Immutable
 sealed interface AppKey : NavKey {
+    /** The dashboard: every account at a glance. */
+    data object Home : AppKey
     data object Inbox : AppKey
     data object Accounts : AppKey
     data object Settings : AppKey
@@ -36,6 +40,7 @@ sealed interface AppKey : NavKey {
 }
 
 val MainDestinations: List<AppKey> = listOf(
+    AppKey.Home,
     AppKey.Inbox,
     AppKey.Accounts,
     AppKey.Settings,
@@ -46,6 +51,7 @@ fun AppKey.isMain(): Boolean = this in MainDestinations
 
 @Composable
 fun AppKey.label(): String = when (this) {
+    AppKey.Home -> stringResource(Res.string.nav_home)
     AppKey.Inbox -> stringResource(Res.string.nav_inbox)
     AppKey.Accounts -> stringResource(Res.string.nav_accounts)
     AppKey.Settings -> stringResource(Res.string.nav_settings)
@@ -56,6 +62,7 @@ fun AppKey.label(): String = when (this) {
 }
 
 fun AppKey.icon(): ImageVector = when (this) {
+    AppKey.Home -> Icons.Outlined.Dashboard
     AppKey.Inbox -> Icons.Outlined.Inbox
     AppKey.Accounts -> Icons.Outlined.ManageAccounts
     AppKey.Settings -> Icons.Outlined.Settings

@@ -142,6 +142,8 @@ fun MainShell(
 private fun ContentArea(destination: AppKey, onIntent: (AppIntent) -> Unit, modifier: Modifier, content: @Composable () -> Unit) {
     val cards = cardPanes()
     val splitsItself = destination == AppKey.Inbox || destination == AppKey.Reader
+    // Home is a place of its own, not a page over the mail: no "back to mail" pill there.
+    val overMail = destination != AppKey.Home
     Box(
         modifier
             .background(if (cards) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surface)
@@ -155,7 +157,7 @@ private fun ContentArea(destination: AppKey, onIntent: (AppIntent) -> Unit, modi
                     content()
                     // Settings, accounts and about lay over the mail; this pill floats at the far end of
                     // their title row (titles sit at the leading edge) and goes straight back to it.
-                    Button(
+                    if (overMail) Button(
                         onClick = { onIntent(AppIntent.Navigate(AppKey.Inbox)) },
                         modifier = Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 16.dp),
                         contentPadding = PaddingValues(start = 12.dp, end = 18.dp),
@@ -173,7 +175,7 @@ private fun ContentArea(destination: AppKey, onIntent: (AppIntent) -> Unit, modi
 @Composable
 private fun BottomBar(selected: AppKey, unread: Int, onIntent: (AppIntent) -> Unit) {
     NavigationBar {
-        listOf(AppKey.Inbox, AppKey.Accounts, AppKey.Settings, AppKey.About).forEach { key ->
+        listOf(AppKey.Home, AppKey.Inbox, AppKey.Accounts, AppKey.Settings, AppKey.About).forEach { key ->
             val isSelected = key == selected || (key == AppKey.Inbox && selected == AppKey.Reader) ||
                 (key == AppKey.Accounts && selected is AppKey.AccountDetail)
             NavigationBarItem(
@@ -247,6 +249,13 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             fun viewOpen(accountId: String, view: MailView) =
                 inMail && filter.accountId == accountId && filter.folderId.isEmpty() && filter.view == view
+
+            SidebarItem(
+                label = AppKey.Home.label(),
+                selected = selected == AppKey.Home,
+                collapsed = collapsed,
+                leading = { tint -> Icon(AppKey.Home.icon(), null, tint = tint) },
+            ) { onIntent(AppIntent.Navigate(AppKey.Home)) }
 
             // Every account together; the standard folders are always there and cannot be hidden.
             state.viewsFor("").forEach { view ->

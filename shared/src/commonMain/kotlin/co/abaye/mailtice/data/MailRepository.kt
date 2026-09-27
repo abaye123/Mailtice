@@ -1,5 +1,11 @@
 package co.abaye.mailtice.data
 
+import kotlin.time.Instant
+import kotlin.time.ExperimentalTime
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.TimeZone
+import co.abaye.mailtice.domain.AccountDigest
 import co.abaye.mailtice.sync.PendingKind
 import co.abaye.mailtice.sync.ActivityEvent
 import app.cash.sqldelight.coroutines.asFlow
@@ -181,6 +187,31 @@ class MailRepository(
         }
 
     fun message(accountId: String, id: String): MailMessage? = q.selectMessage(accountId, id, ::mapMessage).executeAsOneOrNull()
+
+    // ---- home dashboard ---------------------------------------------------------------------
+
+    /** The dashboard's view of [accountId] at [now]; days are counted in [zone]. */
+    @OptIn(ExperimentalTime::class)
+    fun digest(accountId: String, now: Long, zone: TimeZone): AccountDigest {
+        val counts = q.digestCounts(accountId, now - DAY_MS).executeAsOne()
+        val recent = q.digestUnreadIds(accountId, 3).executeAsList().mapNotNull { message(accountId, it) }
+        val today = Instant.fromEpochMilliseconds(now).toLocalDateTime(zone).date
+        val perDay = IntArray(7)
+        q.digestArrivals(accountId, now - 8 * DAY_MS).executeAsList().forEach { at ->
+            val day = Instant.fromEpochMilliseconds(at).toLocalDateTime(zone).date
+            val back = day.daysUntil(today)
+            if (back in 0..6) perDay[6 - back]++
+        }
+        return AccountDigest(
+            accountId = accountId,
+            unread = counts.unread.toInt(),
+            unreadRecent = counts.unreadRecent.toInt(),
+            newestUnreadAt = counts.newestUnread,
+            newestAt = counts.newestAny,
+            recentUnread = recent,
+            perDay = perDay.toList(),
+        )
+    }
 
     // ---- offline mode -----------------------------------------------------------------------
 

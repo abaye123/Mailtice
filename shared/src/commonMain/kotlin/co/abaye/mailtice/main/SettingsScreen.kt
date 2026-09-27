@@ -1,5 +1,7 @@
 package co.abaye.mailtice.main
 
+import mailtice.shared.generated.resources.settings_open_home_desc
+import mailtice.shared.generated.resources.settings_open_home
 import mailtice.shared.generated.resources.offline_attachments_upto
 import mailtice.shared.generated.resources.offline_attachments_all
 import mailtice.shared.generated.resources.offline_attachments_none
@@ -192,6 +194,9 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                         ReadingPane.Off -> stringResource(Res.string.reading_off)
                     }
                 }) { onIntent(AppIntent.SetReadingPane(it)) }
+            }
+            SettingRow(stringResource(Res.string.settings_open_home), subtitle = stringResource(Res.string.settings_open_home_desc)) {
+                Switch(checked = settings.openHomeAtStart, onCheckedChange = { onIntent(AppIntent.SetOpenHomeAtStart(it)) })
             }
             SettingRow(stringResource(Res.string.settings_hebrew_date), subtitle = stringResource(Res.string.settings_hebrew_date_desc)) {
                 Switch(checked = settings.showHebrewDate, onCheckedChange = { onIntent(AppIntent.SetShowHebrewDate(it)) })

@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import kotlinx.datetime.TimeZone
 import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.sync.ActionQueuedException
 import co.abaye.mailtice.sync.isNetworkError
@@ -120,6 +121,9 @@ private const val DRAFT_SAVE_DELAY_MS = 2_000L
 /** How often the scheduled-send queue is checked. */
 private const val SCHEDULE_TICK_MS = 20_000L
 
+/** How often the home dashboard is rebuilt when nothing else asked for it. */
+private const val DIGEST_REFRESH_MS = 60_000L
+
 /** Gmail's limit on a message with its attachments. */
 private const val MAX_ATTACHMENTS_BYTES = 25L * 1024 * 1024
 
@@ -154,7 +158,7 @@ class AppViewModel(
     private val _state = MutableStateFlow(restore())
     val state: StateFlow<AppState> = _state.asStateFlow()
 
-    val backStack: NavBackStack<AppKey> = NavBackStack(AppKey.Inbox)
+    val backStack: NavBackStack<AppKey> = NavBackStack(if (_state.value.data.settings.openHomeAtStart) AppKey.Home else AppKey.Inbox)
 
     private val _raiseWindow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -199,7 +203,20 @@ class AppViewModel(
         scope.launch {
             repo.allFolders.collect { folders -> mutate { it.copy(folders = folders.groupBy { f -> f.accountId }) } }
         }
-        scope.launch { repo.unreadCounts.collect { counts -> mutate { it.copy(unread = counts) } } }
+        scope.launch {
+            repo.unreadCounts.collect { counts ->
+                mutate { it.copy(unread = counts) }
+                refreshDigests()
+            }
+        }
+        scope.launch { sync.lastSynced.collect { t -> mutate { it.copy(lastSynced = t) } } }
+        // Rounds that bring nothing new change no count; the dashboard still wants "checked" and the week fresh.
+        scope.launch {
+            while (true) {
+                delay(DIGEST_REFRESH_MS)
+                refreshDigests()
+            }
+        }
         scope.launch { repo.unreadByFolder.collect { counts -> mutate { it.copy(unreadByFolder = counts) } } }
         scope.launch { repo.scheduled.collect { queue -> mutate { it.copy(scheduled = queue) } } }
         // Drafts save themselves two seconds after the typing stops.
@@ -478,6 +495,7 @@ class AppViewModel(
                 settings { it.copy(pollSeconds = intent.seconds.takeIf { s -> s in PollIntervals } ?: it.pollSeconds) }
                 reconcileSync()
             }
+            is AppIntent.SetOpenHomeAtStart -> settings { it.copy(openHomeAtStart = intent.on) }
             is AppIntent.SetSmartPolling -> {
                 settings { it.copy(smartPolling = intent.smart) }
                 reconcileSync()
@@ -1505,6 +1523,22 @@ class AppViewModel(
             mutate { AppState(data = seedData(), availableProviders = it.availableProviders, message = AppMessage.ResetDone) }
             navigate(AppKey.Inbox)
             refreshStorage()
+        }
+    }
+
+    private var digestJob: Job? = null
+
+    /** Rebuilds the dashboard's view of every account (at most one rebuild running at a time). */
+    private fun refreshDigests() {
+        digestJob?.cancel()
+        digestJob = scope.launch {
+            val accounts = _state.value.accounts
+            val now = Platform.now()
+            val zone = TimeZone.currentSystemDefault()
+            val digests = withContext(io) {
+                accounts.mapNotNull { a -> runCatching { a.id to repo.digest(a.id, now, zone) }.getOrNull() }.toMap()
+            }
+            mutate { it.copy(digests = digests) }
         }
     }
 

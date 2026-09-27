@@ -127,6 +127,8 @@ data class UserSettings(
     val uiLanguageAuto: Boolean = true,
     /** Checks at a pace learned from each account's week and recent mail; off, every [pollSeconds]. */
     val smartPolling: Boolean = true,
+    /** The app opens on the home dashboard; off, straight in the mail. */
+    val openHomeAtStart: Boolean = true,
     /** Offline mode: the whole mailbox kept and downloaded ahead, actions queued without a connection. */
     val offlineMode: Boolean = false,
     /** Largest attachment offline mode downloads ahead, in MB; 0 = none, -1 = all. */

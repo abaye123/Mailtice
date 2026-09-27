@@ -118,6 +118,7 @@ sealed interface AppIntent {
     data class SetHebrewDateAtSunset(val atSunset: Boolean) : AppIntent
     data class SetSunsetCity(val city: SunsetCity) : AppIntent
     data class SetSmartPolling(val smart: Boolean) : AppIntent
+    data class SetOpenHomeAtStart(val on: Boolean) : AppIntent
     data class SetOfflineMode(val on: Boolean) : AppIntent
     data class SetOfflineAttachments(val mb: Int) : AppIntent
     data class SetOfferTranslation(val offer: Boolean) : AppIntent

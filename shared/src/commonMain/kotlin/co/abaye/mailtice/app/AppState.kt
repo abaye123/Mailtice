@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.domain.AccountDigest
 import co.abaye.mailtice.sync.PollPlan
 import co.abaye.mailtice.domain.Attachment
 import androidx.compose.runtime.Immutable
@@ -232,6 +233,10 @@ data class AppState(
     val syncErrors: Map<String, String> = emptyMap(),
     /** The smart check's current pace per account, for the settings. */
     val pollPlans: Map<String, PollPlan> = emptyMap(),
+    /** The home dashboard's view of each account. */
+    val digests: Map<String, AccountDigest> = emptyMap(),
+    /** When each account last synced without an error. */
+    val lastSynced: Map<String, Long> = emptyMap(),
     val filter: InboxFilter = InboxFilter(),
     val reader: Reader? = null,
     /** The attachment open in the viewer over everything, or null. */

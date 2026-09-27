@@ -449,4 +449,38 @@
     <string name="offline_attachments_none">בלי</string>
     <string name="offline_attachments_all">הכל</string>
     <string name="offline_attachments_upto">עד %1$d MB</string>
+    <string name="nav_home">בית</string>
+    <string name="home_morning">בוקר טוב</string>
+    <string name="home_noon">צהריים טובים</string>
+    <string name="home_evening">ערב טוב</string>
+    <string name="home_night">לילה טוב</string>
+    <string name="home_unread_total">%1$d שלא נקראו</string>
+    <string name="home_new_today">%1$d חדשים ביממה האחרונה</string>
+    <string name="home_needs_attention">%1$d דורשים טיפול</string>
+    <string name="home_unread">שלא נקראו</string>
+    <string name="home_all_read">הכל נקרא</string>
+    <string name="home_fresh">מייל חדש %1$s</string>
+    <string name="home_old_unread">אין חדש ביומיים האחרונים · האחרון %1$s</string>
+    <string name="home_week">%1$d השבוע</string>
+    <string name="home_checked">נבדק %1$s</string>
+    <string name="home_not_checked">עדיין לא נבדק</string>
+    <string name="home_open_inbox">לתיבת הדואר</string>
+    <string name="settings_open_home">פתיחה בדף הבית</string>
+    <string name="settings_open_home_desc">להתחיל עם סקירה של כל החשבונות; כשכבוי, ישר לדואר.</string>
+    <string name="rel_now">עכשיו</string>
+    <plurals name="rel_minutes">
+        <item quantity="one">לפני דקה</item>
+        <item quantity="two">לפני שתי דקות</item>
+        <item quantity="other">לפני %1$d דקות</item>
+    </plurals>
+    <plurals name="rel_hours">
+        <item quantity="one">לפני שעה</item>
+        <item quantity="two">לפני שעתיים</item>
+        <item quantity="other">לפני %1$d שעות</item>
+    </plurals>
+    <plurals name="rel_days">
+        <item quantity="one">אתמול</item>
+        <item quantity="two">לפני יומיים</item>
+        <item quantity="other">לפני %1$d ימים</item>
+    </plurals>
 </resources>

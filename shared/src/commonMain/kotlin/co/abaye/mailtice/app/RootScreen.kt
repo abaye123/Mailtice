@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.main.HomeScreen
 import co.abaye.mailtice.main.AttachmentPreviewOverlay
 import co.abaye.mailtice.main.LabelsScreen
 import androidx.compose.animation.ContentTransform
@@ -86,6 +87,7 @@ private fun AppNavDisplay(backStack: NavBackStack<AppKey>, state: AppState, onIn
         popTransitionSpec = { transform },
         predictivePopTransitionSpec = { transform },
         entryProvider = entryProvider {
+            entry<AppKey.Home> { HomeScreen(state, onIntent) }
             entry<AppKey.Inbox> { InboxScreen(state, onIntent) }
             entry<AppKey.Accounts> { AccountsScreen(state, onIntent) }
             entry<AppKey.Settings> { SettingsScreen(state, onIntent) }

@@ -377,3 +377,43 @@ messageIdsWithAttachments:
 SELECT m.id FROM message m
 WHERE m.accountId = :accountId AND m.hasAttachments = 1
 ORDER BY m.receivedAt DESC;
+
+-- The home dashboard, per account: unread in the inbox, how many of them came since :since, and
+-- when the newest unread and the newest message of all arrived.
+digestCounts:
+SELECT
+  (SELECT count(*) FROM message m WHERE m.accountId = :accountId AND m.unread = 1 AND EXISTS (
+    SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+    WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.role = 'Inbox'
+  )) AS unread,
+  (SELECT count(*) FROM message m WHERE m.accountId = :accountId AND m.unread = 1 AND m.receivedAt >= :since AND EXISTS (
+    SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+    WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.role = 'Inbox'
+  )) AS unreadRecent,
+  (SELECT MAX(m.receivedAt) FROM message m WHERE m.accountId = :accountId AND m.unread = 1 AND EXISTS (
+    SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+    WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.role = 'Inbox'
+  )) AS newestUnread,
+  (SELECT MAX(m.receivedAt) FROM message m WHERE m.accountId = :accountId AND EXISTS (
+    SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+    WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.role = 'Inbox'
+  )) AS newestAny;
+
+-- The newest unread inbox messages of an account.
+digestUnreadIds:
+SELECT m.id FROM message m
+WHERE m.accountId = :accountId AND m.unread = 1 AND EXISTS (
+    SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+    WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.role = 'Inbox'
+  )
+ORDER BY m.receivedAt DESC
+LIMIT :limit;
+
+-- Inbox arrival times since :since, for the dashboard's week of bars.
+digestArrivals:
+SELECT m.receivedAt FROM message m
+WHERE m.accountId = :accountId AND m.receivedAt >= :since AND EXISTS (
+    SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+    WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.role = 'Inbox'
+  );
+

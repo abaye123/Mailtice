@@ -88,6 +88,11 @@ class SyncEngine(
     /** Accounts whose last round left work for the next one (a first sync in pages). */
     private val pending = mutableSetOf<String>()
 
+    private val _lastSynced = MutableStateFlow<Map<String, Long>>(emptyMap())
+
+    /** When each account last finished a round without an error. */
+    val lastSynced: StateFlow<Map<String, Long>> = _lastSynced.asStateFlow()
+
     /** Rounds in a row that failed, per account; reset by the first one that succeeds. */
     private val failuresInRow = mutableMapOf<String, Int>()
 
@@ -235,6 +240,7 @@ class SyncEngine(
             setStatus(account.id, if (batch.more) AccountStatus.Syncing else AccountStatus.Ok)
             _errors.update { it - account.id }
             failuresInRow.remove(account.id)
+            _lastSynced.update { it + (account.id to Platform.now()) }
 
             val pending = repo.toNotify(account.id)
             repo.markNotified(account.id, pending.map { it.id })

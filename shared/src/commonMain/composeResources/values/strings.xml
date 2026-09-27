@@ -449,4 +449,35 @@
     <string name="offline_attachments_none">None</string>
     <string name="offline_attachments_all">All</string>
     <string name="offline_attachments_upto">Up to %1$d MB</string>
+    <string name="nav_home">Home</string>
+    <string name="home_morning">Good morning</string>
+    <string name="home_noon">Good afternoon</string>
+    <string name="home_evening">Good evening</string>
+    <string name="home_night">Good night</string>
+    <string name="home_unread_total">%1$d unread</string>
+    <string name="home_new_today">%1$d new in the last day</string>
+    <string name="home_needs_attention">%1$d need attention</string>
+    <string name="home_unread">unread</string>
+    <string name="home_all_read">All read</string>
+    <string name="home_fresh">New mail %1$s</string>
+    <string name="home_old_unread">Nothing new in two days · newest %1$s</string>
+    <string name="home_week">%1$d this week</string>
+    <string name="home_checked">Checked %1$s</string>
+    <string name="home_not_checked">Not checked yet</string>
+    <string name="home_open_inbox">Open inbox</string>
+    <string name="settings_open_home">Open on the home page</string>
+    <string name="settings_open_home_desc">Start with every account at a glance; off, straight in the mail.</string>
+    <string name="rel_now">just now</string>
+    <plurals name="rel_minutes">
+        <item quantity="one">%1$d minute ago</item>
+        <item quantity="other">%1$d minutes ago</item>
+    </plurals>
+    <plurals name="rel_hours">
+        <item quantity="one">an hour ago</item>
+        <item quantity="other">%1$d hours ago</item>
+    </plurals>
+    <plurals name="rel_days">
+        <item quantity="one">yesterday</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
 </resources>

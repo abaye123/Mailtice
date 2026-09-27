@@ -46,6 +46,7 @@ private const val KEY_LANGUAGE = "language"
 private const val KEY_LANGUAGE_AUTO = "languageAuto"
 private const val KEY_POLL = "pollSeconds"
 private const val KEY_SMART_POLL = "smartPolling"
+private const val KEY_OPEN_HOME = "openHomeAtStart"
 private const val KEY_OFFLINE = "offlineMode"
 private const val KEY_OFFLINE_ATTACHMENTS = "offlineAttachmentsMb"
 private const val KEY_NOTIFICATIONS = "notifications"
@@ -77,6 +78,7 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_LANGUAGE_AUTO=${s.uiLanguageAuto}")
         add("$KEY_POLL=${s.pollSeconds}")
         add("$KEY_SMART_POLL=${s.smartPolling}")
+        add("$KEY_OPEN_HOME=${s.openHomeAtStart}")
         add("$KEY_OFFLINE=${s.offlineMode}")
         add("$KEY_OFFLINE_ATTACHMENTS=${s.offlineAttachmentsMb}")
         add("$KEY_NOTIFICATIONS=${s.notificationsEnabled}")
@@ -120,6 +122,7 @@ fun decodeSnapshot(raw: String): AppData {
         uiLanguage = map[KEY_LANGUAGE]?.let { UiLanguage.fromCode(it) } ?: defaults.uiLanguage,
         uiLanguageAuto = flag(KEY_LANGUAGE_AUTO, defaults.uiLanguageAuto),
         smartPolling = flag(KEY_SMART_POLL, defaults.smartPolling),
+        openHomeAtStart = flag(KEY_OPEN_HOME, defaults.openHomeAtStart),
         offlineMode = flag(KEY_OFFLINE, defaults.offlineMode),
         offlineAttachmentsMb = map[KEY_OFFLINE_ATTACHMENTS]?.toIntOrNull()?.takeIf { it in OfflineAttachmentLimits } ?: defaults.offlineAttachmentsMb,
         pollSeconds = map[KEY_POLL]?.toIntOrNull()?.takeIf { it in PollIntervals } ?: defaults.pollSeconds,
