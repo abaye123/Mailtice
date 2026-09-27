@@ -483,4 +483,5 @@
         <item quantity="two">לפני יומיים</item>
         <item quantity="other">לפני %1$d ימים</item>
     </plurals>
+    <string name="home_sync_now">סנכרן כעת</string>
 </resources>

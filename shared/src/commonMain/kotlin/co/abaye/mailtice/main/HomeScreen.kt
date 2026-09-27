@@ -1,5 +1,7 @@
 package co.abaye.mailtice.main
 
+import mailtice.shared.generated.resources.home_sync_now
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -123,7 +125,7 @@ fun HomeScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifie
         }
     }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 20.dp)) {
-        HomeHeader(state, now)
+        HomeHeader(state, now, onIntent)
         Spacer(Modifier.height(20.dp))
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val gap = 16.dp
@@ -149,7 +151,7 @@ fun HomeScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifie
 
 @OptIn(ExperimentalTime::class)
 @Composable
-private fun HomeHeader(state: AppState, now: Long) {
+private fun HomeHeader(state: AppState, now: Long, onIntent: (AppIntent) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val local = Instant.fromEpochMilliseconds(now).toLocalDateTime(TimeZone.currentSystemDefault())
     val greeting = stringResource(
@@ -169,6 +171,16 @@ private fun HomeHeader(state: AppState, now: Long) {
         Column(Modifier.weight(1f)) {
             Text(greeting, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             Text(date, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        }
+        // At the far end of the title row (the left in Hebrew): every account checked right now.
+        val syncing = state.accounts.any { state.status(it.id) == AccountStatus.Syncing }
+        FilledTonalButton(onClick = { onIntent(AppIntent.RefreshNow) }) {
+            if (syncing) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.Outlined.Sync, null, Modifier.size(18.dp))
+            }
+            Text(stringResource(Res.string.home_sync_now), Modifier.padding(start = 8.dp))
         }
     }
     Spacer(Modifier.height(14.dp))

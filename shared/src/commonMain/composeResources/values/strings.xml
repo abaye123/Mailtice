@@ -480,4 +480,5 @@
         <item quantity="one">yesterday</item>
         <item quantity="other">%1$d days ago</item>
     </plurals>
+    <string name="home_sync_now">Sync now</string>
 </resources>
