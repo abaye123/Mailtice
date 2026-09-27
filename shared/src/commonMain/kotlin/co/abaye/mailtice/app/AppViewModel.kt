@@ -501,6 +501,15 @@ class AppViewModel(
                 reconcileSync()
             }
             is AppIntent.SetOpenHomeAtStart -> settings { it.copy(openHomeAtStart = intent.on) }
+            is AppIntent.MoveAccount -> {
+                val ids = _state.value.accounts.map { it.id }.toMutableList()
+                val from = ids.indexOf(intent.accountId)
+                val to = if (intent.up) from - 1 else from + 1
+                if (from >= 0 && to in ids.indices) {
+                    ids.add(to, ids.removeAt(from))
+                    background { repo.reorderAccounts(ids) }
+                }
+            }
             is AppIntent.SetComposeFrom -> setComposeFrom(intent.accountId, intent.email)
             is AppIntent.SetSmartPolling -> {
                 settings { it.copy(smartPolling = intent.smart) }

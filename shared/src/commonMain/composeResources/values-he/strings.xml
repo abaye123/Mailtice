@@ -484,4 +484,6 @@
         <item quantity="other">לפני %1$d ימים</item>
     </plurals>
     <string name="home_sync_now">סנכרן כעת</string>
+    <string name="accounts_move_up">הזזה למעלה</string>
+    <string name="accounts_move_down">הזזה למטה</string>
 </resources>

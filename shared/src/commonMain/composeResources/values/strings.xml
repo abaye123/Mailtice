@@ -481,4 +481,6 @@
         <item quantity="other">%1$d days ago</item>
     </plurals>
     <string name="home_sync_now">Sync now</string>
+    <string name="accounts_move_up">Move up</string>
+    <string name="accounts_move_down">Move down</string>
 </resources>

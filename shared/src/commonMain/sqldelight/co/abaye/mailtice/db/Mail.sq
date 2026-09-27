@@ -112,6 +112,9 @@ SELECT * FROM account ORDER BY sortOrder, createdAt;
 selectAccount:
 SELECT * FROM account WHERE id = ?;
 
+setAccountOrder:
+UPDATE account SET sortOrder = ? WHERE id = ?;
+
 -- Plain INSERT, never REPLACE: a REPLACE deletes the row first, and the cascade would take every
 -- message of the account with it.
 insertAccount:

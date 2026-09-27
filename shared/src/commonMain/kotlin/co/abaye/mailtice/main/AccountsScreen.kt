@@ -1,5 +1,10 @@
 package co.abaye.mailtice.main
 
+import mailtice.shared.generated.resources.accounts_move_down
+import mailtice.shared.generated.resources.accounts_move_up
+import co.abaye.mailtice.ui.TooltipIconButton
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,12 +69,15 @@ fun AccountsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                 Text(stringResource(Res.string.accounts_add), Modifier.padding(start = 8.dp))
             }
             if (state.accounts.isEmpty()) NoAccountsCard(onIntent)
-            state.accounts.forEach { account ->
+            state.accounts.forEachIndexed { index, account ->
                 AccountRow(
                     account,
                     state.status(account.id),
                     unread = state.unread[account.id] ?: 0L,
                     bytes = state.storage.perAccount[account.id] ?: 0L,
+                    // The order here is the order everywhere: sidebar, home, "From", settings.
+                    canMoveUp = index > 0,
+                    canMoveDown = index < state.accounts.lastIndex,
                     onIntent = onIntent,
                 )
             }
@@ -109,7 +117,15 @@ private fun NoAccountsCard(onIntent: (AppIntent) -> Unit) {
 }
 
 @Composable
-private fun AccountRow(account: Account, status: AccountStatus, unread: Long, bytes: Long, onIntent: (AppIntent) -> Unit) {
+private fun AccountRow(
+    account: Account,
+    status: AccountStatus,
+    unread: Long,
+    bytes: Long,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onIntent: (AppIntent) -> Unit,
+) {
     Surface(
         Modifier.fillMaxWidth().clickable { onIntent(AppIntent.Navigate(AppKey.AccountDetail(account.id))) },
         shape = MaterialTheme.shapes.large,
@@ -127,6 +143,20 @@ private fun AccountRow(account: Account, status: AccountStatus, unread: Long, by
             }
             if (status == AccountStatus.NeedsReauth) {
                 Button(onClick = { onIntent(AppIntent.Reconnect(account.id)) }) { Text(stringResource(Res.string.accounts_reconnect)) }
+            }
+            if (canMoveUp || canMoveDown) {
+                TooltipIconButton(
+                    Icons.Outlined.ArrowUpward,
+                    stringResource(Res.string.accounts_move_up),
+                    { onIntent(AppIntent.MoveAccount(account.id, up = true)) },
+                    enabled = canMoveUp,
+                )
+                TooltipIconButton(
+                    Icons.Outlined.ArrowDownward,
+                    stringResource(Res.string.accounts_move_down),
+                    { onIntent(AppIntent.MoveAccount(account.id, up = false)) },
+                    enabled = canMoveDown,
+                )
             }
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }

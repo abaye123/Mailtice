@@ -1,5 +1,7 @@
 package co.abaye.mailtice.ui
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -59,16 +61,17 @@ fun MessageBar(message: AppMessage?, onDismiss: () -> Unit, modifier: Modifier =
             tonalElevation = 6.dp,
             shadowElevation = 6.dp,
         ) {
+            // As wide as text and button need (the intrinsic width), then the text takes whatever
+            // the minimum width adds, so the button always sits at the far end - the left edge in
+            // Hebrew - instead of right after a short sentence.
             Row(
-                Modifier.padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                Modifier.width(IntrinsicSize.Max).padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // Weighted without filling: a long sentence wraps on word boundaries and leaves the
-                // button its room, a short one keeps the toast as narrow as the text.
                 Text(
                     shown?.text().orEmpty(),
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 TextButton(onClick = onDismiss) {

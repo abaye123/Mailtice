@@ -120,6 +120,9 @@ sealed interface AppIntent {
     data class SetSmartPolling(val smart: Boolean) : AppIntent
     data class SetOpenHomeAtStart(val on: Boolean) : AppIntent
 
+    /** Moves an account one place up or down in the order every list shows. */
+    data class MoveAccount(val accountId: String, val up: Boolean) : AppIntent
+
     /** The open draft sends from [email] of [accountId]. */
     data class SetComposeFrom(val accountId: String, val email: String) : AppIntent
     data class SetOfflineMode(val on: Boolean) : AppIntent

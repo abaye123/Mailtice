@@ -189,6 +189,11 @@ class MailRepository(
 
     fun message(accountId: String, id: String): MailMessage? = q.selectMessage(accountId, id, ::mapMessage).executeAsOneOrNull()
 
+    /** The accounts in [ids]' order, everywhere they are listed. */
+    fun reorderAccounts(ids: List<String>) {
+        db.transaction { ids.forEachIndexed { i, id -> q.setAccountOrder(i.toLong(), id) } }
+    }
+
     // ---- sender identities ------------------------------------------------------------------
 
     /** Every account's send-as addresses, in the provider's order. */
