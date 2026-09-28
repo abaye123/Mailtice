@@ -123,3 +123,11 @@ tasks.withType<JavaExec>().configureEach {
     val fallback = if (name.startsWith("hotRun")) "full" else "off"
     systemProperty("mailtice.demo", demoScenario.getOrElse(fallback))
 }
+
+// Nucleus lets `strip` run alongside the tasks that copy libraries into the same output folder.
+// strip writes a temporary file there and deletes it again, and a copy task that snapshots the
+// folder at that moment fails on the vanished file (seen on the Linux x64 release build). The
+// binary is stripped once everything else has landed.
+tasks.matching { it.name == "stripGraalvmBinary" }.configureEach {
+    mustRunAfter(tasks.matching { it.name.startsWith("copyGraalvm") || it.name == "fixGraalvmRpath" })
+}
