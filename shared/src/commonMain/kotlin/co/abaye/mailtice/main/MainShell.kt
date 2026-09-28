@@ -64,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -264,7 +265,7 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
                 label = AppKey.Home.label(),
                 selected = selected == AppKey.Home,
                 collapsed = collapsed,
-                leading = { tint -> Icon(AppKey.Home.icon(), null, tint = tint) },
+                leading = { _ -> HomeTile() },
             ) { onIntent(AppIntent.Navigate(AppKey.Home)) }
 
             // Every account together; the standard folders are always there and cannot be hidden.
@@ -615,4 +616,17 @@ private fun VersionLabel(modifier: Modifier = Modifier) {
     val version = Platform.appVersion
     if (version.isEmpty()) return
     Text(version, modifier, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** The home entry stands out from the folders: its icon on the accent gradient of the home page's cards. */
+@Composable
+private fun HomeTile() {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        Modifier.size(28.dp).clip(RoundedCornerShape(8.dp))
+            .background(Brush.linearGradient(listOf(colors.primary, colors.tertiary))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(AppKey.Home.icon(), null, Modifier.size(18.dp), tint = colors.onPrimary)
+    }
 }
