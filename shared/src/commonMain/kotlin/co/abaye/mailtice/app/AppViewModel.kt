@@ -34,6 +34,7 @@ import co.abaye.mailtice.domain.RetentionOptions
 import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.UserSettings
 import co.abaye.mailtice.domain.conversationKey
+import co.abaye.mailtice.domain.gmailUrl
 import co.abaye.mailtice.domain.webMailUrl
 import co.abaye.mailtice.export.ExportLabels
 import co.abaye.mailtice.export.ThreadExport
@@ -1781,7 +1782,7 @@ class AppViewModel(
     private fun openInWeb(message: MailMessage) {
         val account = _state.value.account(message.accountId) ?: return
         if (!account.capabilities.openInWeb) return
-        openWeb(account, "https://mail.google.com/mail/u/${account.email}/#all/${message.id}")
+        openWeb(account, gmailUrl(account.email, "all/${message.id}"))
     }
 
     /**
