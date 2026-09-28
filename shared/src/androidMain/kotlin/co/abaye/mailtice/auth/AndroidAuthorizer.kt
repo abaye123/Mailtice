@@ -68,7 +68,12 @@ class AndroidAuthorizer : Authorizer {
 
     private suspend fun browser(provider: OAuthProvider, loginHint: String?): AuthCode {
         val random = SecureRandom()
-        fun token(n: Int) = ByteArray(n).also(random::nextBytes).let { Base64.encodeToString(it, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING) }
+        fun token(n: Int) = ByteArray(n).also(random::nextBytes).let {
+            Base64.encodeToString(
+                it,
+                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+            )
+        }
         val state = token(24)
         val verifier = token(64)
         val challenge = Base64.encodeToString(

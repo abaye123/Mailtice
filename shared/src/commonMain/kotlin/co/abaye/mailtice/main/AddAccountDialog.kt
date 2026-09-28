@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,10 +42,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -53,8 +53,8 @@ import co.abaye.mailtice.app.AddAccountStep
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ImapForm
-import co.abaye.mailtice.auth.BrowserProfile
 import co.abaye.mailtice.app.SignInPhase
+import co.abaye.mailtice.auth.BrowserProfile
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.provider.ImapLoginException
@@ -78,11 +78,11 @@ import mailtice.shared.generated.resources.add_imap_reconnect_title
 import mailtice.shared.generated.resources.add_imap_save
 import mailtice.shared.generated.resources.add_imap_username
 import mailtice.shared.generated.resources.add_provider_imap_desc
-import mailtice.shared.generated.resources.provider_imap
 import mailtice.shared.generated.resources.browser_body
 import mailtice.shared.generated.resources.browser_default
 import mailtice.shared.generated.resources.browser_title
 import mailtice.shared.generated.resources.dialog_cancel
+import mailtice.shared.generated.resources.provider_imap
 import mailtice.shared.generated.resources.signin_back
 import mailtice.shared.generated.resources.signin_browser_body
 import mailtice.shared.generated.resources.signin_browser_title
@@ -114,10 +114,13 @@ fun AddAccountDialog(state: AppState, onIntent: (AppIntent) -> Unit) {
         AddAccountStep.ChooseProvider -> FlowDialog(onDismiss = close) {
             ProviderChooser(state, onIntent, close)
         }
+
         is AddAccountStep.Imap -> ImapFormDialog(step.form, onIntent, close)
+
         is AddAccountStep.ChooseBrowser -> FlowDialog(onDismiss = close) {
             BrowserChooser(step, state, onIntent, close)
         }
+
         is AddAccountStep.SignIn -> FlowDialog(
             // A running sign-in is cancelled from its own button, not by a stray click outside.
             onDismiss = { if (step.phase == SignInPhase.Done || step.phase == SignInPhase.Failed) close() },
@@ -249,7 +252,13 @@ private fun BrowserRow(title: String, subtitle: String?, letter: String, color: 
             LetterAvatar(letter, color, size = 36.dp)
         }
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,
@@ -291,9 +300,12 @@ private fun SignInScreen(step: AddAccountStep.SignIn, onIntent: (AppIntent) -> U
         Text(
             when (step.phase) {
                 SignInPhase.Browser -> stringResource(Res.string.signin_browser_title)
+
                 SignInPhase.Connecting -> stringResource(Res.string.signin_connecting_title)
+
                 SignInPhase.Done ->
                     stringResource(if (step.reconnectId != null) Res.string.signin_reconnected_title else Res.string.signin_done_title)
+
                 SignInPhase.Failed -> stringResource(Res.string.signin_failed_title)
             },
             style = MaterialTheme.typography.titleLarge,
@@ -322,6 +334,7 @@ private fun SignInScreen(step: AddAccountStep.SignIn, onIntent: (AppIntent) -> U
                 SignInPhase.Browser, SignInPhase.Connecting -> TextButton(onClick = { onIntent(AppIntent.CancelSignIn) }) {
                     Text(stringResource(Res.string.dialog_cancel))
                 }
+
                 SignInPhase.Done -> {
                     TextButton(onClick = close) { Text(stringResource(Res.string.signin_close)) }
                     if (step.accountId.isNotEmpty()) {
@@ -330,6 +343,7 @@ private fun SignInScreen(step: AddAccountStep.SignIn, onIntent: (AppIntent) -> U
                         }
                     }
                 }
+
                 SignInPhase.Failed -> {
                     TextButton(onClick = { onIntent(AppIntent.CancelSignIn) }) { Text(stringResource(Res.string.signin_back)) }
                     Button(onClick = { onIntent(AppIntent.RetrySignIn) }) { Text(stringResource(Res.string.signin_retry)) }
@@ -350,25 +364,42 @@ private fun ImapFormDialog(form: ImapForm, onIntent: (AppIntent) -> Unit, close:
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (!fixed) Text(stringResource(Res.string.add_imap_hint), style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(
-                    form.email, { update(form.copy(email = it.trim())) }, Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.add_imap_email)) }, textStyle = LtrField, singleLine = true, enabled = !fixed,
+                    form.email,
+                    { update(form.copy(email = it.trim())) },
+                    Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(Res.string.add_imap_email)) },
+                    textStyle = LtrField,
+                    singleLine = true,
+                    enabled = !fixed,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 )
                 OutlinedTextField(
-                    form.password, { update(form.copy(password = it)) }, Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(Res.string.add_imap_password)) }, textStyle = LtrField, singleLine = true,
+                    form.password,
+                    { update(form.copy(password = it)) },
+                    Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(Res.string.add_imap_password)) },
+                    textStyle = LtrField,
+                    singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 )
                 if (!fixed) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
-                            form.host, { update(form.copy(host = it.trim())) }, Modifier.weight(1f),
-                            label = { Text(stringResource(Res.string.add_imap_host)) }, textStyle = LtrField, singleLine = true,
+                            form.host,
+                            { update(form.copy(host = it.trim())) },
+                            Modifier.weight(1f),
+                            label = { Text(stringResource(Res.string.add_imap_host)) },
+                            textStyle = LtrField,
+                            singleLine = true,
                         )
                         OutlinedTextField(
-                            form.port, { update(form.copy(port = it.filter(Char::isDigit).take(5))) }, Modifier.width(110.dp),
-                            label = { Text(stringResource(Res.string.add_imap_port)) }, textStyle = LtrField, singleLine = true,
+                            form.port,
+                            { update(form.copy(port = it.filter(Char::isDigit).take(5))) },
+                            Modifier.width(110.dp),
+                            label = { Text(stringResource(Res.string.add_imap_port)) },
+                            textStyle = LtrField,
+                            singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                     }
@@ -382,8 +413,12 @@ private fun ImapFormDialog(form: ImapForm, onIntent: (AppIntent) -> Unit, close:
                         }
                     }
                     OutlinedTextField(
-                        form.username, { update(form.copy(username = it.trim())) }, Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(Res.string.add_imap_username)) }, textStyle = LtrField, singleLine = true,
+                        form.username,
+                        { update(form.copy(username = it.trim())) },
+                        Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(Res.string.add_imap_username)) },
+                        textStyle = LtrField,
+                        singleLine = true,
                         placeholder = { Text(form.email) },
                     )
                     TextButton(onClick = { onIntent(AppIntent.DetectImapServer) }, enabled = '@' in form.email && !form.busy) {
@@ -394,8 +429,19 @@ private fun ImapFormDialog(form: ImapForm, onIntent: (AppIntent) -> Unit, close:
             }
         },
         confirmButton = {
-            TextButton(onClick = { onIntent(AppIntent.SubmitImapForm) }, enabled = !form.busy && '@' in form.email && form.password.isNotBlank()) {
-                if (form.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(stringResource(Res.string.add_imap_save))
+            TextButton(
+                onClick = { onIntent(AppIntent.SubmitImapForm) },
+                enabled =
+                !form.busy && '@' in form.email && form.password.isNotBlank(),
+            ) {
+                if (form.busy) {
+                    CircularProgressIndicator(
+                        Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text(stringResource(Res.string.add_imap_save))
+                }
             }
         },
         dismissButton = { TextButton(onClick = close) { Text(stringResource(Res.string.dialog_cancel)) } },

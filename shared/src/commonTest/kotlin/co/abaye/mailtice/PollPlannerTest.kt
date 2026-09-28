@@ -14,8 +14,7 @@ import kotlin.time.ExperimentalTime
 @OptIn(ExperimentalTime::class)
 class PollPlannerTest {
     private val zone = TimeZone.UTC
-    private fun at(day: Int, hour: Int, minute: Int = 0) =
-        LocalDateTime(2026, 9, day, hour, minute).toInstant(zone).toEpochMilliseconds()
+    private fun at(day: Int, hour: Int, minute: Int = 0) = LocalDateTime(2026, 9, day, hour, minute).toInstant(zone).toEpochMilliseconds()
 
     /** Four weeks of an office account: mail on weekdays 9-17, heaviest at 10 and 14, nothing at night. */
     private val office: ActivityProfile by lazy {

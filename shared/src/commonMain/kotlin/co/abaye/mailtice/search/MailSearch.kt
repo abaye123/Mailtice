@@ -74,19 +74,28 @@ data class MailSearch(
                 }
                 s = when (key) {
                     "from" -> s.copy(from = value)
+
                     "to" -> s.copy(to = value)
+
                     "subject" -> s.copy(subject = value)
+
                     "has" -> if (value.equals("attachment", true)) s.copy(hasAttachment = true) else s.also { words += body }
+
                     "is" -> when (value.lowercase()) {
                         "unread" -> s.copy(unread = true)
                         "read" -> s.copy(unread = false)
                         "starred" -> s.copy(starred = true)
                         else -> s.also { words += body }
                     }
+
                     "after" -> date(value)?.let { s.copy(after = it) } ?: s.also { words += body }
+
                     "before" -> date(value)?.let { s.copy(before = it) } ?: s.also { words += body }
+
                     "newer_than" -> span(value)?.let { s.copy(after = now - it) } ?: s.also { words += body }
+
                     "older_than" -> span(value)?.let { s.copy(before = now - it) } ?: s.also { words += body }
+
                     else -> s
                 }
             }
@@ -104,10 +113,12 @@ data class MailSearch(
                         quoted = !quoted
                         current.append(c)
                     }
+
                     c.isWhitespace() && !quoted -> {
                         if (current.isNotEmpty()) out += current.toString()
                         current.clear()
                     }
+
                     else -> current.append(c)
                 }
             }

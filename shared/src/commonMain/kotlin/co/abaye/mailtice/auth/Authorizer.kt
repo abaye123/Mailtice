@@ -5,12 +5,7 @@ package co.abaye.mailtice.auth
  * [codeVerifier] / [redirectUri] are null for Google on Android, where Play services returns a
  * server auth code that is exchanged with the Web client instead (see [webClient]).
  */
-data class AuthCode(
-    val code: String,
-    val codeVerifier: String?,
-    val redirectUri: String?,
-    val webClient: Boolean = false,
-)
+data class AuthCode(val code: String, val codeVerifier: String?, val redirectUri: String?, val webClient: Boolean = false)
 
 /** The user closed the browser, denied consent, or the flow timed out. Not an error to report. */
 class AuthCancelledException(message: String) : Exception(message)

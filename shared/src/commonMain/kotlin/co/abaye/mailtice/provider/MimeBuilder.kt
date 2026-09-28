@@ -56,6 +56,7 @@ object MimeBuilder {
                 }
                 append("--$mixed--\r\n")
             }
+
             else -> textParts(mail, epochMillis)
         }
     }

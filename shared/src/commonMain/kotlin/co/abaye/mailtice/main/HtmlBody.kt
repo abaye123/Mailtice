@@ -1,16 +1,15 @@
 package co.abaye.mailtice.main
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.layout.Box
-import dev.nucleusframework.webview.web.WebViewState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,6 +20,7 @@ import dev.nucleusframework.webview.request.WebRequest
 import dev.nucleusframework.webview.request.WebRequestInterceptResult
 import dev.nucleusframework.webview.web.WebView
 import dev.nucleusframework.webview.web.WebViewNavigator
+import dev.nucleusframework.webview.web.WebViewState
 import dev.nucleusframework.webview.web.rememberWebViewNavigator
 import dev.nucleusframework.webview.web.rememberWebViewState
 import dev.nucleusframework.webview.web.rememberWebViewStateWithHTMLData

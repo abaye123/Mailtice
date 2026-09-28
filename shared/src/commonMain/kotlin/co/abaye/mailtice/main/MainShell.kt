@@ -1,74 +1,73 @@
 package co.abaye.mailtice.main
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.ui.unit.Dp
-import mailtice.shared.generated.resources.account_collapse
-import mailtice.shared.generated.resources.account_expand
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuOpen
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Menu
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppKey
@@ -88,6 +87,8 @@ import co.abaye.mailtice.ui.Pane
 import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
 import mailtice.shared.generated.resources.Res
+import mailtice.shared.generated.resources.account_collapse
+import mailtice.shared.generated.resources.account_expand
 import mailtice.shared.generated.resources.app_name
 import mailtice.shared.generated.resources.close_to_mail
 import mailtice.shared.generated.resources.compose_new
@@ -139,8 +140,15 @@ fun MainShell(
  * out its own list and reader cards) sits on one rounded pane with a margin around it.
  */
 @Composable
-private fun ContentArea(destination: AppKey, onIntent: (AppIntent) -> Unit, modifier: Modifier, content: @Composable () -> Unit) {
+private fun ContentArea(
+    destination: AppKey,
+    onIntent: (AppIntent) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
     val cards = cardPanes()
+    // Placed in one of two branches below; movable, so a screen keeps its state if the branch changes.
+    val screen = remember(content) { movableContentOf(content) }
     val splitsItself = destination == AppKey.Inbox || destination == AppKey.Reader
     // Home is a place of its own, not a page over the mail: no "back to mail" pill there.
     val overMail = destination != AppKey.Home
@@ -150,21 +158,23 @@ private fun ContentArea(destination: AppKey, onIntent: (AppIntent) -> Unit, modi
             .then(if (cards) Modifier.padding(top = 8.dp, bottom = 8.dp, end = 8.dp) else Modifier),
     ) {
         if (splitsItself) {
-            content()
+            screen()
         } else {
             Pane(rounded = cards, modifier = Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize()) {
-                    content()
+                    screen()
                     // Settings, accounts and about lay over the mail; this pill floats at the far end of
                     // their title row (titles sit at the leading edge) and goes straight back to it.
-                    if (overMail) Button(
-                        onClick = { onIntent(AppIntent.Navigate(AppKey.Inbox)) },
-                        modifier = Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 16.dp),
-                        contentPadding = PaddingValues(start = 12.dp, end = 18.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    ) {
-                        Icon(Icons.Outlined.Close, null, Modifier.size(18.dp))
-                        Text(stringResource(Res.string.close_to_mail), Modifier.padding(start = 8.dp))
+                    if (overMail) {
+                        Button(
+                            onClick = { onIntent(AppIntent.Navigate(AppKey.Inbox)) },
+                            modifier = Modifier.align(Alignment.TopEnd).padding(top = 14.dp, end = 16.dp),
+                            contentPadding = PaddingValues(start = 12.dp, end = 18.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                        ) {
+                            Icon(Icons.Outlined.Close, null, Modifier.size(18.dp))
+                            Text(stringResource(Res.string.close_to_mail), Modifier.padding(start = 8.dp))
+                        }
                     }
                 }
             }
@@ -298,13 +308,19 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
         HorizontalDivider(Modifier.padding(horizontal = if (collapsed) 8.dp else 16.dp, vertical = 6.dp), color = colors.outlineVariant)
         // Account management, settings and about take one row, leaving the height to the folders.
         val footer = listOf(
-            Triple(AppKey.Accounts, stringResource(Res.string.nav_manage_accounts), selected == AppKey.Accounts || selected is AppKey.AccountDetail),
+            Triple(
+                AppKey.Accounts,
+                stringResource(Res.string.nav_manage_accounts),
+                selected == AppKey.Accounts || selected is AppKey.AccountDetail,
+            ),
             Triple(AppKey.Settings, AppKey.Settings.label(), selected == AppKey.Settings),
             Triple(AppKey.About, AppKey.About.label(), selected == AppKey.About),
         )
         if (collapsed) {
             footer.forEach { (key, label, isSelected) ->
-                SidebarItem(label = label, selected = isSelected, collapsed = true, leading = { tint -> Icon(key.icon(), null, tint = tint) }) {
+                SidebarItem(label = label, selected = isSelected, collapsed = true, leading = { tint ->
+                    Icon(key.icon(), null, tint = tint)
+                }) {
                     onIntent(AppIntent.Navigate(key))
                 }
             }
@@ -355,7 +371,10 @@ private fun AccountTree(state: AppState, account: Account, inMail: Boolean, onIn
                 // The label's own colour where the provider has one (Gmail), like its web client.
                 leading = { tint -> Icon(FolderIcon, null, tint = folder.labelColor() ?: tint) },
                 hoverTrailing = {
-                    LabelControls(account, folder, pinned = folder.key in settings.pinnedLabels, onIntent = onIntent, onMenuOpen = { menuOpen = it })
+                    LabelControls(account, folder, pinned = folder.key in settings.pinnedLabels, onIntent = onIntent, onMenuOpen = {
+                        menuOpen =
+                            it
+                    })
                 },
                 keepHoverTrailing = menuOpen,
             ) { onIntent(AppIntent.OpenLabel(account.id, folder.id)) }
@@ -436,17 +455,19 @@ private fun SidebarHeader(collapsed: Boolean, canCompose: Boolean, onToggle: () 
 /** A divider with a small heading; collapsed, the divider alone. */
 @Composable
 private fun SidebarSection(title: String, collapsed: Boolean) {
-    val colors = MaterialTheme.colorScheme
-    HorizontalDivider(Modifier.padding(horizontal = if (collapsed) 8.dp else 16.dp, vertical = 10.dp), color = colors.outlineVariant)
-    if (!collapsed) {
-        Text(
-            title,
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelLarge,
-            color = colors.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+    Column {
+        val colors = MaterialTheme.colorScheme
+        HorizontalDivider(Modifier.padding(horizontal = if (collapsed) 8.dp else 16.dp, vertical = 10.dp), color = colors.outlineVariant)
+        if (!collapsed) {
+            Text(
+                title,
+                Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -502,15 +523,18 @@ private fun AccountSidebarItem(
  * A sidebar row. [hoverTrailing] takes the place of the count while the pointer is over the row
  * (or while [keepHoverTrailing], say with its menu open); [end] is always at the far end.
  */
+// The leading slot is used in one of two exclusive branches (rail or full row), so there is no slot
+// state to carry across.
+@Suppress("ktlint:compose:content-slot-reused", "ContentSlotReused")
 @Composable
 private fun SidebarItem(
     label: String,
     selected: Boolean,
     collapsed: Boolean,
+    leading: @Composable (tint: Color) -> Unit,
     count: Int = 0,
     indent: Dp = 0.dp,
     muted: Boolean = false,
-    leading: @Composable (tint: Color) -> Unit,
     trailing: @Composable () -> Unit = {},
     hoverTrailing: (@Composable () -> Unit)? = null,
     keepHoverTrailing: Boolean = false,

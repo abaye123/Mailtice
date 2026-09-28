@@ -1,10 +1,10 @@
 package co.abaye.mailtice.dev
 
-import co.abaye.mailtice.domain.FolderRole
-import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
+import co.abaye.mailtice.domain.FolderRole
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.ProviderKind
@@ -294,11 +294,10 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
         )
     }
 
-    private fun htmlFor(mail: DemoMail): String =
-        "<div dir=\"auto\" style=\"font-family:sans-serif;max-width:560px\">" +
-            "<h2 style=\"color:#0038B8\">${mail.subject.escapeHtml()}</h2>" +
-            "<p>${mail.text.escapeHtml()}</p>" +
-            "<p style=\"color:#747685;font-size:12px\">Mailtice demo message</p></div>"
+    private fun htmlFor(mail: DemoMail): String = "<div dir=\"auto\" style=\"font-family:sans-serif;max-width:560px\">" +
+        "<h2 style=\"color:#0038B8\">${mail.subject.escapeHtml()}</h2>" +
+        "<p>${mail.text.escapeHtml()}</p>" +
+        "<p style=\"color:#747685;font-size:12px\">Mailtice demo message</p></div>"
 
     private fun String.escapeHtml() = replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 

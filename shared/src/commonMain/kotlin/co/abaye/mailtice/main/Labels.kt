@@ -110,8 +110,7 @@ fun AppState.sidebarLabels(accountId: String, withHidden: Boolean = false): List
 
 /** "Labels" on Gmail, "folders" on IMAP: the word each provider uses for its own. */
 @Composable
-fun Account.manageLabelsTitle(): String =
-    stringResource(if (capabilities.labels) Res.string.labels_manage else Res.string.folders_manage)
+fun Account.manageLabelsTitle(): String = stringResource(if (capabilities.labels) Res.string.labels_manage else Res.string.folders_manage)
 
 /**
  * The pin and the three dots a label shows at the far end of its sidebar row on hover: pin to the
@@ -119,7 +118,13 @@ fun Account.manageLabelsTitle(): String =
  * row carries everything it needs.
  */
 @Composable
-internal fun LabelControls(account: Account, folder: Folder, pinned: Boolean, onIntent: (AppIntent) -> Unit, onMenuOpen: (Boolean) -> Unit) {
+internal fun LabelControls(
+    account: Account,
+    folder: Folder,
+    pinned: Boolean,
+    onIntent: (AppIntent) -> Unit,
+    onMenuOpen: (Boolean) -> Unit,
+) {
     var menu by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
@@ -138,7 +143,9 @@ internal fun LabelControls(account: Account, folder: Folder, pinned: Boolean, on
             tint = if (pinned) MaterialTheme.colorScheme.primary else tint,
         )
         Box {
-            TooltipIconButton(Icons.Outlined.MoreVert, stringResource(Res.string.label_more), { setMenu(true) }, modifier = Modifier.size(32.dp), tint = tint)
+            TooltipIconButton(Icons.Outlined.MoreVert, stringResource(Res.string.label_more), {
+                setMenu(true)
+            }, modifier = Modifier.size(32.dp), tint = tint)
             DropdownMenu(expanded = menu, onDismissRequest = { setMenu(false) }) {
                 if (editable) {
                     DropdownMenuItem(
@@ -296,7 +303,9 @@ fun LabelsScreen(accountId: String, state: AppState, onIntent: (AppIntent) -> Un
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp)) {
         Column(Modifier.widthIn(max = 720.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), { onIntent(AppIntent.Back) })
+                TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), {
+                    onIntent(AppIntent.Back)
+                })
                 AccountDot(account, Modifier.size(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(account.manageLabelsTitle(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -395,8 +404,12 @@ private fun LabelManageRow(account: Account, folder: Folder, pinned: Boolean, hi
             tint = if (hidden) colors.outline else colors.onSurfaceVariant,
         )
         if (editable) {
-            TooltipIconButton(Icons.Outlined.Edit, stringResource(Res.string.label_edit), { editing = true }, tint = colors.onSurfaceVariant)
-            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.label_delete), { deleting = true }, tint = colors.onSurfaceVariant)
+            TooltipIconButton(Icons.Outlined.Edit, stringResource(Res.string.label_edit), {
+                editing = true
+            }, tint = colors.onSurfaceVariant)
+            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.label_delete), {
+                deleting = true
+            }, tint = colors.onSurfaceVariant)
         }
     }
     if (editing) {

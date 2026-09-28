@@ -1,6 +1,5 @@
 package co.abaye.mailtice.main
 
-import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
+import co.abaye.mailtice.calendar.dateLabel
 import co.abaye.mailtice.data.ScheduledMail
 import co.abaye.mailtice.ui.EmptyContent
 import co.abaye.mailtice.ui.EmptyState
@@ -54,7 +54,11 @@ internal fun ScheduledList(state: AppState, onIntent: (AppIntent) -> Unit) {
     val items = state.scheduled.filter { state.filter.accountId.isEmpty() || it.accountId == state.filter.accountId }
     if (items.isEmpty()) {
         EmptyState(
-            EmptyContent(Illustration.InboxZero, title = stringResource(Res.string.scheduled_empty_title), body = stringResource(Res.string.schedule_note)),
+            EmptyContent(
+                Illustration.InboxZero,
+                title = stringResource(Res.string.scheduled_empty_title),
+                body = stringResource(Res.string.schedule_note),
+            ),
         )
         return
     }
@@ -112,8 +116,12 @@ private fun ScheduledRow(item: ScheduledMail, account: co.abaye.mailtice.domain.
                 )
             }
         }
-        TooltipIconButton(Icons.AutoMirrored.Outlined.Send, stringResource(Res.string.scheduled_send_now), { onIntent(AppIntent.SendScheduledNow(item.id)) })
+        TooltipIconButton(Icons.AutoMirrored.Outlined.Send, stringResource(Res.string.scheduled_send_now), {
+            onIntent(AppIntent.SendScheduledNow(item.id))
+        })
         TooltipIconButton(Icons.Outlined.Edit, stringResource(Res.string.scheduled_edit), { onIntent(AppIntent.EditScheduled(item.id)) })
-        TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.scheduled_cancel), { onIntent(AppIntent.CancelScheduled(item.id)) })
+        TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.scheduled_cancel), {
+            onIntent(AppIntent.CancelScheduled(item.id))
+        })
     }
 }

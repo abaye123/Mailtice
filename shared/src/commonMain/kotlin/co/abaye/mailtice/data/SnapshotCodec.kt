@@ -1,15 +1,15 @@
 package co.abaye.mailtice.data
 
-import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.ListDensity
-import co.abaye.mailtice.domain.SunsetCity
 import co.abaye.mailtice.domain.ListFractionRange
+import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.domain.PaneStyle
 import co.abaye.mailtice.domain.PollIntervals
 import co.abaye.mailtice.domain.ReadingPane
+import co.abaye.mailtice.domain.SunsetCity
 import co.abaye.mailtice.domain.ThemeMode
 import co.abaye.mailtice.domain.UiLanguage
 import co.abaye.mailtice.domain.UserSettings
@@ -124,7 +124,8 @@ fun decodeSnapshot(raw: String): AppData {
         smartPolling = flag(KEY_SMART_POLL, defaults.smartPolling),
         openHomeAtStart = flag(KEY_OPEN_HOME, defaults.openHomeAtStart),
         offlineMode = flag(KEY_OFFLINE, defaults.offlineMode),
-        offlineAttachmentsMb = map[KEY_OFFLINE_ATTACHMENTS]?.toIntOrNull()?.takeIf { it in OfflineAttachmentLimits } ?: defaults.offlineAttachmentsMb,
+        offlineAttachmentsMb =
+        map[KEY_OFFLINE_ATTACHMENTS]?.toIntOrNull()?.takeIf { it in OfflineAttachmentLimits } ?: defaults.offlineAttachmentsMb,
         pollSeconds = map[KEY_POLL]?.toIntOrNull()?.takeIf { it in PollIntervals } ?: defaults.pollSeconds,
         notificationsEnabled = flag(KEY_NOTIFICATIONS, defaults.notificationsEnabled),
         closeToTray = flag(KEY_CLOSE_TO_TRAY, defaults.closeToTray),

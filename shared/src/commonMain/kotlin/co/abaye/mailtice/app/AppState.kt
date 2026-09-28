@@ -1,25 +1,25 @@
 package co.abaye.mailtice.app
 
-import co.abaye.mailtice.domain.SenderIdentity
-import co.abaye.mailtice.domain.AccountDigest
-import co.abaye.mailtice.sync.PollPlan
-import co.abaye.mailtice.domain.Attachment
 import androidx.compose.runtime.Immutable
 import co.abaye.mailtice.auth.BrowserProfile
 import co.abaye.mailtice.data.Contact
 import co.abaye.mailtice.data.ScheduledMail
 import co.abaye.mailtice.domain.Account
+import co.abaye.mailtice.domain.AccountDigest
 import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.AppData
+import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Folder
+import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.MailBody
-import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ProviderKind
+import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.StorageUsage
 import co.abaye.mailtice.provider.ImapLoginException
+import co.abaye.mailtice.sync.PollPlan
 
 @Immutable
 sealed interface AppDialog {
@@ -169,12 +169,11 @@ data class OlderMail(
     val failed: Boolean = false,
 )
 
-/** Stored rows the list reads at first; reaching the end reads [LocalPage] more before asking the server. */
-const val LocalPage: Long = 500
+/** Stored rows the list reads at first; reaching the end reads [LOCAL_PAGE] more before asking the server. */
+const val LOCAL_PAGE: Long = 500
 
 /** Everything that makes a draft worth saving again when it changes. */
-fun ComposeDraft.draftSignature(): Int =
-    listOf(accountId, to, cc, bcc, subject, body, html, attachments.joinToString { it.id }).hashCode()
+fun ComposeDraft.draftSignature(): Int = listOf(accountId, to, cc, bcc, subject, body, html, attachments.joinToString { it.id }).hashCode()
 
 /** Nothing typed yet: not worth a draft on the server. */
 val ComposeDraft.isBlank: Boolean
@@ -254,7 +253,7 @@ data class AppState(
     val contactSuggestions: List<Contact> = emptyList(),
     /** The scheduled-send queue, soonest first. */
     val scheduled: List<ScheduledMail> = emptyList(),
-    val localLimit: Long = LocalPage,
+    val localLimit: Long = LOCAL_PAGE,
     /** Checked rows ("<accountId>/<messageId>"); non-empty turns the list toolbar into bulk actions. */
     val selection: Set<String> = emptySet(),
     /** A download or export is running; the UI shows progress and blocks a second one. */
@@ -322,11 +321,14 @@ data class AppState(
         val accounts = if (accountId.isEmpty()) accounts else accounts.filter { it.id == accountId }
         return when (view) {
             MailView.Inbox -> accounts.sumOf { unread[it.id] ?: 0L }.toInt()
+
             MailView.Spam -> accounts.sumOf { account ->
                 val counts = unreadByFolder[account.id].orEmpty()
                 foldersOf(account.id).filter { it.role == FolderRole.Spam }.sumOf { counts[it.id] ?: 0L }
             }.toInt()
+
             MailView.Scheduled -> scheduled.count { accountId.isEmpty() || it.accountId == accountId }
+
             else -> 0
         }
     }

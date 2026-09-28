@@ -1,13 +1,13 @@
 package co.abaye.mailtice.provider
 
-import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
-import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.FolderRole
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.search.MailSearch
 
 /** [color] is the label's "#rrggbb" background where the provider has one (Gmail), "" otherwise. */
@@ -211,10 +211,14 @@ sealed class ProviderException(message: String) : Exception(message) {
             val msg = "HTTP $status: ${body.take(300)}"
             return when {
                 status == 401 -> Unauthorized(msg)
+
                 status == 404 -> NotFound(msg)
+
                 status == 429 || status >= 500 -> Transient(msg)
+
                 // Gmail reports its per-user quota as 403 rateLimitExceeded as often as 429.
                 status == 403 && RATE_LIMIT_REASONS.any { it in body } -> Transient(msg)
+
                 else -> Client(msg)
             }
         }

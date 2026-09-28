@@ -1,8 +1,5 @@
 package co.abaye.mailtice.di
 
-import co.abaye.mailtice.sync.NetworkProbe
-import co.abaye.mailtice.translate.GtxTranslator
-import co.abaye.mailtice.translate.Translator
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Authorizer
 import co.abaye.mailtice.data.MailRepository
@@ -26,7 +23,10 @@ import co.abaye.mailtice.provider.MailProviders
 import co.abaye.mailtice.provider.createImapBackend
 import co.abaye.mailtice.provider.gmail.GmailApi
 import co.abaye.mailtice.provider.gmail.GmailProvider
+import co.abaye.mailtice.sync.NetworkProbe
 import co.abaye.mailtice.sync.SyncEngine
+import co.abaye.mailtice.translate.GtxTranslator
+import co.abaye.mailtice.translate.Translator
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo

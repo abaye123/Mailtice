@@ -1,16 +1,16 @@
 package co.abaye.mailtice.platform
 
-import io.github.vinceglb.filekit.dialogs.openDirectoryPicker
 import co.abaye.mailtice.dev.DemoMode
+import dev.nucleusframework.autolaunch.AutoLaunch
+import dev.nucleusframework.autolaunch.AutoLaunchResult
+import dev.nucleusframework.core.runtime.NucleusApp
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.FileKitDialogParent
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.openDirectoryPicker
 import io.github.vinceglb.filekit.dialogs.openFilePicker
-import dev.nucleusframework.autolaunch.AutoLaunch
-import dev.nucleusframework.autolaunch.AutoLaunchResult
-import dev.nucleusframework.core.runtime.NucleusApp
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
@@ -136,8 +136,16 @@ internal actual object Platform {
             when (osLabel) {
                 // Opens the folder with the file selected.
                 "Windows" -> ProcessBuilder("explorer.exe", "/select,", file.absolutePath).start()
+
                 "macOS" -> ProcessBuilder("open", "-R", file.absolutePath).start()
-                else -> if (Desktop.isDesktopSupported()) Desktop.getDesktop().open(dir) else ProcessBuilder("xdg-open", dir.absolutePath).start()
+
+                else -> if (Desktop.isDesktopSupported()) {
+                    Desktop.getDesktop().open(
+                        dir,
+                    )
+                } else {
+                    ProcessBuilder("xdg-open", dir.absolutePath).start()
+                }
             }
         }
     }

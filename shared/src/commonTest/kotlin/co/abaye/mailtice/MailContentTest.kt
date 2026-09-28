@@ -12,7 +12,8 @@ import kotlin.test.assertTrue
 class MailContentTest {
     @Test
     fun gmailReplySplits() {
-        val body = "Sounds good, see you then.\n\nOn Mon, 21 Sep 2026 at 10:00, Dana Cohen <dana@x.com> wrote:\n> Shall we meet on Tuesday?\n> Dana"
+        val body = "Sounds good, see you then.\n\n" +
+            "On Mon, 21 Sep 2026 at 10:00, Dana Cohen <dana@x.com> wrote:\n> Shall we meet on Tuesday?\n> Dana"
         val split = splitQuote(body)
         assertEquals("Sounds good, see you then.", split.main)
         assertTrue(split.quoted.startsWith("On Mon"))
@@ -28,7 +29,8 @@ class MailContentTest {
 
     @Test
     fun outlookHeaderSplits() {
-        val body = "Approved.\n\n________________________________\nFrom: Dana Cohen <dana@x.com>\nSent: Monday, September 21, 2026 10:00\nTo: Noa\nSubject: Budget"
+        val body = "Approved.\n\n________________________________\n" +
+            "From: Dana Cohen <dana@x.com>\nSent: Monday, September 21, 2026 10:00\nTo: Noa\nSubject: Budget"
         assertEquals("Approved.", splitQuote(body).main)
     }
 
@@ -42,7 +44,12 @@ class MailContentTest {
 
     @Test
     fun documentIsLockedDown() {
-        val doc = emailDocument("<p>Hi</p><script>alert(1)</script><img src=\"https://t.example/p.gif\">", hideQuotes = false, remoteImages = false)
+        val doc =
+            emailDocument(
+                "<p>Hi</p><script>alert(1)</script><img src=\"https://t.example/p.gif\">",
+                hideQuotes = false,
+                remoteImages = false,
+            )
         assertFalse("<script" in doc)
         assertTrue("script-src 'none'" in doc)
         // Remote images are not allowed by the policy unless asked for.
@@ -64,7 +71,13 @@ class MailContentTest {
     fun inlineImagesAreSwappedIn() {
         val html = "<p>Logo</p><img src=\"cid:image001.png%4001DA\"><img src=\"cid:missing\">"
         assertEquals(setOf("image001.png@01DA", "missing"), cidRefs(html))
-        val doc = emailDocument(html, hideQuotes = false, remoteImages = false, inlineImages = mapOf("image001.png@01DA" to "data:image/png;base64,AAAA"))
+        val doc =
+            emailDocument(
+                html,
+                hideQuotes = false,
+                remoteImages = false,
+                inlineImages = mapOf("image001.png@01DA" to "data:image/png;base64,AAAA"),
+            )
         assertTrue("src=\"data:image/png;base64,AAAA\"" in doc)
         assertTrue("cid:missing" in doc)
     }

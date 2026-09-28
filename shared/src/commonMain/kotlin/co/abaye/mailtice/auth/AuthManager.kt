@@ -1,6 +1,5 @@
 package co.abaye.mailtice.auth
 
-import kotlin.io.encoding.Base64
 import co.abaye.mailtice.data.SecretStore
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.platform.Platform
@@ -18,6 +17,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.io.encoding.Base64
 
 @Serializable
 data class TokenResponse(
@@ -45,10 +45,7 @@ private const val CLIENT_NATIVE = "native"
  * passwords. Nothing secret goes to the database - refresh tokens and passwords live in [SecretStore]
  * under the account id.
  */
-class AuthManager(
-    private val http: HttpClient,
-    private val secrets: SecretStore,
-) {
+class AuthManager(private val http: HttpClient, private val secrets: SecretStore) {
     private data class Cached(val token: String, val expiresAt: Long)
 
     private val cache = mutableMapOf<String, Cached>()

@@ -42,7 +42,9 @@ internal fun appTypography(font: AppFont = AppFont.Rubik): Typography {
 internal fun fontFamily(font: AppFont): FontFamily {
     val files = when (font) {
         AppFont.Rubik -> listOf(Res.font.rubik_regular, Res.font.rubik_medium, Res.font.rubik_semibold, Res.font.rubik_bold)
+
         AppFont.Heebo -> listOf(Res.font.heebo_regular, Res.font.heebo_medium, Res.font.heebo_semibold, Res.font.heebo_bold)
+
         AppFont.Noto -> listOf(
             Res.font.noto_sans_hebrew_regular,
             Res.font.noto_sans_hebrew_medium,

@@ -77,6 +77,14 @@ android {
         }
     }
 
+    // Jakarta Mail, Angus Mail and Angus Activation each ship the same Eclipse NOTICE and LICENSE
+    // files; the app needs none of them at run time and the merge refuses duplicates.
+    packaging {
+        resources {
+            excludes += listOf("META-INF/NOTICE.md", "META-INF/LICENSE.md", "META-INF/NOTICE", "META-INF/LICENSE")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

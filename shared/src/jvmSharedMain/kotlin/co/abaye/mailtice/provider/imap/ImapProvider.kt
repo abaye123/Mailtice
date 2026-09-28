@@ -1,6 +1,5 @@
 package co.abaye.mailtice.provider.imap
 
-import jakarta.mail.internet.MimePart
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Credential
 import co.abaye.mailtice.auth.ReauthRequiredException
@@ -8,10 +7,10 @@ import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
-import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ImapServer
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.ProviderKind
@@ -42,6 +41,7 @@ import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeMultipart
+import jakarta.mail.internet.MimePart
 import jakarta.mail.internet.MimeUtility
 import jakarta.mail.search.AndTerm
 import jakarta.mail.search.BodyTerm
@@ -49,11 +49,11 @@ import jakarta.mail.search.ComparisonTerm
 import jakarta.mail.search.FlagTerm
 import jakarta.mail.search.FromStringTerm
 import jakarta.mail.search.NotTerm
-import jakarta.mail.search.RecipientStringTerm
 import jakarta.mail.search.OrTerm
+import jakarta.mail.search.ReceivedDateTerm
+import jakarta.mail.search.RecipientStringTerm
 import jakarta.mail.search.SearchTerm
 import jakarta.mail.search.SubjectTerm
-import jakarta.mail.search.ReceivedDateTerm
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -223,10 +223,12 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
                             }
                             index++
                         }
+
                         part.isMimeType("multipart/*") -> {
                             val mp = part.content as Multipart
                             for (i in 0 until mp.count) walk(mp.getBodyPart(i))
                         }
+
                         part.isMimeType("message/rfc822") -> (part.content as? Part)?.let(::walk)
                     }
                 }
@@ -327,7 +329,12 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
     /** APPEND to the Drafts folder with \Draft, then remove the previous version; the handle is "<folder>/<uid>". */
     override suspend fun saveDraft(account: Account, mail: OutgoingMail, folders: List<Folder>, previous: String?): String {
         val drafts = folders.firstOrNull { it.role == FolderRole.Drafts } ?: error("No drafts folder")
-        val message = io { mimeMessage(account, mail).apply { setFlag(Flags.Flag.DRAFT, true); setFlag(Flags.Flag.SEEN, true) } }
+        val message = io {
+            mimeMessage(account, mail).apply {
+                setFlag(Flags.Flag.DRAFT, true)
+                setFlag(Flags.Flag.SEEN, true)
+            }
+        }
         val handle = withStore(account) { store ->
             val folder = store.getFolder(drafts.id) as IMAPFolder
             val uid = folder.appendUIDMessages(arrayOf(message)).firstOrNull()?.uid
@@ -442,7 +449,9 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
     /** Fixed for the OAuth providers; for other IMAP hosts, "smtp." in place of "imap.", then the IMAP host. */
     private fun smtpCandidates(account: Account): List<ImapServer> = when (account.kind) {
         ProviderKind.Microsoft -> listOf(ImapServer("smtp.office365.com", 587, ImapSecurity.StartTls))
+
         ProviderKind.Yahoo -> listOf(ImapServer("smtp.mail.yahoo.com", 465, ImapSecurity.Tls))
+
         else -> {
             val imapHost = account.imap?.host.orEmpty()
             val guessed = if (imapHost.startsWith("imap.")) "smtp." + imapHost.removePrefix("imap.") else imapHost
@@ -482,20 +491,19 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         }
     }
 
-    private fun mimeMessage(account: Account, mail: OutgoingMail): MimeMessage =
-        MimeMessage(Session.getInstance(Properties())).apply {
-            setFrom(InternetAddress(mail.from ?: account.email))
-            mail.replyTo?.let { replyTo = arrayOf(InternetAddress(it)) }
-            if (mail.to.isNotEmpty()) setRecipients(Message.RecipientType.TO, addresses(mail.to))
-            if (mail.cc.isNotEmpty()) setRecipients(Message.RecipientType.CC, addresses(mail.cc))
-            if (mail.bcc.isNotEmpty()) setRecipients(Message.RecipientType.BCC, addresses(mail.bcc))
-            setSubject(mail.subject, "UTF-8")
-            setContent(mimeContent(mail))
-            sentDate = Date()
-            mail.inReplyTo?.let { setHeader("In-Reply-To", it) }
-            (mail.references ?: mail.inReplyTo)?.let { setHeader("References", it) }
-            saveChanges()
-        }
+    private fun mimeMessage(account: Account, mail: OutgoingMail): MimeMessage = MimeMessage(Session.getInstance(Properties())).apply {
+        setFrom(InternetAddress(mail.from ?: account.email))
+        mail.replyTo?.let { replyTo = arrayOf(InternetAddress(it)) }
+        if (mail.to.isNotEmpty()) setRecipients(Message.RecipientType.TO, addresses(mail.to))
+        if (mail.cc.isNotEmpty()) setRecipients(Message.RecipientType.CC, addresses(mail.cc))
+        if (mail.bcc.isNotEmpty()) setRecipients(Message.RecipientType.BCC, addresses(mail.bcc))
+        setSubject(mail.subject, "UTF-8")
+        setContent(mimeContent(mail))
+        sentDate = Date()
+        mail.inReplyTo?.let { setHeader("In-Reply-To", it) }
+        (mail.references ?: mail.inReplyTo)?.let { setHeader("References", it) }
+        saveChanges()
+    }
 
     /** Plain text; or plain + HTML (alternative); with files, all of that inside multipart/mixed. */
     private fun mimeContent(mail: OutgoingMail): MimeMultipart {
@@ -619,11 +627,10 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
 
     // ---- folders ----------------------------------------------------------------------------
 
-    private fun listFoldersOf(store: IMAPStore): List<RemoteFolder> =
-        store.defaultFolder.list("*")
-            .filterIsInstance<IMAPFolder>()
-            .filter { (it.type and JFolder.HOLDS_MESSAGES) != 0 && "\\Noselect" !in it.attributes }
-            .map { RemoteFolder(it.fullName, it.fullName, roleOf(it)) }
+    private fun listFoldersOf(store: IMAPStore): List<RemoteFolder> = store.defaultFolder.list("*")
+        .filterIsInstance<IMAPFolder>()
+        .filter { (it.type and JFolder.HOLDS_MESSAGES) != 0 && "\\Noselect" !in it.attributes }
+        .map { RemoteFolder(it.fullName, it.fullName, roleOf(it)) }
 
     private fun roleOf(folder: IMAPFolder): FolderRole {
         val attrs = folder.attributes.map { it.lowercase() }.toSet()
@@ -675,7 +682,10 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
             uid = uid,
             fromName = from?.personal.orEmpty(),
             fromAddress = from?.address.orEmpty(),
-            toLine = getRecipients(Message.RecipientType.TO)?.joinToString(", ") { (it as? InternetAddress)?.toUnicodeString() ?: it.toString() }.orEmpty(),
+            toLine = getRecipients(Message.RecipientType.TO)?.joinToString(", ") {
+                (it as? InternetAddress)?.toUnicodeString()
+                    ?: it.toString()
+            }.orEmpty(),
             subject = subject.orEmpty(),
             snippet = HtmlText.snippet(body.text),
             receivedAt = (receivedDate ?: sentDate)?.time ?: 0L,
@@ -696,8 +706,7 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         fileName != null || Part.ATTACHMENT.equals(part.disposition, ignoreCase = true) ||
             (part.isMimeType("image/*") && contentIdOf(part).isNotEmpty())
 
-    private fun contentIdOf(part: Part): String =
-        (part as? MimePart)?.contentID?.trim()?.removePrefix("<")?.removeSuffix(">").orEmpty()
+    private fun contentIdOf(part: Part): String = (part as? MimePart)?.contentID?.trim()?.removePrefix("<")?.removeSuffix(">").orEmpty()
 
     /** First text/plain, first text/html, and every file part as an attachment (not downloaded). */
     private fun parseBody(message: Part): MailBody {
@@ -714,12 +723,16 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
                         contentIdOf(part),
                         part.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty(),
                     )
+
                 part.isMimeType("text/plain") && text == null -> text = part.content as? String
+
                 part.isMimeType("text/html") && html == null -> html = part.content as? String
+
                 part.isMimeType("multipart/*") -> {
                     val mp = part.content as Multipart
                     for (i in 0 until mp.count) walk(mp.getBodyPart(i))
                 }
+
                 part.isMimeType("message/rfc822") -> (part.content as? Part)?.let(::walk)
             }
         }

@@ -1,15 +1,15 @@
 package co.abaye.mailtice.app
 
-import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppFont
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.ListDensity
-import co.abaye.mailtice.domain.SunsetCity
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.PaneStyle
-import co.abaye.mailtice.domain.ReadingPane
 import co.abaye.mailtice.domain.ProviderKind
+import co.abaye.mailtice.domain.ReadingPane
+import co.abaye.mailtice.domain.SunsetCity
 import co.abaye.mailtice.domain.ThemeMode
 import co.abaye.mailtice.domain.UiLanguage
 
@@ -48,6 +48,7 @@ sealed interface AppIntent {
     data class ClearAccountCache(val accountId: String) : AppIntent
 
     // Inbox & reader
+
     /** Empty string = every account / every folder. */
     data class SetFilterAccount(val accountId: String) : AppIntent
     data class SetFilterFolder(val folderId: String) : AppIntent
@@ -79,6 +80,7 @@ sealed interface AppIntent {
     data class StartCompose(val mode: ComposeMode, val message: MailMessage? = null) : AppIntent
     data class UpdateCompose(val draft: ComposeDraft) : AppIntent
     data object SendCompose : AppIntent
+
     /** Closes the window; a draft with content stays saved on the server (Gmail's behaviour). */
     data object CloseCompose : AppIntent
 

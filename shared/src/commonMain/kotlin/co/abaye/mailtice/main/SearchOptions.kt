@@ -3,21 +3,21 @@ package co.abaye.mailtice.main
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -77,7 +77,9 @@ internal fun SearchOptions(current: String, onSearch: (String) -> Unit, onDismis
     var subject by remember { mutableStateOf(parsed.subject) }
     var words by remember { mutableStateOf(parsed.words.joinToString(" ") { if (' ' in it) "\"$it\"" else it }) }
     var exclude by remember { mutableStateOf(parsed.excluded.joinToString(" ")) }
-    var range by remember { mutableStateOf(DateRange.entries.firstOrNull { it.operator.isNotEmpty() && it.operator in current } ?: DateRange.Any) }
+    var range by remember {
+        mutableStateOf(DateRange.entries.firstOrNull { it.operator.isNotEmpty() && it.operator in current } ?: DateRange.Any)
+    }
     var attachment by remember { mutableStateOf(parsed.hasAttachment) }
     var unread by remember { mutableStateOf(parsed.unread == true) }
 
@@ -94,7 +96,10 @@ internal fun SearchOptions(current: String, onSearch: (String) -> Unit, onDismis
     }.joinToString(" ")
 
     // As wide as the search field it hangs from; each line a label column and an underlined field.
-    Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         Field(stringResource(Res.string.search_from), from) { from = it }
         Field(stringResource(Res.string.search_to), to) { to = it }
         Field(stringResource(Res.string.search_subject), subject) { subject = it }

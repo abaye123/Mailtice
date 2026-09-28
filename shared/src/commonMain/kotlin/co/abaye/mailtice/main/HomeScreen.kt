@@ -1,8 +1,5 @@
 package co.abaye.mailtice.main
 
-import mailtice.shared.generated.resources.home_sync_now
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -25,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +34,7 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -87,6 +86,7 @@ import mailtice.shared.generated.resources.home_noon
 import mailtice.shared.generated.resources.home_not_checked
 import mailtice.shared.generated.resources.home_old_unread
 import mailtice.shared.generated.resources.home_open_inbox
+import mailtice.shared.generated.resources.home_sync_now
 import mailtice.shared.generated.resources.home_unread
 import mailtice.shared.generated.resources.home_unread_total
 import mailtice.shared.generated.resources.home_week
@@ -152,42 +152,50 @@ fun HomeScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifie
 @OptIn(ExperimentalTime::class)
 @Composable
 private fun HomeHeader(state: AppState, now: Long, onIntent: (AppIntent) -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val local = Instant.fromEpochMilliseconds(now).toLocalDateTime(TimeZone.currentSystemDefault())
-    val greeting = stringResource(
-        when (local.hour) {
-            in 5..11 -> Res.string.home_morning
-            in 12..16 -> Res.string.home_noon
-            in 17..21 -> Res.string.home_evening
-            else -> Res.string.home_night
-        },
-    )
-    val hebrew = LocalHebrewDate.current?.let { " · " + hebrewDate(now, it, withYear = true) }.orEmpty()
-    val date = "${local.day}/${local.month.number}/${local.year}$hebrew"
-    val unread = state.digests.values.sumOf { it.unread }
-    val today = state.digests.values.sumOf { it.unreadRecent }
-    val attention = state.accounts.count { state.status(it.id) == AccountStatus.Offline || state.status(it.id) == AccountStatus.NeedsReauth }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(greeting, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-            Text(date, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+    Column {
+        val colors = MaterialTheme.colorScheme
+        val local = Instant.fromEpochMilliseconds(now).toLocalDateTime(TimeZone.currentSystemDefault())
+        val greeting = stringResource(
+            when (local.hour) {
+                in 5..11 -> Res.string.home_morning
+                in 12..16 -> Res.string.home_noon
+                in 17..21 -> Res.string.home_evening
+                else -> Res.string.home_night
+            },
+        )
+        val hebrew = LocalHebrewDate.current?.let { " · " + hebrewDate(now, it, withYear = true) }.orEmpty()
+        val date = "${local.day}/${local.month.number}/${local.year}$hebrew"
+        val unread = state.digests.values.sumOf { it.unread }
+        val today = state.digests.values.sumOf { it.unreadRecent }
+        val attention = state.accounts.count {
+            state.status(it.id) == AccountStatus.Offline || state.status(it.id) == AccountStatus.NeedsReauth
         }
-        // At the far end of the title row (the left in Hebrew): every account checked right now.
-        val syncing = state.accounts.any { state.status(it.id) == AccountStatus.Syncing }
-        FilledTonalButton(onClick = { onIntent(AppIntent.RefreshNow) }) {
-            if (syncing) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            } else {
-                Icon(Icons.Outlined.Sync, null, Modifier.size(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(greeting, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                Text(date, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
             }
-            Text(stringResource(Res.string.home_sync_now), Modifier.padding(start = 8.dp))
+            // At the far end of the title row (the left in Hebrew): every account checked right now.
+            val syncing = state.accounts.any { state.status(it.id) == AccountStatus.Syncing }
+            FilledTonalButton(onClick = { onIntent(AppIntent.RefreshNow) }) {
+                if (syncing) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Outlined.Sync, null, Modifier.size(18.dp))
+                }
+                Text(stringResource(Res.string.home_sync_now), Modifier.padding(start = 8.dp))
+            }
         }
-    }
-    Spacer(Modifier.height(14.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SummaryChip(stringResource(Res.string.home_unread_total, unread), colors.primaryContainer, colors.onPrimaryContainer)
-        SummaryChip(stringResource(Res.string.home_new_today, today), colors.secondaryContainer, colors.onSecondaryContainer)
-        if (attention > 0) SummaryChip(stringResource(Res.string.home_needs_attention, attention), colors.errorContainer, colors.onErrorContainer)
+        Spacer(Modifier.height(14.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SummaryChip(stringResource(Res.string.home_unread_total, unread), colors.primaryContainer, colors.onPrimaryContainer)
+            SummaryChip(stringResource(Res.string.home_new_today, today), colors.secondaryContainer, colors.onSecondaryContainer)
+            if (attention >
+                0
+            ) {
+                SummaryChip(stringResource(Res.string.home_needs_attention, attention), colors.errorContainer, colors.onErrorContainer)
+            }
+        }
     }
 }
 
@@ -213,7 +221,13 @@ private fun AccountCard(
 ) {
     val colors = MaterialTheme.colorScheme
     val tint = account.color.color
-    Surface(modifier, shape = RoundedCornerShape(22.dp), color = colors.surfaceContainerLow, tonalElevation = 1.dp, shadowElevation = 2.dp) {
+    Surface(
+        modifier,
+        shape = RoundedCornerShape(22.dp),
+        color = colors.surfaceContainerLow,
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp,
+    ) {
         Column {
             // The account's colour, bright to soft, with its name and whether it is connected.
             Box(
@@ -221,7 +235,10 @@ private fun AccountCard(
                     .background(Brush.linearGradient(listOf(tint, lerp(tint, Color.White, 0.35f)))),
             ) {
                 Row(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(44.dp).background(Color.White.copy(alpha = 0.92f), CircleShape), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.size(44.dp).background(Color.White.copy(alpha = 0.92f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Text(
                             account.displayName.take(1).uppercase(),
                             style = MaterialTheme.typography.titleLarge,
@@ -230,8 +247,21 @@ private fun AccountCard(
                         )
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text(account.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(account.email, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            account.displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            account.email,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                     StatusPill(status)
                 }
@@ -253,10 +283,26 @@ private fun AccountCard(
                             ) {
                                 Box(Modifier.size(8.dp).background(tint, CircleShape))
                                 Column(Modifier.weight(1f)) {
-                                    Text(m.sender, style = MaterialTheme.typography.bodyMedium.merge(ContentDirection), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(m.subject, style = MaterialTheme.typography.bodySmall.merge(ContentDirection), color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(
+                                        m.sender,
+                                        style = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        m.subject,
+                                        style = MaterialTheme.typography.bodySmall.merge(ContentDirection),
+                                        color = colors.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
                                 }
-                                Text(relativeTime(m.receivedAt, now), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                                Text(
+                                    relativeTime(m.receivedAt, now),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = colors.onSurfaceVariant,
+                                )
                             }
                         }
                     }
@@ -264,15 +310,20 @@ private fun AccountCard(
                 if (digest != null) WeekBars(digest.perDay, tint)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        lastSynced?.let { stringResource(Res.string.home_checked, relativeTime(it, now)) } ?: stringResource(Res.string.home_not_checked),
+                        lastSynced?.let { stringResource(Res.string.home_checked, relativeTime(it, now)) }
+                            ?: stringResource(Res.string.home_not_checked),
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.onSurfaceVariant,
                     )
                     if (status == AccountStatus.NeedsReauth) {
-                        TextButton(onClick = { onIntent(AppIntent.Reconnect(account.id)) }) { Text(stringResource(Res.string.accounts_reconnect)) }
+                        TextButton(onClick = {
+                            onIntent(AppIntent.Reconnect(account.id))
+                        }) { Text(stringResource(Res.string.accounts_reconnect)) }
                     }
-                    TextButton(onClick = { onIntent(AppIntent.OpenView(account.id, MailView.Inbox)) }) { Text(stringResource(Res.string.home_open_inbox)) }
+                    TextButton(onClick = {
+                        onIntent(AppIntent.OpenView(account.id, MailView.Inbox))
+                    }) { Text(stringResource(Res.string.home_open_inbox)) }
                 }
             }
         }
@@ -288,7 +339,9 @@ private fun AccountCard(
 private fun UnreadLine(digest: AccountDigest?, tint: Color, now: Long) {
     val colors = MaterialTheme.colorScheme
     if (digest == null) {
-        Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
+        Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+        }
         return
     }
     val age = digest.newestUnreadAt?.let { now - it }
@@ -302,11 +355,18 @@ private fun UnreadLine(digest: AccountDigest?, tint: Color, now: Long) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(Res.string.home_unread), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
             when {
-                digest.unread == 0 -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                digest.unread == 0 -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     Icon(Icons.Outlined.CheckCircle, null, Modifier.size(16.dp), tint = Color(0xFF1E8E3E))
                     Text(stringResource(Res.string.home_all_read), style = MaterialTheme.typography.bodyMedium)
                 }
-                age != null && age < 2 * DAY -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+                age != null && age < 2 * DAY -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     if (age < HOUR) PulseDot(tint) else Icon(Icons.Outlined.MarkEmailUnread, null, Modifier.size(16.dp), tint = tint)
                     Text(
                         stringResource(Res.string.home_fresh, relativeTime(digest.newestUnreadAt, now)),
@@ -314,6 +374,7 @@ private fun UnreadLine(digest: AccountDigest?, tint: Color, now: Long) {
                         fontWeight = if (age < HOUR) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 }
+
                 else -> Text(
                     stringResource(Res.string.home_old_unread, digest.newestUnreadAt?.let { relativeTime(it, now) }.orEmpty()),
                     style = MaterialTheme.typography.bodyMedium,
@@ -337,14 +398,24 @@ private fun WeekBars(perDay: List<Int>, tint: Color) {
     val colors = MaterialTheme.colorScheme
     val max = (perDay.maxOrNull() ?: 0).coerceAtLeast(1)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(stringResource(Res.string.home_week, perDay.sum()), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+        Text(
+            stringResource(Res.string.home_week, perDay.sum()),
+            style = MaterialTheme.typography.labelSmall,
+            color = colors.onSurfaceVariant,
+        )
         Canvas(Modifier.fillMaxWidth().height(34.dp)) {
             val gap = 6.dp.toPx()
             val barWidth = (size.width - gap * (perDay.size - 1)) / perDay.size
             perDay.forEachIndexed { i, count ->
                 val h = if (count == 0) 3.dp.toPx() else (size.height * count / max).coerceAtLeast(4.dp.toPx())
                 // In right-to-left layouts the newest day still sits at the reading end.
-                val x = if (layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl) size.width - (i + 1) * barWidth - i * gap else i * (barWidth + gap)
+                val x = if (layoutDirection ==
+                    androidx.compose.ui.unit.LayoutDirection.Rtl
+                ) {
+                    size.width - (i + 1) * barWidth - i * gap
+                } else {
+                    i * (barWidth + gap)
+                }
                 drawRoundRect(
                     color = if (i == perDay.lastIndex) tint else tint.copy(alpha = 0.45f),
                     topLeft = Offset(x, size.height - h),
@@ -370,7 +441,14 @@ private fun StatusPill(status: AccountStatus) {
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Icon(icon, null, Modifier.size(14.dp), tint = Color.White)
-        Text(text, Modifier.widthIn(max = 150.dp), style = MaterialTheme.typography.labelSmall, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text,
+            Modifier.widthIn(max = 150.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

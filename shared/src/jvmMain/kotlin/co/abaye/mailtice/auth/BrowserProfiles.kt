@@ -26,9 +26,14 @@ internal object BrowserProfiles {
                 listOf(
                     windowsBrowser("Chrome", File(local, "Google/Chrome/User Data"), exe("Google/Chrome/Application/chrome.exe")),
                     windowsBrowser("Edge", File(local, "Microsoft/Edge/User Data"), exe("Microsoft/Edge/Application/msedge.exe")),
-                    windowsBrowser("Brave", File(local, "BraveSoftware/Brave-Browser/User Data"), exe("BraveSoftware/Brave-Browser/Application/brave.exe")),
+                    windowsBrowser(
+                        "Brave",
+                        File(local, "BraveSoftware/Brave-Browser/User Data"),
+                        exe("BraveSoftware/Brave-Browser/Application/brave.exe"),
+                    ),
                 )
             }
+
             os.contains("mac") -> {
                 val support = File(home, "Library/Application Support")
                 listOf(
@@ -37,6 +42,7 @@ internal object BrowserProfiles {
                     macBrowser("Brave", File(support, "BraveSoftware/Brave-Browser"), "Brave Browser"),
                 )
             }
+
             else -> {
                 val config = System.getenv("XDG_CONFIG_HOME")?.takeIf { it.isNotBlank() }?.let(::File) ?: File(home, ".config")
                 listOf(

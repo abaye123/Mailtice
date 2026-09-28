@@ -41,7 +41,10 @@ import org.jetbrains.compose.resources.stringResource
 private enum class ListEmptyReason { Search, FirstSync, Offline, Attachments, Unread, Folder, Account, Inbox }
 
 /** The empty list is explained by a sync that has not caught up (or cannot), not by an empty folder. */
-internal fun AppState.emptyBecauseOfSync(): Boolean = listEmptyReason().let { it == ListEmptyReason.FirstSync || it == ListEmptyReason.Offline }
+internal fun AppState.emptyBecauseOfSync(): Boolean = listEmptyReason().let {
+    it == ListEmptyReason.FirstSync ||
+        it == ListEmptyReason.Offline
+}
 
 private fun AppState.listEmptyReason(): ListEmptyReason {
     val f = filter
@@ -49,13 +52,20 @@ private fun AppState.listEmptyReason(): ListEmptyReason {
     val statuses = relevant.map { status(it.id) }
     return when {
         f.query.isNotBlank() -> ListEmptyReason.Search
+
         // Idle = not synced yet this session; Syncing is only reported for an account's first sync.
         statuses.any { it == AccountStatus.Syncing || it == AccountStatus.Idle } -> ListEmptyReason.FirstSync
+
         statuses.isNotEmpty() && statuses.all { it == AccountStatus.Offline } -> ListEmptyReason.Offline
+
         f.attachmentsOnly -> ListEmptyReason.Attachments
+
         f.unreadOnly -> ListEmptyReason.Unread
+
         f.folderId.isNotEmpty() || f.view != MailView.Inbox -> ListEmptyReason.Folder
+
         f.accountId.isNotEmpty() -> ListEmptyReason.Account
+
         else -> ListEmptyReason.Inbox
     }
 }
@@ -89,29 +99,34 @@ internal fun MessageListEmptyState(state: AppState, onIntent: (AppIntent) -> Uni
             body = stringResource(Res.string.empty_search_body, filter.query.trim()),
             action = stringResource(Res.string.empty_search_action),
         )
+
         ListEmptyReason.FirstSync -> EmptyContent(
             Illustration.Syncing,
             title = stringResource(Res.string.empty_syncing_title),
             body = stringResource(Res.string.empty_syncing_body),
         )
+
         ListEmptyReason.Offline -> EmptyContent(
             Illustration.Offline,
             title = stringResource(Res.string.empty_offline_title),
             body = stringResource(Res.string.empty_offline_body),
             action = stringResource(Res.string.empty_offline_action),
         )
+
         ListEmptyReason.Attachments -> EmptyContent(
             Illustration.NoResults,
             title = stringResource(Res.string.empty_attachments_title),
             body = stringResource(Res.string.empty_attachments_body),
             secondaryAction = stringResource(Res.string.empty_unread_action),
         )
+
         ListEmptyReason.Unread -> EmptyContent(
             Illustration.AllRead,
             title = stringResource(Res.string.empty_unread_title),
             body = stringResource(Res.string.empty_unread_body),
             secondaryAction = stringResource(Res.string.empty_unread_action),
         )
+
         ListEmptyReason.Folder -> {
             val folder = state.currentFolderName()
             EmptyContent(
@@ -120,11 +135,13 @@ internal fun MessageListEmptyState(state: AppState, onIntent: (AppIntent) -> Uni
                 body = stringResource(Res.string.empty_folder_body, folder),
             )
         }
+
         ListEmptyReason.Account -> EmptyContent(
             Illustration.InboxZero,
             title = stringResource(Res.string.inbox_empty),
             body = stringResource(Res.string.empty_account_body, state.account(filter.accountId)?.displayName.orEmpty()),
         )
+
         ListEmptyReason.Inbox -> EmptyContent(
             Illustration.InboxZero,
             title = stringResource(Res.string.inbox_empty),

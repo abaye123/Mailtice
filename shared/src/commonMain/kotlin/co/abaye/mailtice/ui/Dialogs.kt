@@ -22,11 +22,14 @@ import org.jetbrains.compose.resources.stringResource
 fun AppDialogHost(state: AppState, onIntent: (AppIntent) -> Unit) {
     val (title, text) = when (val dialog = state.dialog) {
         AppDialog.Hidden -> return
+
         AppDialog.ConfirmReset -> stringResource(Res.string.settings_reset) to stringResource(Res.string.settings_reset_confirm)
+
         is AppDialog.ConfirmRemove -> {
             val name = state.account(dialog.accountId)?.displayName.orEmpty()
             stringResource(Res.string.accounts_remove) to stringResource(Res.string.accounts_remove_confirm, name)
         }
+
         is AppDialog.ConfirmClearCache -> {
             val name = state.account(dialog.accountId)?.displayName.orEmpty()
             stringResource(Res.string.detail_clear_cache) to stringResource(Res.string.detail_clear_cache_confirm, name)

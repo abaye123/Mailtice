@@ -1,24 +1,5 @@
 package co.abaye.mailtice.app
 
-import co.abaye.mailtice.provider.HtmlText
-import co.abaye.mailtice.domain.SenderIdentity
-import kotlinx.datetime.TimeZone
-import co.abaye.mailtice.domain.OfflineAttachmentLimits
-import co.abaye.mailtice.sync.ActionQueuedException
-import co.abaye.mailtice.sync.isNetworkError
-import co.abaye.mailtice.sync.OfflinePrefs
-import co.abaye.mailtice.platform.joinPath
-import co.abaye.mailtice.main.fileUrl
-import co.abaye.mailtice.main.previewPage
-import co.abaye.mailtice.main.previewKindOf
-import co.abaye.mailtice.main.PreviewKind
-import co.abaye.mailtice.domain.MailBody
-import kotlin.io.encoding.Base64
-import co.abaye.mailtice.translate.replaceSegments
-import co.abaye.mailtice.translate.htmlTextSegments
-import co.abaye.mailtice.main.cidRefs
-import co.abaye.mailtice.main.splitQuote
-import co.abaye.mailtice.translate.Translator
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModel
 import androidx.navigation3.runtime.NavBackStack
@@ -29,6 +10,7 @@ import co.abaye.mailtice.auth.OAuthProvider
 import co.abaye.mailtice.auth.ReauthRequiredException
 import co.abaye.mailtice.data.InboxQuery
 import co.abaye.mailtice.data.MailRepository
+import co.abaye.mailtice.data.ScheduledMail
 import co.abaye.mailtice.data.SecretStore
 import co.abaye.mailtice.data.SettingsStore
 import co.abaye.mailtice.data.seedData
@@ -38,36 +20,52 @@ import co.abaye.mailtice.di.Io
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountColor
 import co.abaye.mailtice.domain.Capabilities
-import co.abaye.mailtice.domain.ImapServer
-import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.FolderRole
-import co.abaye.mailtice.domain.MailView
+import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.ListFractionRange
+import co.abaye.mailtice.domain.MailBody
+import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.MailView
+import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.domain.PollIntervals
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.RetentionOptions
+import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.UserSettings
+import co.abaye.mailtice.export.ExportLabels
+import co.abaye.mailtice.export.ThreadExport
+import co.abaye.mailtice.main.PreviewKind
+import co.abaye.mailtice.main.cidRefs
+import co.abaye.mailtice.main.fileUrl
+import co.abaye.mailtice.main.previewKindOf
+import co.abaye.mailtice.main.previewPage
+import co.abaye.mailtice.main.splitQuote
 import co.abaye.mailtice.notify.MailNotifications
 import co.abaye.mailtice.notify.NotificationAction
 import co.abaye.mailtice.notify.NotificationActions
 import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.platform.joinPath
 import co.abaye.mailtice.platform.localizedString
 import co.abaye.mailtice.platform.safeFileName
-import co.abaye.mailtice.export.ExportLabels
-import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.platform.systemUiLanguage
+import co.abaye.mailtice.provider.HtmlText
 import co.abaye.mailtice.provider.ImapAutoConfig
 import co.abaye.mailtice.provider.ImapBackend
 import co.abaye.mailtice.provider.ImapLoginException
 import co.abaye.mailtice.provider.OlderQuery
-import co.abaye.mailtice.search.MailSearch
 import co.abaye.mailtice.provider.OutgoingAttachment
 import co.abaye.mailtice.provider.OutgoingMail
-import co.abaye.mailtice.data.ScheduledMail
 import co.abaye.mailtice.provider.ProviderException
-import co.abaye.mailtice.provider.parseAddressList
 import co.abaye.mailtice.provider.gmail.GmailApi
+import co.abaye.mailtice.provider.parseAddressList
+import co.abaye.mailtice.search.MailSearch
+import co.abaye.mailtice.sync.ActionQueuedException
+import co.abaye.mailtice.sync.OfflinePrefs
 import co.abaye.mailtice.sync.SyncEngine
+import co.abaye.mailtice.sync.isNetworkError
+import co.abaye.mailtice.translate.Translator
+import co.abaye.mailtice.translate.htmlTextSegments
+import co.abaye.mailtice.translate.replaceSegments
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
@@ -79,9 +77,9 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -93,12 +91,13 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.compose_attach
 import mailtice.shared.generated.resources.compose_forward_date
@@ -112,6 +111,7 @@ import mailtice.shared.generated.resources.export_date
 import mailtice.shared.generated.resources.export_exported
 import mailtice.shared.generated.resources.export_from
 import mailtice.shared.generated.resources.export_to
+import kotlin.io.encoding.Base64
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -272,19 +272,28 @@ class AppViewModel(
     fun onIntent(intent: AppIntent) {
         when (intent) {
             AppIntent.Quit -> onQuit()
+
             is AppIntent.Navigate -> navigate(intent.destination)
+
             AppIntent.Back -> back()
 
             AppIntent.StartAddAccount -> mutate { it.copy(addAccount = AddAccountStep.ChooseProvider, message = null) }
+
             is AppIntent.ChooseProvider -> chooseProvider(intent.kind)
+
             is AppIntent.UpdateImapForm -> mutate { s -> s.copy(addAccount = AddAccountStep.Imap(intent.form.copy(error = null))) }
+
             AppIntent.DetectImapServer -> detectServer()
+
             AppIntent.SubmitImapForm -> submitImap()
+
             AppIntent.CloseAddAccount -> {
                 signInJob?.cancel()
                 mutate { it.copy(addAccount = null) }
             }
+
             is AppIntent.Reconnect -> reconnect(intent.accountId)
+
             AppIntent.CancelSignIn -> {
                 signInJob?.cancel()
                 // Adding: back to the provider list. Reconnecting: there is nothing to go back to.
@@ -293,12 +302,15 @@ class AppViewModel(
                     s.copy(addAccount = if (step?.reconnectId != null) null else AddAccountStep.ChooseProvider)
                 }
             }
+
             AppIntent.RetrySignIn -> {
                 val step = _state.value.addAccount as? AddAccountStep.SignIn ?: return
                 val existing = step.reconnectId?.let { _state.value.account(it) }
                 if (DemoMode.enabled && existing == null) addDemoAccount(step.kind) else signInOAuth(step.kind, existing, step.profileKey)
             }
+
             is AppIntent.ChooseBrowser -> chooseBrowser(intent.profileKey)
+
             is AppIntent.OpenAccount -> {
                 mutate { it.copy(addAccount = null) }
                 navigate(AppKey.Inbox)
@@ -306,12 +318,19 @@ class AppViewModel(
             }
 
             is AppIntent.RemoveAccount -> mutate { it.copy(dialog = AppDialog.ConfirmRemove(intent.accountId)) }
+
             is AppIntent.ClearAccountCache -> mutate { it.copy(dialog = AppDialog.ConfirmClearCache(intent.accountId)) }
+
             is AppIntent.SetAccountLabel -> updateAccount(intent.accountId) { it.copy(label = intent.label) }
+
             is AppIntent.CycleAccountColor -> updateAccount(intent.accountId) { it.copy(color = it.color.next()) }
+
             is AppIntent.SetAccountNotify -> updateAccount(intent.accountId) { it.copy(notify = intent.on) }
+
             is AppIntent.SetRetention -> setRetention(intent.accountId, intent.days)
+
             is AppIntent.SetFolderPrefs -> setFolderPrefs(intent)
+
             is AppIntent.RefreshFolders -> background {
                 _state.value.account(intent.accountId)?.let { sync.refreshFolders(it) }
             }
@@ -320,51 +339,69 @@ class AppViewModel(
                 mutate { it.copy(filter = it.filter.copy(accountId = intent.accountId, folderId = ""), selection = emptySet()) }
                 ensureSynced()
             }
+
             is AppIntent.SetFilterFolder -> {
                 mutate { it.copy(filter = it.filter.copy(folderId = intent.folderId), selection = emptySet()) }
                 ensureSynced()
             }
+
             AppIntent.LoadOlder -> loadOlder()
+
             is AppIntent.SetView -> {
                 mutate { it.copy(filter = it.filter.copy(view = intent.view, folderId = ""), selection = emptySet()) }
                 ensureSynced()
             }
+
             is AppIntent.SetUnreadOnly -> mutate { it.copy(filter = it.filter.copy(unreadOnly = intent.on)) }
+
             is AppIntent.SetAttachmentsOnly -> mutate { it.copy(filter = it.filter.copy(attachmentsOnly = intent.on)) }
+
             is AppIntent.Trash -> trash(intent.message)
 
             AppIntent.ToggleSidebar -> settings { it.copy(sidebarCollapsed = !it.sidebarCollapsed) }
+
             is AppIntent.SetListFraction -> settings { it.copy(listFraction = intent.fraction.coerceIn(ListFractionRange)) }
 
             is AppIntent.ToggleSelect -> mutate { s ->
                 val key = intent.message.key
                 s.copy(selection = if (key in s.selection) s.selection - key else s.selection + key)
             }
+
             AppIntent.SelectAll -> mutate { s -> s.copy(selection = s.visibleMessages.map { it.key }.toSet()) }
+
             AppIntent.ClearSelection -> mutate { it.copy(selection = emptySet()) }
+
             is AppIntent.BulkSetRead -> {
                 updateOlder(_state.value.selection) { it.copy(unread = !intent.read) }
                 bulk { m, caps -> if (caps.markRead && m.unread == intent.read) sync.setRead(m, intent.read) }
             }
+
             AppIntent.BulkArchive -> {
                 updateOlder(_state.value.selection) { null }
                 bulk(closeReader = true) { m, caps -> if (caps.archive) sync.archive(m) }
             }
+
             AppIntent.BulkTrash -> {
                 updateOlder(_state.value.selection) { null }
                 bulk(closeReader = true) { m, caps -> if (caps.trash) sync.trash(m) }
             }
+
             AppIntent.BulkDownloadAttachments -> {
                 val messages = _state.value.selectedMessages.filter { it.hasAttachments }
                 downloadAll(messages, folder = "selection-${Platform.now() / 1000}")
             }
+
             is AppIntent.DownloadAttachments -> downloadOne(intent.message, intent.index)
+
             is AppIntent.DownloadThreadAttachments -> working {
                 val thread = withContext(io) { repo.threadOf(intent.message) }.filter { it.hasAttachments }
                 saveAttachments(thread, folder = ThreadExport.baseSubject(intent.message.subject))
             }
+
             is AppIntent.ExportThread -> exportThread(intent.message, intent.format)
+
             is AppIntent.StartCompose -> startCompose(intent.mode, intent.message)
+
             is AppIntent.UpdateCompose -> mutate { s ->
                 val current = s.compose ?: return@mutate s
                 // Sending, threading, body, quote and files are owned here; the UI edits the fields.
@@ -392,89 +429,138 @@ class AppViewModel(
                     ),
                 )
             }
+
             is AppIntent.ComposeBody -> mutate { s -> s.copy(compose = s.compose?.copy(body = intent.text, html = intent.html)) }
+
             is AppIntent.ComposeWindow -> mutate { s -> s.copy(compose = s.compose?.copy(window = intent.mode)) }
+
             is AppIntent.ComposeSuggest -> suggestContacts(intent.query)
+
             AppIntent.ComposeAttach -> attachFiles()
+
             is AppIntent.ComposeAddFiles -> addFiles(intent.files)
+
             is AppIntent.ComposeRemoveAttachment -> mutate { s ->
                 s.copy(compose = s.compose?.let { d -> d.copy(attachments = d.attachments.filter { it.id != intent.id }) })
             }
+
             is AppIntent.ScheduleCompose -> scheduleCompose(intent.sendAt)
+
             is AppIntent.SendScheduledNow -> background {
                 _state.value.scheduled.firstOrNull { it.id == intent.id }?.let { repo.schedule(it.copy(sendAt = Platform.now())) }
                 sendDueScheduled()
             }
+
             is AppIntent.CancelScheduled -> background {
                 repo.unschedule(intent.id)
                 mutate { it.copy(message = AppMessage.ScheduleCancelled) }
             }
+
             is AppIntent.EditScheduled -> editScheduled(intent.id)
+
             AppIntent.SendCompose -> sendCompose()
+
             AppIntent.CloseCompose -> closeCompose(discard = false)
+
             AppIntent.DiscardCompose -> closeCompose(discard = true)
+
             is AppIntent.SetSearchQuery -> mutate { it.copy(filter = it.filter.copy(query = intent.query)) }
+
             is AppIntent.OpenMail -> openMail(intent.message)
+
             AppIntent.CloseReader -> {
                 mutate { it.copy(reader = null) }
                 if (backStack.lastOrNull() == AppKey.Reader) back()
             }
+
             is AppIntent.SetRead -> {
                 updateOlder(setOf(intent.message.key)) { it.copy(unread = !intent.read) }
                 serverAction { sync.setRead(intent.message, intent.read) }
             }
+
             is AppIntent.Archive -> archive(intent.message)
+
             is AppIntent.OpenInWeb -> openInWeb(intent.message)
+
             is AppIntent.OpenHtml -> background {
                 sync.body(intent.message).html.takeIf { it.isNotBlank() }?.let(Platform::openHtml)
             }
+
             AppIntent.RefreshNow -> sync.refreshNow()
 
             is AppIntent.SetTheme -> settings { it.copy(theme = intent.mode) }
+
             is AppIntent.SetAccent -> settings { it.copy(accent = intent.accent) }
+
             is AppIntent.SetDensity -> settings { it.copy(density = intent.density) }
+
             is AppIntent.SetFont -> settings { it.copy(font = intent.font) }
+
             is AppIntent.SetShowHebrewDate -> settings { it.copy(showHebrewDate = intent.show) }
+
             is AppIntent.SetHebrewDateAtSunset -> settings { it.copy(hebrewDateAtSunset = intent.atSunset) }
+
             is AppIntent.SetSunsetCity -> settings { it.copy(sunsetCity = intent.city) }
+
             is AppIntent.SetOfferTranslation -> settings { it.copy(offerTranslation = intent.offer) }
+
             is AppIntent.SetLoadRemoteImages -> settings { it.copy(loadRemoteImages = intent.load) }
+
             is AppIntent.SetDownloadFolder -> settings { it.copy(downloadFolder = intent.path) }
+
             is AppIntent.ChooseDownloadFolder -> scope.launch {
                 Platform.pickFolder(intent.title)?.let { path -> settings { it.copy(downloadFolder = path) } }
             }
+
             is AppIntent.PreviewAttachment -> previewAttachment(intent.message, intent.index)
+
             AppIntent.ClosePreview -> closePreview()
+
             AppIntent.SavePreview -> savePreview()
+
             AppIntent.OpenPreviewExternally -> _state.value.preview?.let { p ->
                 if (p.tempPath.isNotEmpty()) {
                     previewOpenedOutside = true
                     if (!Platform.openFile(p.tempPath)) mutate { it.copy(message = AppMessage.ActionFailed) }
                 }
             }
+
             AppIntent.TranslateMessage -> translateOpenMessage()
+
             is AppIntent.ShowOriginal -> _state.value.reader?.let { reader ->
                 reader.translation?.let { setTranslation(reader.message, it.copy(showOriginal = intent.original)) }
             }
+
             is AppIntent.SetPaneStyle -> settings { it.copy(paneStyle = intent.style) }
+
             is AppIntent.SetReadingPane -> settings { it.copy(readingPane = intent.pane) }
+
             is AppIntent.SetFolderHidden -> settings {
                 it.copy(hiddenFolders = if (intent.hidden) it.hiddenFolders + intent.key else it.hiddenFolders - intent.key)
             }
+
             is AppIntent.SetLabelPinned -> settings {
                 it.copy(pinnedLabels = if (intent.pinned) it.pinnedLabels + intent.key else it.pinnedLabels - intent.key)
             }
+
             is AppIntent.ToggleAccountExpanded -> settings {
                 val folded = intent.accountId in it.collapsedAccounts
-                it.copy(collapsedAccounts = if (folded) it.collapsedAccounts - intent.accountId else it.collapsedAccounts + intent.accountId)
+                it.copy(
+                    collapsedAccounts = if (folded) it.collapsedAccounts - intent.accountId else it.collapsedAccounts + intent.accountId,
+                )
             }
+
             is AppIntent.OpenView -> {
                 navigateToMail()
                 mutate {
-                    it.copy(filter = it.filter.copy(accountId = intent.accountId, view = intent.view, folderId = ""), selection = emptySet())
+                    it.copy(
+                        filter = it.filter.copy(accountId = intent.accountId, view = intent.view, folderId = ""),
+                        selection = emptySet(),
+                    )
                 }
                 ensureSynced()
             }
+
             is AppIntent.OpenLabel -> {
                 navigateToMail()
                 mutate {
@@ -482,25 +568,32 @@ class AppViewModel(
                 }
                 ensureSynced()
             }
+
             is AppIntent.CreateLabel -> labelAction(intent.accountId) { account ->
                 sync.createLabel(account, intent.name.trim(), intent.color)
             }
+
             is AppIntent.UpdateLabel -> labelAction(intent.accountId) { account ->
                 val newId = sync.updateLabel(account, intent.folderId, intent.name.trim(), intent.color)
                 if (newId != intent.folderId) moveLabelKeys(account.id, intent.folderId, newId)
             }
+
             is AppIntent.DeleteLabel -> labelAction(intent.accountId) { account ->
                 sync.deleteLabel(account, intent.folderId)
                 moveLabelKeys(account.id, intent.folderId, null)
             }
+
             is AppIntent.SetUiLanguage -> settings {
                 it.copy(uiLanguage = intent.language ?: systemUiLanguage(), uiLanguageAuto = intent.language == null)
             }
+
             is AppIntent.SetPollInterval -> {
                 settings { it.copy(pollSeconds = intent.seconds.takeIf { s -> s in PollIntervals } ?: it.pollSeconds) }
                 reconcileSync()
             }
+
             is AppIntent.SetOpenHomeAtStart -> settings { it.copy(openHomeAtStart = intent.on) }
+
             is AppIntent.MoveAccount -> {
                 val ids = _state.value.accounts.map { it.id }.toMutableList()
                 val from = ids.indexOf(intent.accountId)
@@ -510,24 +603,38 @@ class AppViewModel(
                     background { repo.reorderAccounts(ids) }
                 }
             }
+
             is AppIntent.SetComposeFrom -> setComposeFrom(intent.accountId, intent.email)
+
             is AppIntent.SetSmartPolling -> {
                 settings { it.copy(smartPolling = intent.smart) }
                 reconcileSync()
             }
+
             is AppIntent.SetOfflineMode -> {
                 settings { it.copy(offlineMode = intent.on) }
                 reconcileSync()
                 if (intent.on) sync.refreshNow()
             }
+
             is AppIntent.SetOfflineAttachments -> {
-                settings { it.copy(offlineAttachmentsMb = intent.mb.takeIf { mb -> mb in OfflineAttachmentLimits } ?: it.offlineAttachmentsMb) }
+                settings {
+                    it.copy(
+                        offlineAttachmentsMb =
+                        intent.mb.takeIf { mb -> mb in OfflineAttachmentLimits } ?: it.offlineAttachmentsMb,
+                    )
+                }
                 reconcileSync()
             }
+
             is AppIntent.SetNotifications -> settings { it.copy(notificationsEnabled = intent.on) }
+
             is AppIntent.SetCloseToTray -> settings { it.copy(closeToTray = intent.on) }
+
             is AppIntent.SetLaunchAtLogin -> setLaunchAtLogin(intent.on)
+
             AppIntent.RefreshStorage -> refreshStorage()
+
             AppIntent.CompactDatabase -> background {
                 repo.vacuum()
                 refreshStorage()
@@ -535,9 +642,13 @@ class AppViewModel(
             }
 
             is AppIntent.OpenUrl -> Platform.openUrl(intent.url)
+
             AppIntent.ResetApp -> mutate { it.copy(dialog = AppDialog.ConfirmReset) }
+
             AppIntent.ConfirmDialog -> confirmDialog()
+
             AppIntent.DismissDialog -> mutate { it.copy(dialog = AppDialog.Hidden) }
+
             AppIntent.DismissMessage -> mutate { it.copy(message = null) }
         }
     }
@@ -681,7 +792,9 @@ class AppViewModel(
                     }
                 }
                 if (known != null) sync.restart(scope, known.id)
-                signInStep(AddAccountStep.SignIn(kind, SignInPhase.Done, reconnectId, accountId = id, email = email, profileKey = profileKey))
+                signInStep(
+                    AddAccountStep.SignIn(kind, SignInPhase.Done, reconnectId, accountId = id, email = email, profileKey = profileKey),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AuthCancelledException) {
@@ -715,8 +828,12 @@ class AppViewModel(
                 it.copy(
                     addAccount = AddAccountStep.Imap(
                         ImapForm(
-                            email = account.email, host = server.host, port = server.port.toString(),
-                            security = server.security, username = account.username, reconnectId = account.id,
+                            email = account.email,
+                            host = server.host,
+                            port = server.port.toString(),
+                            security = server.security,
+                            username = account.username,
+                            reconnectId = account.id,
                         ),
                     ),
                 )
@@ -739,7 +856,10 @@ class AppViewModel(
             val server = if (DemoMode.enabled) demoServer(form.email) else autoConfig.lookup(form.email)
             setForm {
                 it.copy(
-                    busy = false, host = server.host, port = server.port.toString(), security = server.security,
+                    busy = false,
+                    host = server.host,
+                    port = server.port.toString(),
+                    security = server.security,
                     username = it.username.ifBlank { it.email },
                 )
             }
@@ -765,8 +885,13 @@ class AppViewModel(
                     if (form.reconnectId == null) {
                         repo.addAccount(
                             Account(
-                                id = id, kind = ProviderKind.Imap, email = form.email.trim(), color = nextColor(),
-                                capabilities = capabilities, imap = server, username = username,
+                                id = id,
+                                kind = ProviderKind.Imap,
+                                email = form.email.trim(),
+                                color = nextColor(),
+                                capabilities = capabilities,
+                                imap = server,
+                                username = username,
                             ),
                         )
                     } else {
@@ -778,7 +903,11 @@ class AppViewModel(
                 mutate {
                     it.copy(
                         addAccount = AddAccountStep.SignIn(
-                            ProviderKind.Imap, SignInPhase.Done, form.reconnectId, accountId = id, email = form.email.trim(),
+                            ProviderKind.Imap,
+                            SignInPhase.Done,
+                            form.reconnectId,
+                            accountId = id,
+                            email = form.email.trim(),
                         ),
                     )
                 }
@@ -800,7 +929,8 @@ class AppViewModel(
 
     private fun nextColor(): AccountColor {
         val used = _state.value.accounts.map { it.color }.toSet()
-        return AccountColor.entries.firstOrNull { it !in used } ?: AccountColor.entries[_state.value.accounts.size % AccountColor.entries.size]
+        return AccountColor.entries.firstOrNull { it !in used }
+            ?: AccountColor.entries[_state.value.accounts.size % AccountColor.entries.size]
     }
 
     // ---- account settings -------------------------------------------------------------------
@@ -931,7 +1061,7 @@ class AppViewModel(
     // ---- older mail from the server --------------------------------------------------------
 
     /**
-     * The end of the list: first more stored rows (the list reads them [LocalPage] at a time), then
+     * The end of the list: first more stored rows (the list reads them [LOCAL_PAGE] at a time), then
      * the server, per account in scope, for mail older than the oldest row of that account already
      * shown - or than its retention window when nothing is shown. An account that returns nothing
      * is done for this list. A result for a list the user has since left is dropped.
@@ -940,7 +1070,7 @@ class AppViewModel(
         val s = _state.value
         if (s.older.loading) return
         if (s.inbox.size >= s.localLimit) {
-            mutate { it.copy(localLimit = it.localLimit + LocalPage) }
+            mutate { it.copy(localLimit = it.localLimit + LOCAL_PAGE) }
             return
         }
         val filter = s.filter
@@ -1081,6 +1211,7 @@ class AppViewModel(
                 val html = ThreadExport.html(message.subject, bodies, labels) { co.abaye.mailtice.main.formatTime(it, withDate = true) }
                 withContext(io) { Platform.saveDownload("", "$base.html", html.encodeToByteArray(), downloadRoot()) }
             }
+
             ExportFormat.Mail -> {
                 val raws = thread.map { m -> m to withContext(io) { sync.rawMessage(m) } }
                 if (raws.size == 1) {
@@ -1118,7 +1249,14 @@ class AppViewModel(
         if (message == null || mode == ComposeMode.New) {
             val identity = s.identitiesOf(account).let { all -> all.firstOrNull { it.isDefault } ?: all.first() }
             mutate {
-                it.copy(compose = ComposeDraft(accountId = account.id, draftId = Platform.now(), fromEmail = identity.email, initialHtml = signatureHtml(identity)))
+                it.copy(
+                    compose = ComposeDraft(
+                        accountId = account.id,
+                        draftId = Platform.now(),
+                        fromEmail = identity.email,
+                        initialHtml = signatureHtml(identity),
+                    ),
+                )
             }
             return
         }
@@ -1128,7 +1266,9 @@ class AppViewModel(
             ?: identities.firstOrNull { it.isDefault } ?: identities.first()
         val to = when (mode) {
             ComposeMode.Forward -> ""
+
             ComposeMode.Reply -> message.fromAddress
+
             else -> {
                 val others = message.toLine.split(',').map { it.trim() }.filter { entry ->
                     entry.isNotEmpty() && identities.none { entry.contains(it.email, ignoreCase = true) } &&
@@ -1238,7 +1378,9 @@ class AppViewModel(
             val new = s.identityOf(next)
             val untouched = draft.body.isBlank() || draft.body.trim() == HtmlText.toText(old?.signature.orEmpty()).trim()
             if (untouched && old?.signature != new?.signature) {
-                s.copy(compose = next.copy(initialHtml = signatureHtml(new), html = null, body = "", editorVersion = draft.editorVersion + 1))
+                s.copy(
+                    compose = next.copy(initialHtml = signatureHtml(new), html = null, body = "", editorVersion = draft.editorVersion + 1),
+                )
             } else {
                 s.copy(compose = next)
             }
@@ -1268,7 +1410,8 @@ class AppViewModel(
             } catch (e: Exception) {
                 if (isNetworkError(e)) {
                     // No connection: the message waits in the queue and goes out as soon as it is back.
-                    val item = ScheduledMail(id = draft.scheduledId ?: newId(), accountId = draft.accountId, sendAt = Platform.now(), mail = mail)
+                    val item =
+                        ScheduledMail(id = draft.scheduledId ?: newId(), accountId = draft.accountId, sendAt = Platform.now(), mail = mail)
                     withContext(io) { repo.schedule(item) }
                     dropServerDraft(latestDraftFor(draft))
                     mutate { it.copy(compose = null, message = AppMessage.SendQueued) }
@@ -1386,8 +1529,7 @@ class AppViewModel(
     private val draftMutex = Mutex()
 
     /** The newest state of [draft] (a save may have finished since it was read). */
-    private fun latestDraftFor(draft: ComposeDraft): ComposeDraft =
-        _state.value.compose?.takeIf { it.draftId == draft.draftId } ?: draft
+    private fun latestDraftFor(draft: ComposeDraft): ComposeDraft = _state.value.compose?.takeIf { it.draftId == draft.draftId } ?: draft
 
     /**
      * Saves the open draft when it changed since the last save. Addresses are taken as typed (a draft
@@ -1415,7 +1557,9 @@ class AppViewModel(
                 val old = draft.draftAccountId?.let { _state.value.account(it) }
                 if (old != null && draft.draftHandle != null) runCatching { withContext(io) { sync.deleteDraft(old, draft.draftHandle) } }
             }
-            markDraft(draft.draftId) { it.copy(draftHandle = handle, draftAccountId = account.id, draftSave = DraftSave.Saved, savedSignature = signature) }
+            markDraft(draft.draftId) {
+                it.copy(draftHandle = handle, draftAccountId = account.id, draftSave = DraftSave.Saved, savedSignature = signature)
+            }
             draft.copy(draftHandle = handle, draftAccountId = account.id, savedSignature = signature)
         } catch (e: CancellationException) {
             throw e
@@ -1506,9 +1650,11 @@ class AppViewModel(
                 }
                 _raiseWindow.tryEmit(Unit)
             }
+
             is NotificationAction.MarkRead -> scope.launch {
                 withContext(io) { repo.message(action.accountId, action.messageId) }?.let { serverAction { sync.setRead(it, read = true) } }
             }
+
             is NotificationAction.OpenAccount -> {
                 navigate(AppKey.Inbox)
                 onIntent(AppIntent.SetFilterAccount(action.accountId))
@@ -1630,11 +1776,13 @@ class AppViewModel(
                         val kind = previewKindOf(attachment.name, attachment.mimeType)
                         page = when (kind) {
                             PreviewKind.Pdf -> fileUrl(path)
+
                             PreviewKind.Audio, PreviewKind.Video -> {
                                 val player = joinPath(dir, "player.html")
                                 Platform.writeText(player, previewPage(kind, name).orEmpty())
                                 fileUrl(player)
                             }
+
                             else -> ""
                         }
                     }
@@ -1740,7 +1888,14 @@ class AppViewModel(
         val refs = cidRefs(stored.html)
         if (refs.isEmpty()) return
         try {
-            val body = if (stored.attachments.none { it.contentId.isNotEmpty() }) withContext(io) { sync.body(message, refresh = true) } else stored
+            val body = if (stored.attachments.none {
+                    it.contentId.isNotEmpty()
+                }
+            ) {
+                withContext(io) { sync.body(message, refresh = true) }
+            } else {
+                stored
+            }
             val wanted = body.attachments.withIndex().filter { it.value.contentId in refs }
             if (wanted.isEmpty()) return
             val files = withContext(io) { sync.attachments(message, wanted.map { it.index }.toSet()) }
@@ -1830,6 +1985,6 @@ class AppViewModel(
 
     private fun mutate(block: (AppState) -> AppState) = _state.update { old ->
         val new = block(old)
-        if (new.filter != old.filter) new.copy(older = OlderMail(), localLimit = LocalPage) else new
+        if (new.filter != old.filter) new.copy(older = OlderMail(), localLimit = LOCAL_PAGE) else new
     }
 }

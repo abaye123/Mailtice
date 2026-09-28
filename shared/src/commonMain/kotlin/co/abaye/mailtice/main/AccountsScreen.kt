@@ -1,10 +1,5 @@
 package co.abaye.mailtice.main
 
-import mailtice.shared.generated.resources.accounts_move_down
-import mailtice.shared.generated.resources.accounts_move_up
-import co.abaye.mailtice.ui.TooltipIconButton
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,10 +36,13 @@ import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.ui.EmptyIllustration
 import co.abaye.mailtice.ui.Illustration
+import co.abaye.mailtice.ui.TooltipIconButton
 import co.abaye.mailtice.ui.formatBytes
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.accounts_add
 import mailtice.shared.generated.resources.accounts_empty
+import mailtice.shared.generated.resources.accounts_move_down
+import mailtice.shared.generated.resources.accounts_move_up
 import mailtice.shared.generated.resources.accounts_reconnect
 import mailtice.shared.generated.resources.accounts_subtitle
 import mailtice.shared.generated.resources.accounts_title
@@ -62,7 +62,11 @@ import org.jetbrains.compose.resources.stringResource
 fun AccountsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.widthIn(max = 720.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(stringResource(Res.string.accounts_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            Text(
+                stringResource(Res.string.accounts_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
             Text(stringResource(Res.string.accounts_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = { onIntent(AppIntent.StartAddAccount) }) {
                 Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
@@ -138,7 +142,13 @@ private fun AccountRow(
                 Text(
                     "${account.kind.label()} · ${status.label()} · $unread · ${formatBytes(bytes)}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (status == AccountStatus.NeedsReauth) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (status ==
+                        AccountStatus.NeedsReauth
+                    ) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
             if (status == AccountStatus.NeedsReauth) {

@@ -42,9 +42,9 @@ import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.RetentionOptions
 import co.abaye.mailtice.ui.SectionHeader
-import co.abaye.mailtice.ui.TooltipIconButton
 import co.abaye.mailtice.ui.SettingBlock
 import co.abaye.mailtice.ui.SettingRow
+import co.abaye.mailtice.ui.TooltipIconButton
 import co.abaye.mailtice.ui.formatBytes
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.accounts_color
@@ -59,6 +59,7 @@ import mailtice.shared.generated.resources.detail_folder_sync
 import mailtice.shared.generated.resources.detail_folders
 import mailtice.shared.generated.resources.detail_folders_desc
 import mailtice.shared.generated.resources.detail_folders_empty
+import mailtice.shared.generated.resources.detail_general
 import mailtice.shared.generated.resources.detail_labels
 import mailtice.shared.generated.resources.detail_refresh_folders
 import mailtice.shared.generated.resources.detail_retention
@@ -67,7 +68,6 @@ import mailtice.shared.generated.resources.detail_retention_all_warning
 import mailtice.shared.generated.resources.detail_retention_days
 import mailtice.shared.generated.resources.detail_storage
 import mailtice.shared.generated.resources.detail_storage_value
-import mailtice.shared.generated.resources.detail_general
 import mailtice.shared.generated.resources.reader_back
 import org.jetbrains.compose.resources.stringResource
 
@@ -78,14 +78,18 @@ fun AccountDetailScreen(accountId: String, state: AppState, onIntent: (AppIntent
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp)) {
         Column(Modifier.widthIn(max = 720.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), { onIntent(AppIntent.Back) })
+                TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), {
+                    onIntent(AppIntent.Back)
+                })
                 AccountDot(account, Modifier.size(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(account.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text("${account.kind.label()} · ${account.email} · ${status.label()}", style = MaterialTheme.typography.bodySmall)
                 }
                 if (status == AccountStatus.NeedsReauth || !account.kind.oauth) {
-                    TextButton(onClick = { onIntent(AppIntent.Reconnect(account.id)) }) { Text(stringResource(Res.string.accounts_reconnect)) }
+                    TextButton(onClick = {
+                        onIntent(AppIntent.Reconnect(account.id))
+                    }) { Text(stringResource(Res.string.accounts_reconnect)) }
                 }
             }
 
@@ -106,7 +110,9 @@ fun AccountDetailScreen(accountId: String, state: AppState, onIntent: (AppIntent
                 title = stringResource(Res.string.detail_storage_value, formatBytes(bytes), count.toString()),
                 subtitle = stringResource(Res.string.detail_clear_cache_desc),
             ) {
-                OutlinedButton(onClick = { onIntent(AppIntent.ClearAccountCache(account.id)) }) { Text(stringResource(Res.string.detail_clear_cache)) }
+                OutlinedButton(onClick = {
+                    onIntent(AppIntent.ClearAccountCache(account.id))
+                }) { Text(stringResource(Res.string.detail_clear_cache)) }
             }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -152,7 +158,15 @@ private fun Retention(account: Account, onIntent: (AppIntent) -> Unit) {
                     onClick = { onIntent(AppIntent.SetRetention(account.id, days)) },
                     shape = SegmentedButtonDefaults.itemShape(i, RetentionOptions.size),
                 ) {
-                    Text(if (days == 0) stringResource(Res.string.detail_retention_all) else stringResource(Res.string.detail_retention_days, days))
+                    Text(
+                        if (days ==
+                            0
+                        ) {
+                            stringResource(Res.string.detail_retention_all)
+                        } else {
+                            stringResource(Res.string.detail_retention_days, days)
+                        },
+                    )
                 }
             }
         }
@@ -161,39 +175,51 @@ private fun Retention(account: Account, onIntent: (AppIntent) -> Unit) {
 
 @Composable
 private fun Folders(account: Account, folders: List<Folder>, onIntent: (AppIntent) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        SectionHeader(
-            stringResource(if (account.capabilities.labels) Res.string.detail_labels else Res.string.detail_folders),
-            Modifier.weight(1f),
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionHeader(
+                stringResource(if (account.capabilities.labels) Res.string.detail_labels else Res.string.detail_folders),
+                Modifier.weight(1f),
+            )
+            TooltipIconButton(Icons.Outlined.Refresh, stringResource(Res.string.detail_refresh_folders), {
+                onIntent(AppIntent.RefreshFolders(account.id))
+            })
+        }
+        Text(
+            stringResource(Res.string.detail_folders_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TooltipIconButton(Icons.Outlined.Refresh, stringResource(Res.string.detail_refresh_folders), {
-            onIntent(AppIntent.RefreshFolders(account.id))
-        })
-    }
-    Text(stringResource(Res.string.detail_folders_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    if (folders.isEmpty()) {
-        Text(stringResource(Res.string.detail_folders_empty), Modifier.padding(vertical = 8.dp))
-        return
-    }
-    Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Text("", Modifier.weight(1f))
-        Text(stringResource(Res.string.detail_folder_sync), Modifier.widthIn(min = 72.dp), style = MaterialTheme.typography.labelMedium)
-        Text(stringResource(Res.string.detail_folder_notify), Modifier.widthIn(min = 72.dp), style = MaterialTheme.typography.labelMedium)
-    }
-    folders.forEach { folder ->
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(folder.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.merge(ContentDirection))
-            Checkbox(
-                checked = folder.sync,
-                onCheckedChange = { onIntent(AppIntent.SetFolderPrefs(account.id, folder.id, sync = it, notify = folder.notify && it)) },
-                modifier = Modifier.widthIn(min = 72.dp),
+        if (folders.isEmpty()) {
+            Text(stringResource(Res.string.detail_folders_empty), Modifier.padding(vertical = 8.dp))
+            return@Column
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text("", Modifier.weight(1f))
+            Text(stringResource(Res.string.detail_folder_sync), Modifier.widthIn(min = 72.dp), style = MaterialTheme.typography.labelMedium)
+            Text(
+                stringResource(Res.string.detail_folder_notify),
+                Modifier.widthIn(min = 72.dp),
+                style = MaterialTheme.typography.labelMedium,
             )
-            Checkbox(
-                checked = folder.notify,
-                enabled = folder.sync,
-                onCheckedChange = { onIntent(AppIntent.SetFolderPrefs(account.id, folder.id, sync = folder.sync, notify = it)) },
-                modifier = Modifier.widthIn(min = 72.dp),
-            )
+        }
+        folders.forEach { folder ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(folder.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.merge(ContentDirection))
+                Checkbox(
+                    checked = folder.sync,
+                    onCheckedChange = {
+                        onIntent(AppIntent.SetFolderPrefs(account.id, folder.id, sync = it, notify = folder.notify && it))
+                    },
+                    modifier = Modifier.widthIn(min = 72.dp),
+                )
+                Checkbox(
+                    checked = folder.notify,
+                    enabled = folder.sync,
+                    onCheckedChange = { onIntent(AppIntent.SetFolderPrefs(account.id, folder.id, sync = folder.sync, notify = it)) },
+                    modifier = Modifier.widthIn(min = 72.dp),
+                )
+            }
         }
     }
 }

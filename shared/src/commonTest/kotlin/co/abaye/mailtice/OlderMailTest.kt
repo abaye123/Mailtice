@@ -38,7 +38,11 @@ class OlderMailTest {
 
     @Test
     fun textSearchFilters() = runTest {
-        val hits = provider.olderMessages(account, inbox, OlderQuery(before = null, search = MailSearch(words = listOf("roadmap")), limit = 20))
+        val hits = provider.olderMessages(
+            account,
+            inbox,
+            OlderQuery(before = null, search = MailSearch(words = listOf("roadmap")), limit = 20),
+        )
         assertTrue(hits.isNotEmpty())
         assertEquals(hits.size, hits.count { it.subject.contains("roadmap", ignoreCase = true) || it.fromName.contains("roadmap", true) })
     }

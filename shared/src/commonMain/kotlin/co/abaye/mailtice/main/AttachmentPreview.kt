@@ -1,6 +1,5 @@
 package co.abaye.mailtice.main
 
-import co.abaye.mailtice.ui.formatBytes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,10 +19,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -53,6 +52,7 @@ import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AttachmentPreview
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.ui.TooltipIconButton
+import co.abaye.mailtice.ui.formatBytes
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.preview_close
 import mailtice.shared.generated.resources.preview_download
@@ -66,8 +66,10 @@ import org.jetbrains.compose.resources.stringResource
 enum class PreviewKind { Image, Text, Html, Pdf, Audio, Video, None }
 
 private val ImageExt = setOf("png", "jpg", "jpeg", "gif", "webp", "bmp")
-private val TextExt = setOf("txt", "csv", "tsv", "log", "md", "json", "xml", "yaml", "yml", "ini", "cfg", "conf", "ics", "vcf",
-    "kt", "java", "py", "js", "ts", "css", "sh", "bat", "ps1", "sql", "c", "cpp", "h", "cs", "go", "rs", "swift")
+private val TextExt = setOf(
+    "txt", "csv", "tsv", "log", "md", "json", "xml", "yaml", "yml", "ini", "cfg", "conf", "ics", "vcf",
+    "kt", "java", "py", "js", "ts", "css", "sh", "bat", "ps1", "sql", "c", "cpp", "h", "cs", "go", "rs", "swift",
+)
 private val AudioExt = setOf("mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus")
 private val VideoExt = setOf("mp4", "webm", "mov", "m4v", "ogv")
 
@@ -134,7 +136,9 @@ private fun PreviewTopBar(preview: AttachmentPreview, onIntent: (AppIntent) -> U
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.preview_close), { onIntent(AppIntent.ClosePreview) }, tint = Color.White)
+        TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.preview_close), {
+            onIntent(AppIntent.ClosePreview)
+        }, tint = Color.White)
         Column(Modifier.weight(1f)) {
             Text(
                 preview.attachment.name,
@@ -169,7 +173,9 @@ private fun PreviewContent(preview: AttachmentPreview, onIntent: (AppIntent) -> 
     val swallow = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
     when {
         preview.failed -> NoPreview(preview, stringResource(Res.string.preview_failed), onIntent, swallow)
+
         bytes == null -> CircularProgressIndicator(color = Color.White)
+
         else -> when (previewKindOf(preview.attachment.name, preview.attachment.mimeType)) {
             PreviewKind.Image -> {
                 val image = remember(bytes) { runCatching { bytes.decodeToImageBitmap() }.getOrNull() }
@@ -179,6 +185,7 @@ private fun PreviewContent(preview: AttachmentPreview, onIntent: (AppIntent) -> 
                     NoPreview(preview, stringResource(Res.string.preview_unsupported), onIntent, swallow)
                 }
             }
+
             PreviewKind.Text -> {
                 val text = remember(bytes) { bytes.copyOf(minOf(bytes.size, MAX_TEXT_BYTES)).decodeToString() }
                 Surface(swallow.fillMaxSize().widthIn(max = 1000.dp), shape = RoundedCornerShape(12.dp)) {
@@ -191,12 +198,22 @@ private fun PreviewContent(preview: AttachmentPreview, onIntent: (AppIntent) -> 
                     }
                 }
             }
+
             PreviewKind.Html -> {
                 val document = remember(bytes) { emailDocument(bytes.decodeToString(), hideQuotes = false, remoteImages = false) }
                 HtmlBody(document, onOpenUrl = { onIntent(AppIntent.OpenUrl(it)) }, modifier = swallow.fillMaxSize())
             }
+
             PreviewKind.Pdf, PreviewKind.Audio, PreviewKind.Video ->
-                if (preview.pageUrl.isNotEmpty()) FileBody(preview.pageUrl, swallow.fillMaxSize()) else CircularProgressIndicator(color = Color.White)
+                if (preview.pageUrl.isNotEmpty()) {
+                    FileBody(
+                        preview.pageUrl,
+                        swallow.fillMaxSize(),
+                    )
+                } else {
+                    CircularProgressIndicator(color = Color.White)
+                }
+
             PreviewKind.None -> NoPreview(preview, stringResource(Res.string.preview_unsupported), onIntent, swallow)
         }
     }
@@ -205,7 +222,7 @@ private fun PreviewContent(preview: AttachmentPreview, onIntent: (AppIntent) -> 
 private const val MAX_TEXT_BYTES = 1_000_000
 
 @Composable
-private fun NoPreview(preview: AttachmentPreview, message: String, onIntent: (AppIntent) -> Unit, modifier: Modifier) {
+private fun NoPreview(preview: AttachmentPreview, message: String, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
     Surface(modifier.widthIn(max = 420.dp), shape = RoundedCornerShape(20.dp)) {
         Column(
             Modifier.padding(28.dp),
@@ -213,11 +230,19 @@ private fun NoPreview(preview: AttachmentPreview, message: String, onIntent: (Ap
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(Icons.AutoMirrored.Outlined.InsertDriveFile, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
-            Text(preview.attachment.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                preview.attachment.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (Platform.canOpenFiles && preview.bytes != null) {
-                    FilledTonalButton(onClick = { onIntent(AppIntent.OpenPreviewExternally) }) { Text(stringResource(Res.string.preview_open_external)) }
+                    FilledTonalButton(onClick = {
+                        onIntent(AppIntent.OpenPreviewExternally)
+                    }) { Text(stringResource(Res.string.preview_open_external)) }
                 }
                 Button(onClick = { onIntent(AppIntent.SavePreview) }, enabled = preview.bytes != null) {
                     Icon(Icons.Outlined.Download, null, Modifier.size(18.dp))
@@ -230,17 +255,33 @@ private fun NoPreview(preview: AttachmentPreview, message: String, onIntent: (Ap
 
 /** The page a PDF, audio or video file is shown in: the PDF itself, or a player around the media. */
 fun previewPage(kind: PreviewKind, fileName: String): String? = when (kind) {
-    PreviewKind.Audio -> "<!DOCTYPE html><html><body style=\"margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#202124\">" +
-        "<audio controls autoplay style=\"width:min(640px,90vw)\" src=\"${fileName.urlEncodedPath()}\"></audio></body></html>"
-    PreviewKind.Video -> "<!DOCTYPE html><html><body style=\"margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#000\">" +
-        "<video controls autoplay style=\"max-width:100%;max-height:100vh\" src=\"${fileName.urlEncodedPath()}\"></video></body></html>"
+    PreviewKind.Audio ->
+        playerPage("#202124", "<audio controls autoplay style=\"width:min(640px,90vw)\" src=\"${fileName.urlEncodedPath()}\"></audio>")
+
+    PreviewKind.Video ->
+        playerPage(
+            "#000",
+            "<video controls autoplay style=\"max-width:100%;max-height:100vh\" src=\"${fileName.urlEncodedPath()}\"></video>",
+        )
+
     else -> null
 }
 
+/** A page that centres [player] on a [background] filling the window. */
+private fun playerPage(background: String, player: String): String =
+    "<!DOCTYPE html><html><body style=\"margin:0;height:100vh;display:flex;align-items:center;" +
+        "justify-content:center;background:$background\">$player</body></html>"
+
 private fun String.urlEncodedPath(): String = buildString {
     for (c in this@urlEncodedPath) {
-        if (c.isLetterOrDigit() && c.code < 128 || c in "-_.~") append(c) else c.toString().encodeToByteArray().forEach { b ->
-            append('%').append(((b.toInt() and 0xFF) shr 4).toString(16).uppercase()).append((b.toInt() and 0x0F).toString(16).uppercase())
+        if ((c.isLetterOrDigit() && c.code < 128) || c in "-_.~") {
+            append(c)
+        } else {
+            c.toString().encodeToByteArray().forEach { b ->
+                append(
+                    '%',
+                ).append(((b.toInt() and 0xFF) shr 4).toString(16).uppercase()).append((b.toInt() and 0x0F).toString(16).uppercase())
+            }
         }
     }
 }

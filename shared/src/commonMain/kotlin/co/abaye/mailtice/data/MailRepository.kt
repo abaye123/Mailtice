@@ -1,14 +1,5 @@
 package co.abaye.mailtice.data
 
-import co.abaye.mailtice.domain.SenderIdentity
-import kotlin.time.Instant
-import kotlin.time.ExperimentalTime
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.daysUntil
-import kotlinx.datetime.TimeZone
-import co.abaye.mailtice.domain.AccountDigest
-import co.abaye.mailtice.sync.PendingKind
-import co.abaye.mailtice.sync.ActivityEvent
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.SqlDriver
@@ -16,6 +7,7 @@ import co.abaye.mailtice.db.MailDatabase
 import co.abaye.mailtice.db.Message_body
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountColor
+import co.abaye.mailtice.domain.AccountDigest
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
@@ -24,16 +16,24 @@ import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
-import co.abaye.mailtice.export.ThreadExport
-import co.abaye.mailtice.search.MailSearch
 import co.abaye.mailtice.domain.ProviderKind
+import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.StorageUsage
+import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.RemoteFolder
 import co.abaye.mailtice.provider.SyncBatch
+import co.abaye.mailtice.search.MailSearch
+import co.abaye.mailtice.sync.ActivityEvent
+import co.abaye.mailtice.sync.PendingKind
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /** Inbox filter. Empty strings mean "no filter" (that is how the SQL is written). */
 data class InboxQuery(
@@ -53,10 +53,7 @@ data class InboxQuery(
  * The only class that touches SQL. Sync writes through [applyBatch]; the UI reads Flows that
  * re-emit whenever a table they read changes.
  */
-class MailRepository(
-    private val driver: SqlDriver,
-    private val dispatcher: CoroutineDispatcher,
-) {
+class MailRepository(private val driver: SqlDriver, private val dispatcher: CoroutineDispatcher) {
     private val db = MailDatabase(driver)
     private val q = db.mailQueries
 
@@ -263,10 +260,9 @@ class MailRepository(
     fun knownIds(accountId: String, folderIds: List<String>): Set<String> =
         folderIds.flatMap { q.messageIdsInFolder(accountId, it).executeAsList() }.toSet()
 
-    fun body(accountId: String, messageId: String): MailBody? =
-        q.selectBody(accountId, messageId).executeAsOneOrNull()?.let {
-            MailBody(it.textBody, it.htmlBody, decodeAttachments(it.attachments))
-        }
+    fun body(accountId: String, messageId: String): MailBody? = q.selectBody(accountId, messageId).executeAsOneOrNull()?.let {
+        MailBody(it.textBody, it.htmlBody, decodeAttachments(it.attachments))
+    }
 
     fun saveBody(accountId: String, messageId: String, body: MailBody) {
         q.upsertBody(Message_body(accountId, messageId, body.text, body.html, encodeAttachments(body.attachments)))
@@ -291,12 +287,16 @@ class MailRepository(
 
     val scheduled: Flow<List<ScheduledMail>> = q.selectScheduled().asFlow().mapToList(dispatcher).map { rows ->
         rows.mapNotNull { r ->
-            runCatching { ScheduledMail(r.id, r.accountId, r.sendAt, ScheduledCodec.decode(r.payload), r.attempts.toInt(), r.lastError) }.getOrNull()
+            runCatching {
+                ScheduledMail(r.id, r.accountId, r.sendAt, ScheduledCodec.decode(r.payload), r.attempts.toInt(), r.lastError)
+            }.getOrNull()
         }
     }
 
     fun dueScheduled(now: Long): List<ScheduledMail> = q.selectDueScheduled(now).executeAsList().mapNotNull { r ->
-        runCatching { ScheduledMail(r.id, r.accountId, r.sendAt, ScheduledCodec.decode(r.payload), r.attempts.toInt(), r.lastError) }.getOrNull()
+        runCatching {
+            ScheduledMail(r.id, r.accountId, r.sendAt, ScheduledCodec.decode(r.payload), r.attempts.toInt(), r.lastError)
+        }.getOrNull()
     }
 
     fun schedule(item: ScheduledMail) {
@@ -311,11 +311,9 @@ class MailRepository(
         q.failScheduled(error.take(300), retryAt, id)
     }
 
-    fun contacts(query: String): List<Contact> =
-        q.selectContacts(query.trim()).executeAsList().map { Contact(it.fromName, it.fromAddress) }
+    fun contacts(query: String): List<Contact> = q.selectContacts(query.trim()).executeAsList().map { Contact(it.fromName, it.fromAddress) }
 
-    fun folderIdsOf(accountId: String, messageId: String): List<String> =
-        q.folderIdsOfMessage(accountId, messageId).executeAsList()
+    fun folderIdsOf(accountId: String, messageId: String): List<String> = q.folderIdsOfMessage(accountId, messageId).executeAsList()
 
     fun deleteMessage(accountId: String, messageId: String) {
         q.deleteMessage(accountId, messageId)
@@ -345,7 +343,9 @@ class MailRepository(
                 )
                 q.setFlags(if (m.unread) 1 else 0, if (m.flagged) 1 else 0, accountId, m.id)
                 m.folderIds.forEach { folderId -> q.linkFolder(accountId, m.id, folderId) }
-                m.body?.let { body -> q.upsertBody(Message_body(accountId, m.id, body.text, body.html, encodeAttachments(body.attachments))) }
+                m.body?.let { body ->
+                    q.upsertBody(Message_body(accountId, m.id, body.text, body.html, encodeAttachments(body.attachments)))
+                }
             }
             batch.flagChanges.forEach { q.setFlags(if (it.unread) 1 else 0, if (it.flagged) 1 else 0, accountId, it.messageId) }
             batch.linkChanges.forEach {
@@ -420,9 +420,21 @@ class MailRepository(
 
     @Suppress("LongParameterList")
     private fun mapAccount(
-        id: String, kind: String, email: String, label: String, color: String, notify: Long, retentionDays: Long,
-        capabilities: String, imapHost: String?, imapPort: Long?, imapSecurity: String?, username: String?,
-        syncCursor: String, @Suppress("UNUSED_PARAMETER") sortOrder: Long, @Suppress("UNUSED_PARAMETER") createdAt: Long,
+        id: String,
+        kind: String,
+        email: String,
+        label: String,
+        color: String,
+        notify: Long,
+        retentionDays: Long,
+        capabilities: String,
+        imapHost: String?,
+        imapPort: Long?,
+        imapSecurity: String?,
+        username: String?,
+        syncCursor: String,
+        @Suppress("UNUSED_PARAMETER") sortOrder: Long,
+        @Suppress("UNUSED_PARAMETER") createdAt: Long,
     ) = Account(
         id = id,
         kind = ProviderKind.entries.firstOrNull { it.name == kind } ?: ProviderKind.Imap,
@@ -441,8 +453,16 @@ class MailRepository(
 
     @Suppress("LongParameterList")
     private fun mapFolder(
-        accountId: String, id: String, name: String, role: String, sync: Long, notify: Long,
-        uidValidity: Long, uidNext: Long, highestModSeq: Long, color: String,
+        accountId: String,
+        id: String,
+        name: String,
+        role: String,
+        sync: Long,
+        notify: Long,
+        uidValidity: Long,
+        uidNext: Long,
+        highestModSeq: Long,
+        color: String,
     ) = Folder(
         accountId, id, name, FolderRole.entries.firstOrNull { it.name == role } ?: FolderRole.Other,
         sync != 0L, notify != 0L, uidValidity, uidNext, highestModSeq, color,
@@ -450,9 +470,22 @@ class MailRepository(
 
     @Suppress("LongParameterList")
     private fun mapInboxMessage(
-        accountId: String, id: String, threadId: String, uid: Long, fromName: String, fromAddress: String,
-        toLine: String, subject: String, snippet: String, receivedAt: Long, unread: Long, flagged: Long,
-        hasAttachments: Long, sizeBytes: Long, notifiedAt: Long?, folderIds: String?,
+        accountId: String,
+        id: String,
+        threadId: String,
+        uid: Long,
+        fromName: String,
+        fromAddress: String,
+        toLine: String,
+        subject: String,
+        snippet: String,
+        receivedAt: Long,
+        unread: Long,
+        flagged: Long,
+        hasAttachments: Long,
+        sizeBytes: Long,
+        notifiedAt: Long?,
+        folderIds: String?,
     ) = mapMessage(
         accountId, id, threadId, uid, fromName, fromAddress, toLine, subject, snippet, receivedAt, unread, flagged,
         hasAttachments, sizeBytes, notifiedAt,
@@ -460,9 +493,21 @@ class MailRepository(
 
     @Suppress("LongParameterList")
     private fun mapMessage(
-        accountId: String, id: String, threadId: String, uid: Long, fromName: String, fromAddress: String,
-        toLine: String, subject: String, snippet: String, receivedAt: Long, unread: Long, flagged: Long,
-        hasAttachments: Long, sizeBytes: Long, @Suppress("UNUSED_PARAMETER") notifiedAt: Long?,
+        accountId: String,
+        id: String,
+        threadId: String,
+        uid: Long,
+        fromName: String,
+        fromAddress: String,
+        toLine: String,
+        subject: String,
+        snippet: String,
+        receivedAt: Long,
+        unread: Long,
+        flagged: Long,
+        hasAttachments: Long,
+        sizeBytes: Long,
+        @Suppress("UNUSED_PARAMETER") notifiedAt: Long?,
     ) = MailMessage(
         accountId, id, threadId, uid, fromName, fromAddress, toLine, subject, snippet, receivedAt,
         unread != 0L, flagged != 0L, hasAttachments != 0L, sizeBytes,

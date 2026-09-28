@@ -26,7 +26,8 @@ private val OutlookFrom = Regex("""^(From|מאת)\s?:\s.+""", RegexOption.IGNORE
 private val OutlookNext = Regex("""^(Sent|Date|To|Subject|נשלח|תאריך|אל|נושא)\s?:\s.*""", RegexOption.IGNORE_CASE)
 
 /** A forward is the message itself, not a quote to fold away. */
-private val ForwardMarkers = listOf("Forwarded message", "Begin forwarded message", "הודעה שהועברה", "הודעה שהועברה ---", "Message transféré")
+private val ForwardMarkers =
+    listOf("Forwarded message", "Begin forwarded message", "הודעה שהועברה", "הודעה שהועברה ---", "Message transféré")
 
 fun isForward(text: String): Boolean = ForwardMarkers.any { text.contains(it, ignoreCase = true) }
 
@@ -78,7 +79,14 @@ private val HtmlQuoteSelectors = listOf(
 )
 
 private val HtmlQuoteMarkers = listOf(
-    "gmail_quote", "type=\"cite\"", "type=cite", "yahoo_quoted", "moz-cite-prefix", "appendonsend", "divRplyFwdMsg", "border-top:solid #E1E1E1",
+    "gmail_quote",
+    "type=\"cite\"",
+    "type=cite",
+    "yahoo_quoted",
+    "moz-cite-prefix",
+    "appendonsend",
+    "divRplyFwdMsg",
+    "border-top:solid #E1E1E1",
 )
 
 /** Whether [html] has a quoted earlier message the reader can fold away. */
@@ -125,7 +133,14 @@ fun emailDocument(html: String, hideQuotes: Boolean, remoteImages: Boolean, inli
     val head = "<meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"$policy\">" +
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><base target=\"_self\">" +
         "<style>$BASE_CSS$quoteCss</style>"
-    val withImages = if (inlineImages.isEmpty()) html else html.replace(CidRef) { m -> inlineImages[unescapeCid(m.groupValues[1])] ?: m.value }
+    val withImages = if (inlineImages.isEmpty()) {
+        html
+    } else {
+        html.replace(CidRef) { m ->
+            inlineImages[unescapeCid(m.groupValues[1])]
+                ?: m.value
+        }
+    }
     val clean = withImages
         .replace(Regex("(?is)<script\\b.*?</script\\s*>"), "")
         .replace(Regex("(?is)<(iframe|object|embed)\\b.*?(</\\1\\s*>|/?>)"), "")

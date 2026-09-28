@@ -1,8 +1,5 @@
 package co.abaye.mailtice.app
 
-import co.abaye.mailtice.main.HomeScreen
-import co.abaye.mailtice.main.AttachmentPreviewOverlay
-import co.abaye.mailtice.main.LabelsScreen
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -26,8 +23,11 @@ import androidx.navigation3.ui.NavDisplay
 import co.abaye.mailtice.main.AboutScreen
 import co.abaye.mailtice.main.AccountDetailScreen
 import co.abaye.mailtice.main.AccountsScreen
+import co.abaye.mailtice.main.AttachmentPreviewOverlay
 import co.abaye.mailtice.main.ComposeWindow
+import co.abaye.mailtice.main.HomeScreen
 import co.abaye.mailtice.main.InboxScreen
+import co.abaye.mailtice.main.LabelsScreen
 import co.abaye.mailtice.main.LocalCompactLayout
 import co.abaye.mailtice.main.MainShell
 import co.abaye.mailtice.main.ReaderScreen

@@ -1,7 +1,5 @@
 package co.abaye.mailtice.main
 
-import co.abaye.mailtice.ui.Tooltip
-import co.abaye.mailtice.domain.Account
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,9 +20,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppState
+import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.ui.Tooltip
 
 /** The provider's "#rrggbb" label colour, or null when it has none (or it does not parse). */
 fun Folder.labelColor(): Color? {

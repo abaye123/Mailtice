@@ -7,11 +7,6 @@ import androidx.compose.runtime.Immutable
  * launches ("Chrome|Profile 1") and is what the settings remember.
  */
 @Immutable
-data class BrowserProfile(
-    val browser: String,
-    val directory: String,
-    val name: String,
-    val email: String = "",
-) {
+data class BrowserProfile(val browser: String, val directory: String, val name: String, val email: String = "") {
     val key: String get() = "$browser|$directory"
 }

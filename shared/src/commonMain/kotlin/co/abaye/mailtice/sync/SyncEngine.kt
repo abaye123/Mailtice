@@ -1,22 +1,20 @@
 package co.abaye.mailtice.sync
 
-import co.abaye.mailtice.platform.safeFileName
-import co.abaye.mailtice.platform.joinPath
-import co.abaye.mailtice.provider.MailProvider
-import kotlinx.coroutines.delay
-import kotlinx.datetime.TimeZone
-import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.auth.ReauthRequiredException
 import co.abaye.mailtice.data.MailRepository
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountStatus
+import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.FolderRole
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.Platform
-import co.abaye.mailtice.provider.MailProviders
-import co.abaye.mailtice.domain.Folder
+import co.abaye.mailtice.platform.joinPath
+import co.abaye.mailtice.platform.safeFileName
 import co.abaye.mailtice.provider.AttachmentFile
+import co.abaye.mailtice.provider.MailProvider
+import co.abaye.mailtice.provider.MailProviders
 import co.abaye.mailtice.provider.OlderQuery
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.ProviderException
@@ -26,6 +24,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -39,6 +38,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.TimeZone
 
 /** New, unread, not-yet-announced mail from one round. */
 data class NewMail(val account: Account, val messages: List<MailMessage>)
@@ -46,9 +46,6 @@ data class NewMail(val account: Account, val messages: List<MailMessage>)
 private const val BACKOFF_BASE_MS = 60_000L
 private const val BACKOFF_MAX_MS = 15 * 60_000L
 private const val FOLDER_REFRESH_MS = 60 * 60_000L
-
-
-
 
 /** Offline mode: the longest wait between failed rounds, and how much it downloads ahead per round. */
 private const val OFFLINE_BACKOFF_MAX_MS = 30_000L
@@ -67,11 +64,7 @@ private const val FIRST_SYNC_PATIENCE = 5
  * Android background worker alike - plus the loops that repeat it. A per-account mutex keeps the
  * worker and the app from syncing the same mailbox at the same time.
  */
-class SyncEngine(
-    private val repo: MailRepository,
-    private val providers: MailProviders,
-    private val probe: NetworkProbe? = null,
-) {
+class SyncEngine(private val repo: MailRepository, private val providers: MailProviders, private val probe: NetworkProbe? = null) {
     private val _statuses = MutableStateFlow<Map<String, AccountStatus>>(emptyMap())
     val statuses: StateFlow<Map<String, AccountStatus>> = _statuses.asStateFlow()
 
@@ -201,7 +194,9 @@ class SyncEngine(
             val now = Platform.now()
             val zone = TimeZone.currentSystemDefault()
             val profile = profiles[accountId]?.takeIf { now - it.first < PROFILE_TTL_MS }?.second
-                ?: ActivityProfile.from(repo.activity(accountId, now - PROFILE_WINDOW_MS), now, zone).also { profiles[accountId] = now to it }
+                ?: ActivityProfile.from(repo.activity(accountId, now - PROFILE_WINDOW_MS), now, zone).also {
+                    profiles[accountId] = now to it
+                }
             val (sent, incoming) = repo.latestActivity(accountId)
             val lastSent = listOfNotNull(sent, sentHere[accountId]).maxOrNull()
             PollPlanner.plan(profile, now, zone, lastSent, incoming).also { plan -> _plans.update { it + (accountId to plan) } }.delayMs
@@ -407,8 +402,11 @@ class SyncEngine(
                 val folders = repo.foldersNow(account.id)
                 when (kind) {
                     PendingKind.Read -> provider.setRead(account, message, folders, true)
+
                     PendingKind.Unread -> provider.setRead(account, message, folders, false)
+
                     PendingKind.Archive -> provider.archive(account, message, folders)
+
                     PendingKind.Trash -> {
                         provider.trash(account, message, folders)
                         repo.deleteMessage(account.id, message.id)
@@ -458,7 +456,8 @@ class SyncEngine(
     private fun offlineDir(accountId: String, messageId: String): String =
         joinPath(joinPath(joinPath(Platform.appDir(), "offline"), safeFileName(accountId, "account")), safeFileName(messageId, "message"))
 
-    private fun attachmentPath(accountId: String, messageId: String, index: Int) = joinPath(offlineDir(accountId, messageId), index.toString())
+    private fun attachmentPath(accountId: String, messageId: String, index: Int) =
+        joinPath(offlineDir(accountId, messageId), index.toString())
 
     private fun doneMarker(accountId: String, messageId: String) = joinPath(offlineDir(accountId, messageId), "done")
 

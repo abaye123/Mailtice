@@ -1,9 +1,5 @@
 package co.abaye.mailtice
 
-import co.abaye.mailtice.main.ReaderPrefs
-import co.abaye.mailtice.main.LocalReaderPrefs
-import co.abaye.mailtice.translate.TranslationOffer
-import co.abaye.mailtice.translate.LocalTranslationOffer
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -15,16 +11,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.abaye.mailtice.app.AppViewModel
+import co.abaye.mailtice.app.RootScreen
 import co.abaye.mailtice.calendar.HebrewDateStyle
 import co.abaye.mailtice.calendar.LocalHebrewDate
-import co.abaye.mailtice.app.RootScreen
 import co.abaye.mailtice.di.AppGraph
 import co.abaye.mailtice.di.createAppGraph
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.ThemeMode
 import co.abaye.mailtice.domain.UiLanguage
+import co.abaye.mailtice.main.LocalReaderPrefs
+import co.abaye.mailtice.main.ReaderPrefs
 import co.abaye.mailtice.platform.ProvideAppLocale
 import co.abaye.mailtice.theme.AppTheme
+import co.abaye.mailtice.translate.LocalTranslationOffer
+import co.abaye.mailtice.translate.TranslationOffer
 
 /**
  * The whole app. The desktop host owns the window chrome and the tray, which live outside this

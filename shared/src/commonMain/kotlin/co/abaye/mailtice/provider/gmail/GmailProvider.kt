@@ -1,24 +1,21 @@
 package co.abaye.mailtice.provider.gmail
 
-import co.abaye.mailtice.domain.SenderIdentity
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.io.IOException
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Credential
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
-import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.FolderRole
+import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.SenderIdentity
+import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.FlagChange
 import co.abaye.mailtice.provider.FolderLinkChange
 import co.abaye.mailtice.provider.HtmlText
-import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.MailProvider
 import co.abaye.mailtice.provider.MimeBuilder
 import co.abaye.mailtice.provider.OlderQuery
@@ -33,6 +30,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.io.IOException
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -56,10 +56,7 @@ private const val DAY_SECONDS_MS = 86_400_000L
 /** Labels that are states, not places - never offered as folders. */
 private val HIDDEN_LABELS = setOf("UNREAD", "STARRED", "IMPORTANT", "CHAT")
 
-class GmailProvider(
-    private val api: GmailApi,
-    private val auth: AuthManager,
-) : MailProvider {
+class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : MailProvider {
 
     override suspend fun capabilities(account: Account): Capabilities = Capabilities.Gmail
 
@@ -81,20 +78,21 @@ class GmailProvider(
         withToken(account) { token -> api.createLabel(token, LabelWrite(name, color?.toGmail())) }
     }
 
-    override suspend fun updateLabel(account: Account, id: String, name: String, color: LabelColors?): String = withToken(account) { token ->
-        // Keep how Gmail shows the label in its own lists; only the name and colour change here.
-        val current = api.label(token, id)
-        api.updateLabel(
-            token,
-            id,
-            LabelWrite(
-                name = name,
-                color = color?.toGmail(),
-                labelListVisibility = current.labelListVisibility ?: "labelShow",
-                messageListVisibility = current.messageListVisibility ?: "show",
-            ),
-        ).id
-    }
+    override suspend fun updateLabel(account: Account, id: String, name: String, color: LabelColors?): String =
+        withToken(account) { token ->
+            // Keep how Gmail shows the label in its own lists; only the name and colour change here.
+            val current = api.label(token, id)
+            api.updateLabel(
+                token,
+                id,
+                LabelWrite(
+                    name = name,
+                    color = color?.toGmail(),
+                    labelListVisibility = current.labelListVisibility ?: "labelShow",
+                    messageListVisibility = current.messageListVisibility ?: "show",
+                ),
+            ).id
+        }
 
     override suspend fun deleteLabel(account: Account, id: String) {
         withToken(account) { token -> api.deleteLabel(token, id) }
@@ -160,19 +158,29 @@ class GmailProvider(
      */
     private suspend fun firstSyncListing(token: String, account: Account, folders: List<Folder>, since: Long?): FirstSyncListing {
         val key = folders.map { it.id }.sorted().joinToString(",") + "|" + since?.let { it / DAY_SECONDS_MS }
-        listingsLock.withLock { listings[account.id] }?.takeIf { it.key == key && Platform.now() - it.madeAt < LISTING_TTL_MS }?.let { return it }
+        listingsLock.withLock {
+            listings[account.id]
+        }?.takeIf { it.key == key && Platform.now() - it.madeAt < LISTING_TTL_MS }?.let { return it }
         // The cursor comes from before the listing, so nothing that lands during the pages is lost.
         val profile = retrying { api.profile(token) }
         val after = since?.let { it / 1000 }
         val membership = linkedMapOf<String, MutableSet<String>>()
         folders.sortedBy { if (it.role == FolderRole.Inbox) 0 else 1 }.forEach { folder ->
-            retrying { api.messageIds(token, folder.id, after) }.forEach { ref -> membership.getOrPut(ref.id) { mutableSetOf() } += folder.id }
+            retrying { api.messageIds(token, folder.id, after) }.forEach { ref ->
+                membership.getOrPut(ref.id) { mutableSetOf() } +=
+                    folder.id
+            }
         }
         val unread = retrying { api.messageIds(token, LABEL_UNREAD, after) }.map { it.id }.toSet()
         val starred = retrying { api.messageIds(token, LABEL_STARRED, after) }.map { it.id }.toSet()
         // Metadata carries no MIME parts, so which messages have files comes from a search.
         val withFiles = retrying { api.messageIds(token, null, after, query = "has:attachment") }.map { it.id }.toSet()
-        return FirstSyncListing(key, Platform.now(), profile, membership, unread, starred, withFiles).also { listingsLock.withLock { listings[account.id] = it } }
+        return FirstSyncListing(key, Platform.now(), profile, membership, unread, starred, withFiles).also {
+            listingsLock.withLock {
+                listings[account.id] =
+                    it
+            }
+        }
     }
 
     private class FirstSyncListing(
@@ -280,7 +288,15 @@ class GmailProvider(
 
     override suspend fun setRead(account: Account, message: MailMessage, folders: List<Folder>, read: Boolean) {
         withToken(account) { token ->
-            if (read) api.modify(token, message.id, remove = listOf(LABEL_UNREAD)) else api.modify(token, message.id, add = listOf(LABEL_UNREAD))
+            if (read) {
+                api.modify(
+                    token,
+                    message.id,
+                    remove = listOf(LABEL_UNREAD),
+                )
+            } else {
+                api.modify(token, message.id, add = listOf(LABEL_UNREAD))
+            }
         }
     }
 
@@ -402,10 +418,15 @@ class GmailProvider(
 
     private fun friendlyName(label: GmailLabel): String = when (label.id) {
         "INBOX" -> "Inbox"
+
         "SENT" -> "Sent"
+
         "DRAFT" -> "Drafts"
+
         "TRASH" -> "Trash"
+
         "SPAM" -> "Spam"
+
         else -> label.name.removePrefix("CATEGORY_").lowercase().replaceFirstChar { it.uppercase() }
             .takeIf { label.type == "system" } ?: label.name
     }
@@ -444,7 +465,10 @@ internal fun MessagePart.contentId(): String = header("Content-ID")?.trim()?.rem
  */
 internal fun MessagePart.isFilePart(): Boolean = filename.isNotEmpty() || (mimeType.startsWith("image/") && contentId().isNotEmpty())
 
-internal fun MessagePart.fileName(): String = filename.ifEmpty { "image." + mimeType.substringAfter('/').substringBefore(';').ifEmpty { "png" } }
+internal fun MessagePart.fileName(): String = filename.ifEmpty {
+    "image." +
+        mimeType.substringAfter('/').substringBefore(';').ifEmpty { "png" }
+}
 
 /** Walks the MIME tree Gmail returns: first text/plain, first text/html, and every file part. */
 @OptIn(ExperimentalEncodingApi::class)

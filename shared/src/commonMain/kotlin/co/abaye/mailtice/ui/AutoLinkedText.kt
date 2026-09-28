@@ -18,7 +18,7 @@ private val UrlPattern = Regex("""https?://[^\s<>"\]\[)]+""")
 
 /** Plain mail text with every http(s) address clickable; [onOpen] decides what opening means. */
 @Composable
-fun AutoLinkedText(text: String, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current, onOpen: (String) -> Unit) {
+fun AutoLinkedText(text: String, onOpen: (String) -> Unit, modifier: Modifier = Modifier, style: TextStyle = LocalTextStyle.current) {
     val linkColor = MaterialTheme.colorScheme.primary
     val annotated = remember(text, linkColor) {
         val styles = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline))

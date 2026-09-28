@@ -1,10 +1,8 @@
 package co.abaye.mailtice.app
 
-import mailtice.shared.generated.resources.nav_home
-import androidx.compose.material.icons.outlined.Dashboard
-import mailtice.shared.generated.resources.labels_manage
-import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.ManageAccounts
@@ -14,8 +12,10 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation3.runtime.NavKey
 import mailtice.shared.generated.resources.Res
+import mailtice.shared.generated.resources.labels_manage
 import mailtice.shared.generated.resources.nav_about
 import mailtice.shared.generated.resources.nav_accounts
+import mailtice.shared.generated.resources.nav_home
 import mailtice.shared.generated.resources.nav_inbox
 import mailtice.shared.generated.resources.nav_settings
 import org.jetbrains.compose.resources.stringResource

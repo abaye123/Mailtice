@@ -2,9 +2,9 @@ package co.abaye.mailtice
 
 import co.abaye.mailtice.translate.blocks
 import co.abaye.mailtice.translate.htmlTextSegments
-import co.abaye.mailtice.translate.replaceSegments
 import co.abaye.mailtice.translate.looksForeign
 import co.abaye.mailtice.translate.parseGtx
+import co.abaye.mailtice.translate.replaceSegments
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -14,8 +14,9 @@ class TranslateTest {
     @Test
     fun gtxAnswerParses() {
         // Trimmed from a real answer of the endpoint.
-        val body = """[[["שלום דנה,\n","Hello Dana,\n",null,null,3],["מצורפת הצעת המחיר.\n\n","The quote is attached.\n\n",null,null,3],""" +
-            """["תודה","Thanks",null,null,2]],null,"en",null,null,null,1,[],[["en"],null,[1],["en"]]]"""
+        val body =
+            """[[["שלום דנה,\n","Hello Dana,\n",null,null,3],["מצורפת הצעת המחיר.\n\n","The quote is attached.\n\n",null,null,3],""" +
+                """["תודה","Thanks",null,null,2]],null,"en",null,null,null,1,[],[["en"],null,[1],["en"]]]"""
         assertEquals("en" to "שלום דנה,\nמצורפת הצעת המחיר.\n\nתודה", parseGtx(body))
     }
 

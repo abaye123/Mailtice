@@ -1,34 +1,5 @@
 package co.abaye.mailtice.main
 
-import mailtice.shared.generated.resources.reader_preview_one
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material.icons.outlined.HideImage
-import androidx.compose.foundation.layout.Spacer
-import mailtice.shared.generated.resources.reader_show_quoted
-import mailtice.shared.generated.resources.reader_hide_quoted
-import mailtice.shared.generated.resources.reader_images_hidden
-import mailtice.shared.generated.resources.reader_show_images
-import mailtice.shared.generated.resources.translate_menu
-import mailtice.shared.generated.resources.translate_retry
-import mailtice.shared.generated.resources.translate_failed
-import mailtice.shared.generated.resources.translate_show_translation
-import mailtice.shared.generated.resources.translate_showing_original
-import mailtice.shared.generated.resources.translate_show_original
-import mailtice.shared.generated.resources.translate_done
-import mailtice.shared.generated.resources.translate_loading
-import mailtice.shared.generated.resources.translate_action
-import mailtice.shared.generated.resources.translate_offer
-import co.abaye.mailtice.translate.looksForeign
-import co.abaye.mailtice.translate.languageName
-import co.abaye.mailtice.translate.LocalTranslationOffer
-import co.abaye.mailtice.app.TranslationState
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.material.icons.outlined.Translate
-import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,20 +29,24 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.HideImage
 import androidx.compose.material.icons.outlined.Html
 import androidx.compose.material.icons.outlined.Mail
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.MarkEmailUnread
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -81,20 +57,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ComposeMode
 import co.abaye.mailtice.app.ExportFormat
 import co.abaye.mailtice.app.Reader
+import co.abaye.mailtice.app.TranslationState
+import co.abaye.mailtice.calendar.dateLabel
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.translate.LocalTranslationOffer
+import co.abaye.mailtice.translate.languageName
+import co.abaye.mailtice.translate.looksForeign
 import co.abaye.mailtice.ui.AutoLinkedText
 import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
@@ -102,8 +87,8 @@ import co.abaye.mailtice.ui.formatBytes
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.inbox_archive
 import mailtice.shared.generated.resources.inbox_mark_unread
-import mailtice.shared.generated.resources.reader_back
 import mailtice.shared.generated.resources.inbox_trash
+import mailtice.shared.generated.resources.reader_back
 import mailtice.shared.generated.resources.reader_body_failed
 import mailtice.shared.generated.resources.reader_download_all
 import mailtice.shared.generated.resources.reader_download_one
@@ -111,12 +96,27 @@ import mailtice.shared.generated.resources.reader_download_thread
 import mailtice.shared.generated.resources.reader_export_html
 import mailtice.shared.generated.resources.reader_export_mail
 import mailtice.shared.generated.resources.reader_forward
+import mailtice.shared.generated.resources.reader_hide_quoted
+import mailtice.shared.generated.resources.reader_images_hidden
 import mailtice.shared.generated.resources.reader_more
 import mailtice.shared.generated.resources.reader_open_html
 import mailtice.shared.generated.resources.reader_open_web
+import mailtice.shared.generated.resources.reader_preview_one
 import mailtice.shared.generated.resources.reader_reply
 import mailtice.shared.generated.resources.reader_reply_all
+import mailtice.shared.generated.resources.reader_show_images
+import mailtice.shared.generated.resources.reader_show_quoted
 import mailtice.shared.generated.resources.reader_to
+import mailtice.shared.generated.resources.translate_action
+import mailtice.shared.generated.resources.translate_done
+import mailtice.shared.generated.resources.translate_failed
+import mailtice.shared.generated.resources.translate_loading
+import mailtice.shared.generated.resources.translate_menu
+import mailtice.shared.generated.resources.translate_offer
+import mailtice.shared.generated.resources.translate_retry
+import mailtice.shared.generated.resources.translate_show_original
+import mailtice.shared.generated.resources.translate_show_translation
+import mailtice.shared.generated.resources.translate_showing_original
 import org.jetbrains.compose.resources.stringResource
 
 /** The reader as a full page (narrow layouts). */
@@ -124,8 +124,14 @@ import org.jetbrains.compose.resources.stringResource
 fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
     val reader = state.reader ?: return
     ReaderPane(
-        reader, state.account(reader.message.accountId), onIntent, modifier,
-        showBack = true, working = state.working, labels = state.labelsOf(reader.message), webPaused = state.preview != null,
+        reader,
+        state.account(reader.message.accountId),
+        onIntent,
+        modifier,
+        showBack = true,
+        working = state.working,
+        labels = state.labelsOf(reader.message),
+        webPaused = state.preview != null,
     )
 }
 
@@ -195,7 +201,7 @@ fun ReaderPane(
                         SelectionContainer {
                             AutoLinkedText(
                                 if (translation?.showing == true) translation.body else split.main,
-                                Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 style = MaterialTheme.typography.bodyLarge.merge(ContentDirection),
                                 onOpen = { onIntent(AppIntent.OpenUrl(it)) },
                             )
@@ -206,15 +212,19 @@ fun ReaderPane(
                                 SelectionContainer {
                                     AutoLinkedText(
                                         split.quoted,
-                                        Modifier.fillMaxWidth(),
-                                        style = MaterialTheme.typography.bodyMedium.merge(ContentDirection).copy(color = colors.onSurfaceVariant),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        style = MaterialTheme.typography.bodyMedium.merge(
+                                            ContentDirection,
+                                        ).copy(color = colors.onSurfaceVariant),
                                         onOpen = { onIntent(AppIntent.OpenUrl(it)) },
                                     )
                                 }
                             }
                         }
                     }
+
                     reader.failed -> Text(stringResource(Res.string.reader_body_failed), color = colors.error)
+
                     else -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 }
                 if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
@@ -350,7 +360,9 @@ private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppInten
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (showBack) {
-            TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), { onIntent(AppIntent.CloseReader) })
+            TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), {
+                onIntent(AppIntent.CloseReader)
+            })
         }
         if (caps?.archive == true) {
             TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), { onIntent(AppIntent.Archive(message)) })
@@ -373,7 +385,9 @@ private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppInten
             TooltipIconButton(Icons.Outlined.Code, stringResource(Res.string.reader_open_html), { onIntent(AppIntent.OpenHtml(message)) })
         }
         if (caps?.openInWeb == true) {
-            TooltipIconButton(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(Res.string.reader_open_web), { onIntent(AppIntent.OpenInWeb(message)) })
+            TooltipIconButton(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(Res.string.reader_open_web), {
+                onIntent(AppIntent.OpenInWeb(message))
+            })
         }
         MoreActions(message, enabled = !working, onIntent)
     }
@@ -407,15 +421,24 @@ private fun TranslateBar(reader: Reader, onIntent: (AppIntent) -> Unit) {
         val (text, action) = when {
             translation == null -> stringResource(Res.string.translate_offer) to
                 (stringResource(Res.string.translate_action, target) to AppIntent.TranslateMessage)
+
             translation.state == TranslationState.Loading -> stringResource(Res.string.translate_loading) to null
+
             translation.state == TranslationState.Failed -> stringResource(Res.string.translate_failed) to
                 (stringResource(Res.string.translate_retry) to AppIntent.TranslateMessage)
+
             translation.showOriginal -> stringResource(Res.string.translate_showing_original) to
                 (stringResource(Res.string.translate_show_translation) to AppIntent.ShowOriginal(false))
+
             else -> stringResource(Res.string.translate_done, languageName(translation.sourceLanguage, hebrew)) to
                 (stringResource(Res.string.translate_show_original) to AppIntent.ShowOriginal(true))
         }
-        Text(text, Modifier.weight(1f).padding(vertical = 10.dp), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        Text(
+            text,
+            Modifier.weight(1f).padding(vertical = 10.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurfaceVariant,
+        )
         if (action != null) TextButton(onClick = { onIntent(action.second) }) { Text(action.first) }
     }
 }
@@ -533,7 +556,12 @@ private fun AttachmentCard(attachment: Attachment, enabled: Boolean, onDownload:
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(Modifier.size(40.dp).background(colors.primaryContainer, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-                Text(extension, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = colors.onPrimaryContainer)
+                Text(
+                    extension,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onPrimaryContainer,
+                )
             }
             Column(Modifier.weight(1f, fill = false)) {
                 Text(

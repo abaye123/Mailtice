@@ -1,6 +1,5 @@
 package co.abaye.mailtice.notify
 
-import io.github.santimattius.structured.annotations.StructuredScope
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -16,6 +15,7 @@ import co.abaye.mailtice.di.AppGraphHolder
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.androidContext
+import io.github.santimattius.structured.annotations.StructuredScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

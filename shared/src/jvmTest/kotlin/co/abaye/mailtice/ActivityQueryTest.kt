@@ -29,7 +29,12 @@ class ActivityQueryTest {
         repo.mergeFolders("a", listOf(RemoteFolder("INBOX", "Inbox", FolderRole.Inbox), RemoteFolder("SENT", "Sent", FolderRole.Sent)))
         repo.applyBatch("a", SyncBatch(newMessages = listOf(msg("1", 1_000, "INBOX"), msg("2", 2_000, "SENT"), msg("3", 3_000, "INBOX"))))
 
-        assertEquals(listOf(1_000L to false, 2_000L to true, 3_000L to false), repo.activity("a", 0).map { it.at to it.sent }.sortedBy { it.first })
+        assertEquals(
+            listOf(1_000L to false, 2_000L to true, 3_000L to false),
+            repo.activity("a", 0).map {
+                it.at to it.sent
+            }.sortedBy { it.first },
+        )
         assertEquals(2_000L to 3_000L, repo.latestActivity("a"))
         assertEquals(listOf(3_000L), repo.activity("a", 2_500).map { it.at })
     }

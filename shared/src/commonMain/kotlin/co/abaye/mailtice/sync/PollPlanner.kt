@@ -47,7 +47,8 @@ class ActivityProfile private constructor(private val weights: DoubleArray, val 
             }
             val smooth = DoubleArray(HOURS_IN_WEEK) { h ->
                 val sameHourOtherDays = (1..6).sumOf { d -> raw[(h + d * 24) % HOURS_IN_WEEK] } / 6
-                raw[h] * 0.6 + (raw[(h + 1) % HOURS_IN_WEEK] + raw[(h + HOURS_IN_WEEK - 1) % HOURS_IN_WEEK]) * 0.15 + sameHourOtherDays * 0.1
+                raw[h] * 0.6 + (raw[(h + 1) % HOURS_IN_WEEK] + raw[(h + HOURS_IN_WEEK - 1) % HOURS_IN_WEEK]) * 0.15 +
+                    sameHourOtherDays * 0.1
             }
             return ActivityProfile(smooth, events.size)
         }
@@ -88,7 +89,11 @@ object PollPlanner {
         if (sinceSent != null && sinceSent in 0 until 10 * MINUTE) return PollPlan(30_000, PollReason.AwaitingReply)
         val usual = usualPlan(profile, now, zone)
         if (sinceSent != null && sinceSent in 0 until 60 * MINUTE) return PollPlan(minOf(usual.delayMs, MINUTE), PollReason.AwaitingReply)
-        if (sinceIncoming != null && sinceIncoming in 0 until 10 * MINUTE) return PollPlan(minOf(usual.delayMs, MINUTE), PollReason.Conversation)
+        if (sinceIncoming != null &&
+            sinceIncoming in 0 until 10 * MINUTE
+        ) {
+            return PollPlan(minOf(usual.delayMs, MINUTE), PollReason.Conversation)
+        }
         return usual
     }
 

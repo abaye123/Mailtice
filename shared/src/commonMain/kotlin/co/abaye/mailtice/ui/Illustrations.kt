@@ -329,8 +329,13 @@ private fun DrawScope.offline(p: IllustrationPalette) {
 private fun DrawScope.padlock(p: IllustrationPalette, cx: Float, cy: Float, w: Float) {
     val h = w * 0.78f
     drawArc(
-        p.ink, startAngle = 180f, sweepAngle = 180f, useCenter = false,
-        topLeft = Offset(cx - w * 0.3f, cy - h * 0.5f - w * 0.34f), size = Size(w * 0.6f, w * 0.68f), style = stroke(w * 0.11f),
+        p.ink,
+        startAngle = 180f,
+        sweepAngle = 180f,
+        useCenter = false,
+        topLeft = Offset(cx - w * 0.3f, cy - h * 0.5f - w * 0.34f),
+        size = Size(w * 0.6f, w * 0.68f),
+        style = stroke(w * 0.11f),
     )
     drawRoundRect(p.ink, Offset(cx - w / 2, cy - h * 0.5f), Size(w, h), CornerRadius(w * 0.16f))
     drawCircle(p.onInk, radius = w * 0.1f, center = Offset(cx, cy - h * 0.06f))

@@ -2,9 +2,9 @@ package co.abaye.mailtice
 
 import co.abaye.mailtice.data.decodeSnapshot
 import co.abaye.mailtice.data.encodeSnapshot
-import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppData
+import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.PaneStyle
@@ -23,7 +23,8 @@ class SnapshotCodecTest {
     fun settingsRoundTrip() {
         val data = AppData(
             UserSettings(
-                theme = ThemeMode.Dark, accent = AccentColor.Teal, density = ListDensity.Spacious, font = AppFont.Heebo, paneStyle = PaneStyle.Lines,
+                theme = ThemeMode.Dark, accent = AccentColor.Teal, density = ListDensity.Spacious, font = AppFont.Heebo,
+                paneStyle = PaneStyle.Lines,
                 uiLanguage = UiLanguage.English, pollSeconds = 120,
                 readingPane = ReadingPane.Off, hiddenFolders = setOf("acc-1/Label_7"),
                 pinnedLabels = setOf("acc-1/Label_3", "acc-2/Receipts"), collapsedAccounts = setOf("acc-2"),
@@ -46,7 +47,16 @@ class SnapshotCodecTest {
 
     @Test
     fun capabilitiesRoundTrip() {
-        val caps = Capabilities(markRead = true, archive = false, labels = true, openInWeb = false, incremental = true, idle = true, labelColors = true)
+        val caps =
+            Capabilities(
+                markRead = true,
+                archive = false,
+                labels = true,
+                openInWeb = false,
+                incremental = true,
+                idle = true,
+                labelColors = true,
+            )
         assertEquals(caps, Capabilities.decode(caps.encode()))
         assertEquals(Capabilities(), Capabilities.decode(""))
     }

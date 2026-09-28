@@ -21,7 +21,14 @@ import kotlin.test.assertTrue
 class SenderIdentityTest {
     @Test
     fun aliasGoesInFromAndReplyTo() {
-        val mail = OutgoingMail(to = listOf("dana@x.com"), subject = "Hi", text = "Hi", from = "Noa Levi <noa@alias.com>", replyTo = "desk@alias.com")
+        val mail =
+            OutgoingMail(
+                to = listOf("dana@x.com"),
+                subject = "Hi",
+                text = "Hi",
+                from = "Noa Levi <noa@alias.com>",
+                replyTo = "desk@alias.com",
+            )
         val raw = MimeBuilder.build("noa@gmail.com", mail, epochMillis = 0)
         assertTrue("From: \"Noa Levi\" <noa@alias.com>" in raw)
         assertTrue("Reply-To: desk@alias.com" in raw)
@@ -55,7 +62,10 @@ class SenderIdentityTest {
         MailDatabase.Schema.create(driver)
         val repo = MailRepository(driver, Dispatchers.Unconfined)
         repo.addAccount(Account("a", ProviderKind.Gmail, "noa@gmail.com"))
-        repo.replaceIdentities("a", listOf(SenderIdentity("a", "noa@gmail.com", "Noa", isDefault = true), SenderIdentity("a", "noa@alias.com", "Noa (work)")))
+        repo.replaceIdentities(
+            "a",
+            listOf(SenderIdentity("a", "noa@gmail.com", "Noa", isDefault = true), SenderIdentity("a", "noa@alias.com", "Noa (work)")),
+        )
         assertEquals(listOf("noa@gmail.com", "noa@alias.com"), repo.identities.first()["a"]?.map { it.email })
         repo.replaceIdentities("a", listOf(SenderIdentity("a", "noa@gmail.com")))
         assertEquals(1, repo.identities.first()["a"]?.size)

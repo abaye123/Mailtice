@@ -18,9 +18,9 @@ import co.abaye.mailtice.sync.ActionQueuedException
 import co.abaye.mailtice.sync.OfflinePrefs
 import co.abaye.mailtice.sync.SyncEngine
 import co.abaye.mailtice.sync.isNetworkError
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.IOException
 import java.net.UnknownHostException
@@ -58,7 +58,8 @@ class OfflineModeTest {
         val repo = MailRepository(driver, Dispatchers.Unconfined)
         repo.addAccount(account)
         repo.mergeFolders("acc", listOf(RemoteFolder("INBOX", "Inbox", FolderRole.Inbox)))
-        val msg = RemoteMessage("m1", "m1", 0, "", "", "", "Hi", "", System.currentTimeMillis(), true, false, false, 0, setOf("INBOX"), null)
+        val msg =
+            RemoteMessage("m1", "m1", 0, "", "", "", "Hi", "", System.currentTimeMillis(), true, false, false, 0, setOf("INBOX"), null)
         repo.applyBatch("acc", SyncBatch(newMessages = listOf(msg)))
         val server = Server()
         val engine = SyncEngine(repo, providers = { server })

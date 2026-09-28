@@ -31,31 +31,39 @@ class GmailApi(private val http: HttpClient) {
 
     suspend fun label(token: String, id: String): GmailLabel = http.get("$BASE/labels/$id") { bearerAuth(token) }.parsed()
 
-    suspend fun createLabel(token: String, label: LabelWrite): GmailLabel =
-        http.post("$BASE/labels") {
-            bearerAuth(token)
-            contentType(ContentType.Application.Json)
-            setBody(label)
-        }.parsed()
+    suspend fun createLabel(token: String, label: LabelWrite): GmailLabel = http.post("$BASE/labels") {
+        bearerAuth(token)
+        contentType(ContentType.Application.Json)
+        setBody(label)
+    }.parsed()
 
     /** A full replace (PUT), so leaving the colour out removes it - PATCH cannot clear one. */
-    suspend fun updateLabel(token: String, id: String, label: LabelWrite): GmailLabel =
-        http.put("$BASE/labels/$id") {
-            bearerAuth(token)
-            contentType(ContentType.Application.Json)
-            setBody(label.copy(id = id))
-        }.parsed()
+    suspend fun updateLabel(token: String, id: String, label: LabelWrite): GmailLabel = http.put("$BASE/labels/$id") {
+        bearerAuth(token)
+        contentType(ContentType.Application.Json)
+        setBody(label.copy(id = id))
+    }.parsed()
 
     suspend fun deleteLabel(token: String, id: String) {
         val response = http.delete("$BASE/labels/$id") { bearerAuth(token) }
-        if (!response.status.isSuccess() && response.status.value != 404) throw ProviderException.of(response.status.value, response.bodyAsText())
+        if (!response.status.isSuccess() &&
+            response.status.value != 404
+        ) {
+            throw ProviderException.of(response.status.value, response.bodyAsText())
+        }
     }
 
     /**
      * Ids in [labelId] (null = any label) received after [afterEpochSeconds] (null = all) and matching
      * the Gmail search [query], newest first, paged.
      */
-    suspend fun messageIds(token: String, labelId: String?, afterEpochSeconds: Long?, max: Int = 2000, query: String? = null): List<MessageRef> {
+    suspend fun messageIds(
+        token: String,
+        labelId: String?,
+        afterEpochSeconds: Long?,
+        max: Int = 2000,
+        query: String? = null,
+    ): List<MessageRef> {
         val out = mutableListOf<MessageRef>()
         var pageToken: String? = null
         var pages = 0
@@ -75,16 +83,15 @@ class GmailApi(private val http: HttpClient) {
         return out.take(max)
     }
 
-    suspend fun message(token: String, id: String, full: Boolean): GmailMessage =
-        http.get("$BASE/messages/$id") {
-            bearerAuth(token)
-            if (full) {
-                parameter("format", "full")
-            } else {
-                parameter("format", "metadata")
-                listOf("From", "To", "Subject", "Date").forEach { parameter("metadataHeaders", it) }
-            }
-        }.parsed()
+    suspend fun message(token: String, id: String, full: Boolean): GmailMessage = http.get("$BASE/messages/$id") {
+        bearerAuth(token)
+        if (full) {
+            parameter("format", "full")
+        } else {
+            parameter("format", "metadata")
+            listOf("From", "To", "Subject", "Date").forEach { parameter("metadataHeaders", it) }
+        }
+    }.parsed()
 
     /** Throws [ProviderException.NotFound] when the id is too old; the caller resyncs. */
     suspend fun history(token: String, startHistoryId: String): HistoryDelta {
@@ -132,11 +139,10 @@ class GmailApi(private val http: HttpClient) {
     suspend fun attachment(token: String, messageId: String, attachmentId: String): AttachmentBody =
         http.get("$BASE/messages/$messageId/attachments/$attachmentId") { bearerAuth(token) }.parsed()
 
-    suspend fun raw(token: String, id: String): RawMessage =
-        http.get("$BASE/messages/$id") {
-            bearerAuth(token)
-            parameter("format", "raw")
-        }.parsed()
+    suspend fun raw(token: String, id: String): RawMessage = http.get("$BASE/messages/$id") {
+        bearerAuth(token)
+        parameter("format", "raw")
+    }.parsed()
 
     /**
      * Messages over the JSON body limit (attachments) go through the media upload endpoint, which
@@ -177,7 +183,11 @@ class GmailApi(private val http: HttpClient) {
     suspend fun deleteDraft(token: String, id: String) {
         val response = http.delete("$BASE/drafts/$id") { bearerAuth(token) }
         // Already gone is fine: it was sent or deleted elsewhere.
-        if (!response.status.isSuccess() && response.status.value != 404) throw ProviderException.of(response.status.value, response.bodyAsText())
+        if (!response.status.isSuccess() &&
+            response.status.value != 404
+        ) {
+            throw ProviderException.of(response.status.value, response.bodyAsText())
+        }
     }
 
     /** The draft id that holds message [messageId], searching the drafts list (a few pages at most). */
@@ -198,12 +208,11 @@ class GmailApi(private val http: HttpClient) {
     }
 
     /** Only the headers a reply needs to thread correctly. */
-    suspend fun threadHeaders(token: String, id: String): GmailMessage =
-        http.get("$BASE/messages/$id") {
-            bearerAuth(token)
-            parameter("format", "metadata")
-            listOf("Message-ID", "References").forEach { parameter("metadataHeaders", it) }
-        }.parsed()
+    suspend fun threadHeaders(token: String, id: String): GmailMessage = http.get("$BASE/messages/$id") {
+        bearerAuth(token)
+        parameter("format", "metadata")
+        listOf("Message-ID", "References").forEach { parameter("metadataHeaders", it) }
+    }.parsed()
 
     private suspend inline fun <reified T> HttpResponse.parsed(): T {
         if (!status.isSuccess()) throw ProviderException.of(status.value, bodyAsText())

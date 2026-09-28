@@ -1,18 +1,17 @@
 package co.abaye.mailtice.main
 
-import co.abaye.mailtice.calendar.dateLabel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -32,9 +31,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.CloudDownload
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
@@ -46,8 +45,8 @@ import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -62,12 +61,13 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,34 +78,35 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.app.ComposeMode
+import co.abaye.mailtice.calendar.dateLabel
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ReadingPane
-import co.abaye.mailtice.platform.ResizeHorizontalIcon
 import co.abaye.mailtice.platform.Platform
-import co.abaye.mailtice.ui.LocalDensitySpec
+import co.abaye.mailtice.platform.ResizeHorizontalIcon
 import co.abaye.mailtice.ui.EmptyIllustration
 import co.abaye.mailtice.ui.Illustration
+import co.abaye.mailtice.ui.LocalDensitySpec
 import co.abaye.mailtice.ui.Pane
 import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
@@ -129,13 +130,13 @@ import mailtice.shared.generated.resources.inbox_search_all
 import mailtice.shared.generated.resources.inbox_search_in
 import mailtice.shared.generated.resources.inbox_trash
 import mailtice.shared.generated.resources.inbox_unread_only
-import mailtice.shared.generated.resources.search_options
 import mailtice.shared.generated.resources.older_failed
 import mailtice.shared.generated.resources.older_hint
 import mailtice.shared.generated.resources.older_load
 import mailtice.shared.generated.resources.older_loading
 import mailtice.shared.generated.resources.older_none
 import mailtice.shared.generated.resources.older_searching
+import mailtice.shared.generated.resources.search_options
 import mailtice.shared.generated.resources.selection_all
 import mailtice.shared.generated.resources.selection_check
 import mailtice.shared.generated.resources.selection_clear
@@ -174,7 +175,7 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
     Row(modifier.fillMaxSize().onSizeChanged { totalWidth = it.width.toFloat().coerceAtLeast(1f) }) {
         Pane(rounded = cards, modifier = if (compact) Modifier.fillMaxSize() else Modifier.weight(fraction).fillMaxHeight()) {
             Box(Modifier.fillMaxSize()) {
-                Column(Modifier.fillMaxSize()) { MessageList(state, onIntent) }
+                MessageList(state, onIntent, Modifier.fillMaxSize())
                 // Phones have no sidebar, so the compose button floats over the list.
                 if (compact && state.sendingAccounts.isNotEmpty()) {
                     ExtendedFloatingActionButton(
@@ -221,10 +222,10 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
  * back arrow. The list stays composed underneath, so going back returns to the same scroll spot.
  */
 @Composable
-private fun FullWidthInbox(state: AppState, onIntent: (AppIntent) -> Unit, cards: Boolean, modifier: Modifier) {
+private fun FullWidthInbox(state: AppState, onIntent: (AppIntent) -> Unit, cards: Boolean, modifier: Modifier = Modifier) {
     Pane(rounded = cards, modifier = modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize()) { MessageList(state, onIntent) }
+            MessageList(state, onIntent, Modifier.fillMaxSize())
             val reader = state.reader
             if (reader != null) {
                 Surface(
@@ -234,8 +235,13 @@ private fun FullWidthInbox(state: AppState, onIntent: (AppIntent) -> Unit, cards
                     color = MaterialTheme.colorScheme.surface,
                 ) {
                     ReaderPane(
-                        reader, state.account(reader.message.accountId), onIntent,
-                        showBack = true, working = state.working, labels = state.labelsOf(reader.message), webPaused = state.preview != null,
+                        reader,
+                        state.account(reader.message.accountId),
+                        onIntent,
+                        showBack = true,
+                        working = state.working,
+                        labels = state.labelsOf(reader.message),
+                        webPaused = state.preview != null,
                     )
                 }
             }
@@ -283,62 +289,66 @@ private fun SplitHandle(lines: Boolean, onDrag: (Float) -> Unit, onDragEnd: () -
 }
 
 @Composable
-private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit) {
-    val cards = cardStyle()
-    if (state.selection.isEmpty()) Toolbar(state, onIntent) else SelectionBar(state, onIntent)
-    if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
-    state.needsReauth.forEach { account -> ReauthBanner(account, onIntent) }
-    Filters(state, onIntent)
-    if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-    // The scheduled-send queue is not stored mail: it has a list of its own.
-    if (state.filter.folderId.isEmpty() && state.filter.view == MailView.Scheduled) {
-        ScheduledList(state, onIntent)
-        return
-    }
-    val visible = state.visibleMessages
-    // The unified list mixes accounts: each row names its own, unless there is only one.
-    val showAccount = state.filter.accountId.isEmpty() && state.accounts.size > 1
-    if (visible.isEmpty()) {
-        // Nothing stored for this list: ask the server before calling it empty (an old search
-        // result, a folder whose mail is all older than the kept days).
-        val canAsk = !state.olderExhausted && !state.emptyBecauseOfSync()
-        LaunchedEffect(state.filter, canAsk) { if (canAsk) onIntent(AppIntent.LoadOlder) }
-        if (state.older.loading || canAsk) OlderLoading(Modifier.fillMaxSize()) else MessageListEmptyState(state, onIntent)
-        return
-    }
-    val accounts = state.accounts.associateBy { it.id }
-    val stored = remember(state.inbox) { state.inbox.map { it.key }.toSet() }
-    val gap = LocalDensitySpec.current.rowGap
-    val listState = rememberLazyListState()
-    // Near the end of the list: more stored rows, then older mail from the server. Restarted when the
-    // list grows, so a short page right after another keeps loading until the screen is full.
-    LaunchedEffect(listState, state.filter, visible.size) {
-        snapshotFlow {
-            val info = listState.layoutInfo
-            (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - 4
-        }.distinctUntilChanged().filter { it }.collect { onIntent(AppIntent.LoadOlder) }
-    }
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        state = listState,
-        contentPadding = if (cards) PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp) else PaddingValues(0.dp),
-        verticalArrangement = Arrangement.spacedBy(if (cards) gap else 0.dp),
-    ) {
-        items(visible, key = { it.key }) { message ->
-            MailRow(
-                message,
-                accounts[message.accountId],
-                opened = state.reader?.message?.id == message.id,
-                checked = message.key in state.selection,
-                selecting = state.selection.isNotEmpty(),
-                labels = state.labelsOf(message),
-                fromServer = message.key !in stored,
-                showAccount = showAccount,
-                onIntent = onIntent,
-            )
-            if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
+    // The effects below outlive a recomposition; they call whichever callback is current.
+    val currentOnIntent by rememberUpdatedState(onIntent)
+    Column(modifier) {
+        val cards = cardStyle()
+        if (state.selection.isEmpty()) Toolbar(state, onIntent) else SelectionBar(state, onIntent)
+        if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+        state.needsReauth.forEach { account -> ReauthBanner(account, onIntent) }
+        Filters(state, onIntent)
+        if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        // The scheduled-send queue is not stored mail: it has a list of its own.
+        if (state.filter.folderId.isEmpty() && state.filter.view == MailView.Scheduled) {
+            ScheduledList(state, onIntent)
+            return@Column
         }
-        item(key = "older-footer") { OlderFooter(state, onIntent) }
+        val visible = state.visibleMessages
+        // The unified list mixes accounts: each row names its own, unless there is only one.
+        val showAccount = state.filter.accountId.isEmpty() && state.accounts.size > 1
+        if (visible.isEmpty()) {
+            // Nothing stored for this list: ask the server before calling it empty (an old search
+            // result, a folder whose mail is all older than the kept days).
+            val canAsk = !state.olderExhausted && !state.emptyBecauseOfSync()
+            LaunchedEffect(state.filter, canAsk) { if (canAsk) currentOnIntent(AppIntent.LoadOlder) }
+            if (state.older.loading || canAsk) OlderLoading(Modifier.fillMaxSize()) else MessageListEmptyState(state, onIntent)
+            return@Column
+        }
+        val accounts = state.accounts.associateBy { it.id }
+        val stored = remember(state.inbox) { state.inbox.map { it.key }.toSet() }
+        val gap = LocalDensitySpec.current.rowGap
+        val listState = rememberLazyListState()
+        // Near the end of the list: more stored rows, then older mail from the server. Restarted when the
+        // list grows, so a short page right after another keeps loading until the screen is full.
+        LaunchedEffect(listState, state.filter, visible.size) {
+            snapshotFlow {
+                val info = listState.layoutInfo
+                (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - 4
+            }.distinctUntilChanged().filter { it }.collect { currentOnIntent(AppIntent.LoadOlder) }
+        }
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            state = listState,
+            contentPadding = if (cards) PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp) else PaddingValues(0.dp),
+            verticalArrangement = Arrangement.spacedBy(if (cards) gap else 0.dp),
+        ) {
+            items(visible, key = { it.key }) { message ->
+                MailRow(
+                    message,
+                    accounts[message.accountId],
+                    opened = state.reader?.message?.id == message.id,
+                    checked = message.key in state.selection,
+                    selecting = state.selection.isNotEmpty(),
+                    labels = state.labelsOf(message),
+                    fromServer = message.key !in stored,
+                    showAccount = showAccount,
+                    onIntent = onIntent,
+                )
+                if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+            item(key = "older-footer") { OlderFooter(state, onIntent) }
+        }
     }
 }
 
@@ -348,15 +358,20 @@ private fun OlderFooter(state: AppState, onIntent: (AppIntent) -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
         when {
-            state.older.loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            state.older.loading -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 Text(stringResource(Res.string.older_loading), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
+
             state.olderExhausted -> Text(
                 stringResource(Res.string.older_none),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
             )
+
             else -> TextButton(onClick = { onIntent(AppIntent.LoadOlder) }) {
                 Icon(Icons.Outlined.CloudDownload, null, Modifier.size(18.dp))
                 Text(
@@ -373,7 +388,11 @@ private fun OlderFooter(state: AppState, onIntent: (AppIntent) -> Unit) {
 private fun OlderLoading(modifier: Modifier = Modifier) {
     Column(modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         EmptyIllustration(Illustration.NoResults, size = 150.dp)
-        Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            Modifier.padding(top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
             Text(stringResource(Res.string.older_searching), style = MaterialTheme.typography.bodyMedium)
         }
@@ -400,7 +419,9 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
         val clear: @Composable () -> Unit = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (query.isNotEmpty()) {
-                    TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.empty_search_action), { onIntent(AppIntent.SetSearchQuery("")) })
+                    TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.empty_search_action), {
+                        onIntent(AppIntent.SetSearchQuery(""))
+                    })
                 }
                 TooltipIconButton(Icons.Outlined.Tune, stringResource(Res.string.search_options), { optionsOpen = !optionsOpen })
             }
@@ -408,35 +429,35 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
         // Gmail's search options hang from the search field itself: same width, right under it.
         var fieldSize by remember { mutableStateOf(IntSize.Zero) }
         Box(Modifier.weight(1f).onSizeChanged { fieldSize = it }) {
-        if (cards) {
-            // The design's search pill: filled, fully rounded, no underline.
-            TextField(
-                value = query,
-                onValueChange = { onIntent(AppIntent.SetSearchQuery(it)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(28.dp),
-                placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                trailingIcon = clear,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-            )
-        } else {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { onIntent(AppIntent.SetSearchQuery(it)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                trailingIcon = clear,
-            )
-        }
+            if (cards) {
+                // The design's search pill: filled, fully rounded, no underline.
+                TextField(
+                    value = query,
+                    onValueChange = { onIntent(AppIntent.SetSearchQuery(it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(28.dp),
+                    placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                    trailingIcon = clear,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                )
+            } else {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { onIntent(AppIntent.SetSearchQuery(it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                    trailingIcon = clear,
+                )
+            }
             if (optionsOpen) {
                 val density = LocalDensity.current
                 Popup(
@@ -482,8 +503,12 @@ private fun SelectionBar(state: AppState, onIntent: (AppIntent) -> Unit) {
             TooltipIconButton(Icons.Outlined.SelectAll, stringResource(Res.string.selection_all), { onIntent(AppIntent.SelectAll) })
         }
         if (caps.any { it.markRead }) {
-            TooltipIconButton(Icons.Outlined.MarkEmailRead, stringResource(Res.string.inbox_mark_read), { onIntent(AppIntent.BulkSetRead(true)) })
-            TooltipIconButton(Icons.Outlined.MarkEmailUnread, stringResource(Res.string.inbox_mark_unread), { onIntent(AppIntent.BulkSetRead(false)) })
+            TooltipIconButton(Icons.Outlined.MarkEmailRead, stringResource(Res.string.inbox_mark_read), {
+                onIntent(AppIntent.BulkSetRead(true))
+            })
+            TooltipIconButton(Icons.Outlined.MarkEmailUnread, stringResource(Res.string.inbox_mark_unread), {
+                onIntent(AppIntent.BulkSetRead(false))
+            })
         }
         if (caps.any { it.archive }) {
             TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), { onIntent(AppIntent.BulkArchive) })
@@ -511,7 +536,11 @@ private fun ReauthBanner(account: Account, onIntent: (AppIntent) -> Unit) {
         shape = MaterialTheme.shapes.medium,
     ) {
         Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(Res.string.inbox_reauth_banner, account.displayName), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(Res.string.inbox_reauth_banner, account.displayName),
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             TextButton(onClick = { onIntent(AppIntent.Reconnect(account.id)) }) {
                 Text(stringResource(Res.string.accounts_reconnect))
             }
@@ -588,7 +617,9 @@ private fun FolderPicker(state: AppState, onIntent: (AppIntent) -> Unit) {
             modifier = NoFocus,
             selected = notInbox,
             onClick = { open = true },
-            leadingIcon = { Icon(if (state.filter.folderId.isNotEmpty()) FolderIcon else state.filter.view.icon(), null, Modifier.size(16.dp)) },
+            leadingIcon = {
+                Icon(if (state.filter.folderId.isNotEmpty()) FolderIcon else state.filter.view.icon(), null, Modifier.size(16.dp))
+            },
             label = { Text(state.currentFolderName()) },
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -688,7 +719,14 @@ private fun MailRow(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (message.hasAttachments) Icon(Icons.Outlined.AttachFile, null, Modifier.size(16.dp), tint = colors.onSurfaceVariant)
+                        if (message.hasAttachments) {
+                            Icon(
+                                Icons.Outlined.AttachFile,
+                                null,
+                                Modifier.size(16.dp),
+                                tint = colors.onSurfaceVariant,
+                            )
+                        }
                         // Older than the kept days: shown from the server, not stored on this device.
                         if (fromServer) {
                             Tooltip(stringResource(Res.string.older_hint)) {
@@ -761,10 +799,12 @@ private fun SelectableAvatar(message: MailMessage, color: Color, checked: Boolea
                 checked -> Box(Modifier.fillMaxSize().background(colors.primary), contentAlignment = Alignment.Center) {
                     Icon(Icons.Outlined.Check, null, Modifier.size(size * 0.55f), tint = colors.onPrimary)
                 }
+
                 hovered -> Box(
                     Modifier.fillMaxSize().border(2.dp, colors.primary, CircleShape).background(colors.surfaceContainerHighest),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Outlined.Check, null, Modifier.size(size * 0.5f), tint = colors.primary) }
+
                 else -> LetterAvatar(message.sender, color, size = size)
             }
         }
