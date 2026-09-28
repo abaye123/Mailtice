@@ -2,6 +2,7 @@ package co.abaye.mailtice.app
 
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppFont
+import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.MailMessage
@@ -152,6 +153,7 @@ sealed interface AppIntent {
     data class SetOfflineAttachments(val mb: Int) : AppIntent
     data class SetOfferTranslation(val offer: Boolean) : AppIntent
     data class SetLoadRemoteImages(val load: Boolean) : AppIntent
+    data class SetHtmlView(val view: HtmlView) : AppIntent
 
     /** "" goes back to Downloads/Mailtice. */
     data class SetDownloadFolder(val path: String) : AppIntent

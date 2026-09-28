@@ -487,6 +487,13 @@
     <string name="badge_age_days">%1$d days</string>
     <string name="badge_age_week">A week</string>
     <string name="badge_age_month">A month</string>
+    <string name="settings_html_view">HTML mail</string>
+    <string name="settings_html_view_desc">Automatic shows simple mail at once as text, and newsletters and designed mail in full.</string>
+    <string name="html_view_auto">Automatic</string>
+    <string name="html_view_simple">Simple</string>
+    <string name="html_view_full">Full</string>
+    <string name="reader_full_view">Full view</string>
+    <string name="reader_simple_view">Simple view</string>
     <string name="settings_close_reader">Close the message when switching folders</string>
     <string name="settings_close_reader_desc">Moving to another folder, label or account closes the open message.</string>
     <string name="settings_conversations">Conversation view</string>

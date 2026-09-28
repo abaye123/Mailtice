@@ -487,6 +487,13 @@
     <string name="badge_age_days">%1$d ימים</string>
     <string name="badge_age_week">שבוע</string>
     <string name="badge_age_month">חודש</string>
+    <string name="settings_html_view">תצוגת מיילים מעוצבים</string>
+    <string name="settings_html_view_desc">אוטומטי מציג מייל פשוט מיד כטקסט, וניוזלטרים ומיילים מעוצבים בתצוגה מלאה.</string>
+    <string name="html_view_auto">אוטומטי</string>
+    <string name="html_view_simple">פשוטה</string>
+    <string name="html_view_full">מלאה</string>
+    <string name="reader_full_view">תצוגה מלאה</string>
+    <string name="reader_simple_view">תצוגה פשוטה</string>
     <string name="settings_close_reader">סגירת ההודעה במעבר תיקייה</string>
     <string name="settings_close_reader_desc">מעבר לתיקייה, תגית או חשבון אחר סוגר את ההודעה הפתוחה.</string>
     <string name="settings_conversations">תצוגת שיחות</string>

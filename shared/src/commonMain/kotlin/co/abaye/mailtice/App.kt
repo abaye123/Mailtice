@@ -71,7 +71,7 @@ fun App(
                 LocalLayoutDirection provides direction,
                 LocalHebrewDate provides hebrewDate,
                 LocalTranslationOffer provides translation,
-                LocalReaderPrefs provides ReaderPrefs(loadRemoteImages = settings.loadRemoteImages),
+                LocalReaderPrefs provides ReaderPrefs(loadRemoteImages = settings.loadRemoteImages, htmlView = settings.htmlView),
             ) {
                 RootScreen(state = state, backStack = vm.backStack, onIntent = vm::onIntent)
             }

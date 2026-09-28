@@ -15,6 +15,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.platform.joinPath
 import dev.nucleusframework.webview.request.RequestInterceptor
@@ -113,7 +114,7 @@ private fun holdsWebViewSlot(): Boolean {
 
 /** How the reader shows mail; provided at the root from the settings. */
 @Immutable
-data class ReaderPrefs(val loadRemoteImages: Boolean = true)
+data class ReaderPrefs(val loadRemoteImages: Boolean = true, val htmlView: HtmlView = HtmlView.Auto)
 
 val LocalReaderPrefs = staticCompositionLocalOf { ReaderPrefs() }
 

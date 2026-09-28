@@ -450,6 +450,13 @@
     <string name="badge_age_days">%1$d טעג</string>
     <string name="badge_age_week">א וואך</string>
     <string name="badge_age_month">א חודש</string>
+    <string name="settings_html_view">אנזעהן באצירטע מעלדונגען</string>
+    <string name="settings_html_view_desc">אויטאמאטיש ווייזט א פשוטע מעלדונג גלייך אלס טעקסט, און נייעסליטערס און באצירטע מעלדונגען אינגאנצן.</string>
+    <string name="html_view_auto">אויטאמאטיש</string>
+    <string name="html_view_simple">פשוט</string>
+    <string name="html_view_full">אינגאנצן</string>
+    <string name="reader_full_view">פולע אנזעהן</string>
+    <string name="reader_simple_view">פשוטע אנזעהן</string>
     <string name="settings_close_reader">פארמאכן די מעלדונג ביים איבערגיין א טעקע</string>
     <string name="settings_close_reader_desc">איבערגיין צו אן אנדער טעקע, צייכן אדער חשבון פארמאכט די אפענע מעלדונג.</string>
     <string name="settings_conversations">שמועס אנזיכט</string>

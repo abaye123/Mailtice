@@ -564,6 +564,8 @@ class AppViewModel(
 
             is AppIntent.SetLoadRemoteImages -> settings { it.copy(loadRemoteImages = intent.load) }
 
+            is AppIntent.SetHtmlView -> settings { it.copy(htmlView = intent.view) }
+
             is AppIntent.SetDownloadFolder -> settings { it.copy(downloadFolder = intent.path) }
 
             is AppIntent.ChooseDownloadFolder -> scope.launch {

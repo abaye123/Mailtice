@@ -49,6 +49,7 @@ import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.BadgeAgeOptions
+import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.domain.PaneStyle
@@ -90,6 +91,9 @@ import mailtice.shared.generated.resources.density_compact
 import mailtice.shared.generated.resources.density_spacious
 import mailtice.shared.generated.resources.hebrew_turn_midnight
 import mailtice.shared.generated.resources.hebrew_turn_sunset
+import mailtice.shared.generated.resources.html_view_auto
+import mailtice.shared.generated.resources.html_view_full
+import mailtice.shared.generated.resources.html_view_simple
 import mailtice.shared.generated.resources.language_system
 import mailtice.shared.generated.resources.offline_attachments_all
 import mailtice.shared.generated.resources.offline_attachments_none
@@ -131,6 +135,8 @@ import mailtice.shared.generated.resources.settings_hebrew_date
 import mailtice.shared.generated.resources.settings_hebrew_date_desc
 import mailtice.shared.generated.resources.settings_hebrew_turn
 import mailtice.shared.generated.resources.settings_hebrew_turn_desc
+import mailtice.shared.generated.resources.settings_html_view
+import mailtice.shared.generated.resources.settings_html_view_desc
 import mailtice.shared.generated.resources.settings_language
 import mailtice.shared.generated.resources.settings_launch_at_login
 import mailtice.shared.generated.resources.settings_launch_at_login_desc
@@ -252,6 +258,15 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                         CityPicker(settings.sunsetCity) { onIntent(AppIntent.SetSunsetCity(it)) }
                     }
                 }
+            }
+            SettingBlock(stringResource(Res.string.settings_html_view), subtitle = stringResource(Res.string.settings_html_view_desc)) {
+                ChoicePicker(HtmlView.entries, settings.htmlView, {
+                    when (it) {
+                        HtmlView.Auto -> stringResource(Res.string.html_view_auto)
+                        HtmlView.Simple -> stringResource(Res.string.html_view_simple)
+                        HtmlView.Full -> stringResource(Res.string.html_view_full)
+                    }
+                }) { onIntent(AppIntent.SetHtmlView(it)) }
             }
             SettingRow(
                 stringResource(Res.string.settings_remote_images),

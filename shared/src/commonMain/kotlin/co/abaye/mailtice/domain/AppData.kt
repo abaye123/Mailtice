@@ -34,6 +34,12 @@ enum class PaneStyle { Cards, Lines }
  */
 enum class ReadingPane { Split, Off }
 
+/**
+ * How HTML mail is shown. [Auto]: simple mail as styled text, anything laid out (tables, images)
+ * in the webview. [Simple]: always as text, the webview only on request. [Full]: always the webview.
+ */
+enum class HtmlView { Auto, Simple, Full }
+
 enum class UiLanguage(val code: String, val label: String, val rtl: Boolean) {
     Hebrew("he", "עברית", true),
     Yiddish("yi", "אידיש", true),
@@ -107,6 +113,7 @@ data class UserSettings(
     val offerTranslation: Boolean = true,
     /** Remote images in HTML mail load on their own; off, each message asks first (they can track opens). */
     val loadRemoteImages: Boolean = true,
+    val htmlView: HtmlView = HtmlView.Auto,
     /** Where attachments are saved; "" = Downloads/Mailtice. */
     val downloadFolder: String = "",
     val paneStyle: PaneStyle = PaneStyle.Cards,

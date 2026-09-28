@@ -4,6 +4,7 @@ import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.BadgeAgeOptions
+import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.OfflineAttachmentLimits
@@ -31,6 +32,7 @@ private const val KEY_HEBREW_AT_SUNSET = "hebrewDateAtSunset"
 private const val KEY_SUNSET_CITY = "sunsetCity"
 private const val KEY_OFFER_TRANSLATION = "offerTranslation"
 private const val KEY_REMOTE_IMAGES = "loadRemoteImages"
+private const val KEY_HTML_VIEW = "htmlView"
 private const val KEY_DOWNLOAD_FOLDER = "downloadFolder"
 private const val KEY_PANE_STYLE = "paneStyle"
 private const val KEY_SIDEBAR_COLLAPSED = "sidebarCollapsed"
@@ -70,6 +72,7 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_SUNSET_CITY=${s.sunsetCity.name}")
         add("$KEY_OFFER_TRANSLATION=${s.offerTranslation}")
         add("$KEY_REMOTE_IMAGES=${s.loadRemoteImages}")
+        add("$KEY_HTML_VIEW=${s.htmlView.name}")
         add("$KEY_DOWNLOAD_FOLDER=${s.downloadFolder}")
         add("$KEY_PANE_STYLE=${s.paneStyle.name}")
         add("$KEY_SIDEBAR_COLLAPSED=${s.sidebarCollapsed}")
@@ -118,6 +121,7 @@ fun decodeSnapshot(raw: String): AppData {
         hebrewDateAtSunset = flag(KEY_HEBREW_AT_SUNSET, defaults.hebrewDateAtSunset),
         offerTranslation = flag(KEY_OFFER_TRANSLATION, defaults.offerTranslation),
         loadRemoteImages = flag(KEY_REMOTE_IMAGES, defaults.loadRemoteImages),
+        htmlView = map[KEY_HTML_VIEW]?.let { name -> HtmlView.entries.firstOrNull { it.name == name } } ?: defaults.htmlView,
         downloadFolder = map[KEY_DOWNLOAD_FOLDER].orEmpty(),
         sunsetCity = map[KEY_SUNSET_CITY]?.let { name -> SunsetCity.entries.firstOrNull { it.name == name } } ?: defaults.sunsetCity,
         paneStyle = map[KEY_PANE_STYLE]?.let { name -> PaneStyle.entries.firstOrNull { it.name == name } } ?: defaults.paneStyle,

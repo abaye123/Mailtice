@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Forward
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.ReplyAll
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.Web
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -55,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +83,7 @@ import co.abaye.mailtice.calendar.dateLabel
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Folder
+import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.translate.LocalTranslationOffer
@@ -103,6 +107,7 @@ import mailtice.shared.generated.resources.reader_download_thread
 import mailtice.shared.generated.resources.reader_export_html
 import mailtice.shared.generated.resources.reader_export_mail
 import mailtice.shared.generated.resources.reader_forward
+import mailtice.shared.generated.resources.reader_full_view
 import mailtice.shared.generated.resources.reader_hide_quoted
 import mailtice.shared.generated.resources.reader_images_hidden
 import mailtice.shared.generated.resources.reader_more
@@ -113,6 +118,7 @@ import mailtice.shared.generated.resources.reader_reply
 import mailtice.shared.generated.resources.reader_reply_all
 import mailtice.shared.generated.resources.reader_show_images
 import mailtice.shared.generated.resources.reader_show_quoted
+import mailtice.shared.generated.resources.reader_simple_view
 import mailtice.shared.generated.resources.reader_to
 import mailtice.shared.generated.resources.thread_me
 import mailtice.shared.generated.resources.thread_more
@@ -172,6 +178,21 @@ fun ReaderPane(
     val html = if (translation?.showing == true) translation.html.takeIf { it.isNotBlank() } else body?.html?.takeIf { it.isNotBlank() }
     var showQuoted by remember(message.key) { mutableStateOf(false) }
     var showImages by remember(message.key) { mutableStateOf(prefs.loadRemoteImages) }
+    // Simple HTML reads as styled text; the webview is for mail laid out with tables and images,
+    // or when asked for ("full view"), or always (the setting).
+    var fullView by remember(message.key) { mutableStateOf(false) }
+    val simple = remember(html) { html != null && isSimpleHtml(html) }
+    val wantsWeb = html != null && when (prefs.htmlView) {
+        HtmlView.Full -> true
+        HtmlView.Simple -> fullView
+        HtmlView.Auto -> !simple || fullView
+    }
+    // While the next message loads, the layout stays as it was: leaving the webview for a moment and
+    // coming back would start the browser engine again for every message opened.
+    var lastWeb by remember { mutableStateOf(false) }
+    val loading = body == null && !reader.failed
+    val useWeb = if (loading) lastWeb else wantsWeb
+    SideEffect { if (!loading) lastWeb = wantsWeb }
     val padding = Modifier.padding(horizontal = if (cards) 32.dp else 24.dp)
     // A conversation: the messages before the open one fold above it, the later ones below.
     val index = reader.thread.indexOfFirst { it.key == message.key }
@@ -181,15 +202,18 @@ fun ReaderPane(
         ReaderActions(reader, account, onIntent, showBack, working, showClose)
         if (working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
         if (!cards) HorizontalDivider(color = colors.outlineVariant)
-        if (html != null) {
+        if (useWeb) {
             Column(padding.fillMaxSize().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ReaderHeader(reader, account, labels, working, onIntent, older)
-                val remote = remember(html) { htmlLoadsRemote(html) }
+                // Loading: an empty page keeps the webview alive until the body arrives.
+                val page = html.orEmpty()
+                if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                val remote = remember(page) { htmlLoadsRemote(page) }
                 if (remote && !showImages) ImagesBar { showImages = true }
-                val quoted = remember(html) { htmlHasQuote(html) }
+                val quoted = remember(page) { htmlHasQuote(page) }
                 val inline = reader.inlineImages
-                val document = remember(html, showQuoted, showImages, inline) {
-                    emailDocument(html, hideQuotes = quoted && !showQuoted, remoteImages = showImages, inlineImages = inline)
+                val document = remember(page, showQuoted, showImages, inline) {
+                    emailDocument(page, hideQuotes = quoted && !showQuoted, remoteImages = showImages, inlineImages = inline)
                 }
                 // As tall as the message, so what follows it (the rest of the conversation, the reply
                 // buttons) comes right after a short one; a long one fills the pane and scrolls inside.
@@ -222,6 +246,8 @@ fun ReaderPane(
                     if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
                     Spacer(Modifier.weight(1f))
                     if (quoted) QuoteToggle(showQuoted) { showQuoted = !showQuoted }
+                    // Opened in full on request: the way back to the quick view.
+                    if (simple && fullView) ViewToggle(full = true) { fullView = false }
                 }
             }
         } else {
@@ -231,6 +257,10 @@ fun ReaderPane(
             ) {
                 ReaderHeader(reader, account, labels, working, onIntent, older)
                 when {
+                    body != null && html != null -> SimpleHtmlBody(html, showQuoted, {
+                        showQuoted = !showQuoted
+                    }, { fullView = true }, onIntent)
+
                     body != null -> {
                         val split = remember(body) { splitQuote(body.text.ifBlank { message.snippet }) }
                         SelectionContainer {
@@ -404,6 +434,56 @@ private fun FoldedMessage(message: MailMessage, account: Account?, onIntent: (Ap
 /** Remote images, styles or fonts: what a sender can use to see that the message was opened. */
 private fun htmlLoadsRemote(html: String): Boolean =
     Regex("(?i)(<img[^>]+src\\s*=\\s*[\"']?https?:|url\\(\\s*['\"]?https?:|<link[^>]+href\\s*=\\s*[\"']?https?:)").containsMatchIn(html)
+
+/**
+ * HTML mail shown as styled text ([simpleHtmlText]): the message itself, its quoted earlier
+ * messages folded behind the toggle, and a way to open it in the webview as its sender built it.
+ */
+@Composable
+private fun SimpleHtmlBody(
+    html: String,
+    showQuoted: Boolean,
+    onToggleQuote: () -> Unit,
+    onFullView: () -> Unit,
+    onIntent: (AppIntent) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val open: (String) -> Unit = { onIntent(AppIntent.OpenUrl(it)) }
+    val (main, quoted) = remember(html) {
+        val at = htmlQuoteStart(html)
+        if (at == null || at == 0) html to "" else html.substring(0, at) to html.substring(at)
+    }
+    val linkColor = colors.primary
+    val dim = colors.onSurfaceVariant
+    val mainText = remember(main, linkColor, dim) { simpleHtmlText(main, linkColor, dim, open) }
+    SelectionContainer {
+        Text(mainText, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge.merge(ContentDirection))
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (quoted.isNotEmpty()) QuoteToggle(showQuoted, onToggleQuote)
+        Spacer(Modifier.weight(1f))
+        ViewToggle(full = false, onClick = onFullView)
+    }
+    if (quoted.isNotEmpty() && showQuoted) {
+        val quotedText = remember(quoted, linkColor, dim) { simpleHtmlText(quoted, linkColor, dim, open) }
+        SelectionContainer {
+            Text(
+                quotedText,
+                Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium.merge(ContentDirection).copy(color = dim),
+            )
+        }
+    }
+}
+
+/** Switches a message between the quick text view and the full (webview) one. */
+@Composable
+private fun ViewToggle(full: Boolean, onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Icon(if (full) Icons.AutoMirrored.Outlined.Notes else Icons.Outlined.Web, null, Modifier.size(18.dp))
+        Text(stringResource(if (full) Res.string.reader_simple_view else Res.string.reader_full_view), Modifier.padding(start = 6.dp))
+    }
+}
 
 /** Gmail's three dots at the end of a message: fold or unfold the earlier messages it quotes. */
 @Composable
