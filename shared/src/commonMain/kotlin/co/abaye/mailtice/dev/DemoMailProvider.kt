@@ -300,7 +300,17 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
         )
     }
 
-    private fun htmlFor(mail: DemoMail): String = "<div dir=\"auto\" style=\"font-family:sans-serif;max-width:560px\">" +
+    private fun htmlFor(mail: DemoMail): String = if (DemoFolders.NEWSLETTERS in mail.folders) newsletterFor(mail) else simpleHtmlFor(mail)
+
+    /** Laid out the way newsletters are - tables, a coloured header, an image - so it opens in the webview. */
+    private fun newsletterFor(mail: DemoMail): String = "<table width=\"100%\" bgcolor=\"#f1f3f4\" cellpadding=\"0\" cellspacing=\"0\">" +
+        "<tr><td align=\"center\"><table width=\"560\" bgcolor=\"#ffffff\" cellpadding=\"24\" style=\"font-family:sans-serif\">" +
+        "<tr><td bgcolor=\"#0038B8\" style=\"color:#ffffff;font-size:22px\">${mail.fromName.escapeHtml()}</td></tr>" +
+        "<tr><td><h2>${mail.subject.escapeHtml()}</h2><p>${mail.text.escapeHtml()}</p>" +
+        "<img src=\"https://example.com/banner.png\" width=\"512\" alt=\"\"></td></tr></table></td></tr></table>"
+
+    /** Plain personal-mail HTML, which the reader shows as styled text. */
+    private fun simpleHtmlFor(mail: DemoMail): String = "<div dir=\"auto\" style=\"font-family:sans-serif;max-width:560px\">" +
         "<h2 style=\"color:#0038B8\">${mail.subject.escapeHtml()}</h2>" +
         "<p>${mail.text.escapeHtml()}</p>" +
         "<p style=\"color:#747685;font-size:12px\">Mailtice demo message</p></div>"

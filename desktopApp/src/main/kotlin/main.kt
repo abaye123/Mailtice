@@ -91,7 +91,8 @@ private val CHROME_HEIGHT = 44.dp
 fun main(args: Array<String>) {
     // Before anything reads the app directory: demo mode swaps it for a throwaway one.
     enableDemoModeFromEnvironment()
-    nucleusApplication(args) {
+    // Demo mode has its own data directory, so it may run beside the installed app.
+    nucleusApplication(args, enableSingleInstance = !DemoMode.enabled) {
         // Launched by the OS at login -> start hidden in the tray. Asked inside the application
         // loop: AutoLaunch only answers reliably once it is running.
         val startHidden = remember { runCatching { AutoLaunch.wasStartedAtLogin(args) }.getOrDefault(false) }

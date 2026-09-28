@@ -403,7 +403,7 @@ private val workMail = listOf(
         "Your weekly digest of engineering reads. Top story: shaving seconds off your inner loop.",
         minutesAgo = 3 * DAY,
         html = true,
-        folders = listOf(DemoFolders.NEWSLETTERS),
+        folders = listOf(DemoFolders.INBOX, DemoFolders.NEWSLETTERS),
     ),
     DemoMail(
         "dan.cohen@work.example.com",
