@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -30,7 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.rememberWindowState
 import co.abaye.mailtice.App
 import co.abaye.mailtice.app.AppIntent
@@ -42,8 +45,10 @@ import co.abaye.mailtice.domain.PaneStyle
 import co.abaye.mailtice.main.DesktopUpdate
 import co.abaye.mailtice.main.LocalHostHasTitleBar
 import co.abaye.mailtice.main.LocalWindowDrag
+import co.abaye.mailtice.main.SavedWindow
 import co.abaye.mailtice.main.UpdateButton
 import co.abaye.mailtice.main.UpdateRestartDialog
+import co.abaye.mailtice.main.WindowMemory
 import co.abaye.mailtice.main.rememberDesktopUpdate
 import co.abaye.mailtice.theme.rememberAppColorScheme
 import dev.nucleusframework.application.SingleInstanceRestoreEffect
@@ -64,6 +69,9 @@ import dev.nucleusframework.window.material.MaterialDecoratedWindow
 import dev.nucleusframework.window.tao.TaoDecoratedWindowScope
 import dev.nucleusframework.window.windowDragArea
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.withContext
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.app_icon
@@ -94,14 +102,19 @@ fun main(args: Array<String>) {
         var visible by remember { mutableStateOf(!startHidden) }
         val colors = rememberAppColorScheme(accent, dark)
         val update = rememberDesktopUpdate()
+        // The window opens the way it was left: maximized or not, and at its last size and place.
+        val saved = remember { WindowMemory.load() }
         val windowState = rememberWindowState(
-            position = WindowPosition(Alignment.Center),
-            width = 1180.dp,
-            height = 780.dp,
+            placement = if (saved?.maximized == true) WindowPlacement.Maximized else WindowPlacement.Floating,
+            position = saved?.visibleX?.let { x -> WindowPosition(x.dp, saved.visibleY!!.dp) } ?: WindowPosition(Alignment.Center),
+            width = saved?.width?.dp ?: 1180.dp,
+            height = saved?.height?.dp ?: 780.dp,
         )
+        val remembered = rememberWindowMemory(windowState, saved)
 
         // Downloaded updates install on the way out - the quiet path.
         val quit = {
+            remembered.saveNow()
             update.installOnExit()
             exitApplication()
         }
@@ -249,3 +262,37 @@ private fun DecoratedWindowScope.AppChrome(update: DesktopUpdate, paneStyle: Pan
         }
     }
 }
+
+/** Saves the window's state as it changes; [saveNow] writes it at once (on quit). */
+private class WindowRecorder(private val state: WindowState, saved: SavedWindow?) {
+    // The floating size and place, kept while maximized so un-maximizing (and the next launch) finds them.
+    private var floating = saved?.let { Triple(it.width, it.height, it.x to it.y) }
+
+    fun saveNow() {
+        // Minimized is not a state to come back to; keep what was there before it.
+        if (state.isMinimized) return
+        val maximized = state.placement != WindowPlacement.Floating
+        if (!maximized) {
+            val position = state.position
+            val place = if (position is WindowPosition.Absolute) position.x.value to position.y.value else floating?.third ?: (null to null)
+            floating = Triple(state.size.width.value, state.size.height.value, place)
+        }
+        val (width, height, place) = floating ?: return
+        WindowMemory.save(SavedWindow(maximized, width, height, place.first, place.second))
+    }
+}
+
+@OptIn(FlowPreview::class)
+@Composable
+private fun rememberWindowMemory(state: WindowState, saved: SavedWindow?): WindowRecorder {
+    val recorder = remember(state) { WindowRecorder(state, saved) }
+    LaunchedEffect(state) {
+        snapshotFlow { listOf(state.placement, state.size, state.position, state.isMinimized) }
+            .drop(1)
+            .debounce(WINDOW_SAVE_DELAY_MS)
+            .collect { withContext(Dispatchers.IO) { recorder.saveNow() } }
+    }
+    return recorder
+}
+
+private const val WINDOW_SAVE_DELAY_MS = 600L
