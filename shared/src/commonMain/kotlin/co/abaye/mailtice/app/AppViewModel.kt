@@ -32,6 +32,7 @@ import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.RetentionOptions
 import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.UserSettings
+import co.abaye.mailtice.domain.conversationKey
 import co.abaye.mailtice.export.ExportLabels
 import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.main.PreviewKind
@@ -237,10 +238,10 @@ class AppViewModel(
             }
         }
         scope.launch {
-            _state.map { it.filter to it.localLimit }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MS)
-                .flatMapLatest { (f, limit) ->
+            _state.map { Triple(it.filter, it.localLimit, it.conversationView) }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MS)
+                .flatMapLatest { (f, limit, conversations) ->
                     val custom = f.folderId.isNotEmpty()
-                    if (!custom && f.view == MailView.Scheduled) return@flatMapLatest flowOf(emptyList())
+                    if (!custom && f.view == MailView.Scheduled) return@flatMapLatest flowOf(emptyList<MailMessage>() to emptyMap())
                     repo.inbox(
                         InboxQuery(
                             accountId = f.accountId,
@@ -252,15 +253,20 @@ class AppViewModel(
                             search = MailSearch.parse(f.query, Platform.now()),
                             limit = limit,
                         ),
-                    )
+                    ).map { list ->
+                        // Conversation view: each row's whole stored conversation, read with the rows.
+                        list to if (conversations) withContext(io) { repo.conversationsOf(list) } else emptyMap()
+                    }
                 }
-                .collect { list ->
+                .collect { (list, members) ->
                     mutate { s ->
                         val keys = (list + s.older.items).map { it.key }.toSet()
                         // A message that got stored (a sync caught up with it) is no longer "older".
                         val stored = list.map { it.key }.toSet()
                         s.copy(
                             inbox = list,
+                            threadMembers = members,
+                            reader = s.reader?.let { r -> refreshThread(r, members) },
                             older = s.older.copy(items = s.older.items.filter { it.key !in stored }),
                             selection = s.selection.filterTo(mutableSetOf()) { it in keys },
                         )
@@ -367,13 +373,18 @@ class AppViewModel(
                 s.copy(selection = if (key in s.selection) s.selection - key else s.selection + key)
             }
 
+            is AppIntent.ToggleSelectMany -> mutate { s ->
+                val keys = intent.messages.map { it.key }.toSet()
+                s.copy(selection = if (s.selection.containsAll(keys)) s.selection - keys else s.selection + keys)
+            }
+
             AppIntent.SelectAll -> mutate { s -> s.copy(selection = s.visibleMessages.map { it.key }.toSet()) }
 
             AppIntent.ClearSelection -> mutate { it.copy(selection = emptySet()) }
 
             is AppIntent.BulkSetRead -> {
                 updateOlder(_state.value.selection) { it.copy(unread = !intent.read) }
-                bulk { m, caps -> if (caps.markRead && m.unread == intent.read) sync.setRead(m, intent.read) }
+                bulk(whole = true) { m, caps -> if (caps.markRead && m.unread == intent.read) sync.setRead(m, intent.read) }
             }
 
             AppIntent.BulkArchive -> {
@@ -383,7 +394,7 @@ class AppViewModel(
 
             AppIntent.BulkTrash -> {
                 updateOlder(_state.value.selection) { null }
-                bulk(closeReader = true) { m, caps -> if (caps.trash) sync.trash(m) }
+                bulk(closeReader = true, whole = true) { m, caps -> if (caps.trash) sync.trash(m) }
             }
 
             AppIntent.BulkDownloadAttachments -> {
@@ -467,6 +478,31 @@ class AppViewModel(
             is AppIntent.SetSearchQuery -> mutate { it.copy(filter = it.filter.copy(query = intent.query)) }
 
             is AppIntent.OpenMail -> openMail(intent.message)
+
+            is AppIntent.ExpandInThread -> _state.value.reader?.let {
+                showMessage(intent.message, it.thread, markRead = listOf(intent.message), it.bodies)
+            }
+
+            is AppIntent.SetConversationRead -> intent.messages.filter { it.unread != intent.read }.forEach { m ->
+                updateOlder(setOf(m.key)) { it.copy(unread = !intent.read) }
+                serverAction { sync.setRead(m, intent.read) }
+            }
+
+            is AppIntent.ArchiveConversation -> {
+                val s = _state.value
+                val inInbox = intent.messages.filter { m ->
+                    val inbox = s.foldersOf(m.accountId).filter { it.role == FolderRole.Inbox }.map { it.id }
+                    m.folderIds.any { it in inbox }
+                }
+                if (inInbox.isEmpty()) return
+                if (intent.messages.any { it.key in s.readerKeys }) onIntent(AppIntent.CloseReader)
+                inInbox.forEach(::archive)
+            }
+
+            is AppIntent.TrashConversation -> {
+                if (intent.messages.any { it.key in _state.value.readerKeys }) onIntent(AppIntent.CloseReader)
+                intent.messages.forEach(::trash)
+            }
 
             AppIntent.CloseReader -> {
                 mutate { it.copy(reader = null) }
@@ -593,6 +629,11 @@ class AppViewModel(
             }
 
             is AppIntent.SetOpenHomeAtStart -> settings { it.copy(openHomeAtStart = intent.on) }
+
+            is AppIntent.SetConversationView -> {
+                mutate { it.copy(selection = emptySet()) }
+                settings { it.copy(conversationView = intent.on) }
+            }
 
             is AppIntent.MoveAccount -> {
                 val ids = _state.value.accounts.map { it.id }.toMutableList()
@@ -1002,32 +1043,100 @@ class AppViewModel(
 
     // ---- inbox & reader ---------------------------------------------------------------------
 
+    /**
+     * Opens [message] - in conversation view, its whole conversation, with the first unread message
+     * open (the newest when all are read) and the conversation marked read, as Gmail does.
+     */
     private fun openMail(message: MailMessage) {
         if (isDraft(message)) {
             openDraft(message)
             return
         }
-        mutate { it.copy(reader = Reader(message)) }
+        val s = _state.value
+        if (!s.conversationView) {
+            showMessage(message, emptyList(), markRead = listOf(message))
+            return
+        }
+        val key = conversationKey(message)
+        val thread = (s.visibleMessages.filter { conversationKey(it) == key } + s.threadMembers[key].orEmpty())
+            .distinctBy { it.key }.sortedBy { it.receivedAt }.ifEmpty { listOf(message) }
+        val focus = thread.firstOrNull { it.unread } ?: thread.last()
+        showMessage(focus, thread, markRead = thread)
+    }
+
+    /**
+     * Shows [message] in the reader, [thread] folded around it, loads its body and marks [markRead]
+     * read. A body among [bodies] (read ahead) shows at once; the rest of the conversation's stored
+     * bodies are read ahead for the next message opened.
+     */
+    private fun showMessage(
+        message: MailMessage,
+        thread: List<MailMessage>,
+        markRead: List<MailMessage>,
+        bodies: Map<String, MailBody> = emptyMap(),
+    ) {
+        val ready = bodies[message.key]
+        val translated = translations[translationKey(message, _state.value.data.settings.uiLanguage.code)]
+        val opened = Reader(message, ready, translation = translated.takeIf { ready != null }, thread = thread, bodies = bodies)
+        mutate { it.copy(reader = opened) }
         if (!Platform.isDesktop) navigate(AppKey.Reader)
+        if (thread.size > 1 && bodies.isEmpty()) {
+            scope.launch {
+                val stored = withContext(io) { thread.mapNotNull { m -> repo.body(m.accountId, m.id)?.let { m.key to it } }.toMap() }
+                mutate { s -> s.copy(reader = s.reader?.takeIf { it.thread.isNotEmpty() }?.let { it.copy(bodies = stored + it.bodies) }) }
+            }
+        }
         scope.launch {
-            val body = runCatching { withContext(io) { sync.body(message) } }.getOrNull()
+            val body = ready ?: runCatching { withContext(io) { sync.body(message) } }.getOrNull()
             mutate { s ->
-                if (s.reader?.message?.id != message.id) {
+                val current = s.reader
+                if (current?.message?.key != message.key) {
                     s
                 } else {
                     // A message translated earlier this session opens translated again.
-                    val translated = translations[translationKey(message, s.data.settings.uiLanguage.code)]
-                    s.copy(reader = Reader(message, body, failed = body == null, translation = translated))
+                    val again = translations[translationKey(message, s.data.settings.uiLanguage.code)]
+                    val known = if (body != null) current.bodies + (message.key to body) else current.bodies
+                    s.copy(
+                        reader = current.copy(body = body, failed = body == null, translation = again, bodies = known),
+                    )
                 }
             }
             if (body != null) scope.launch { loadInlineImages(message, body) }
             // Opening means reading, where the account can say so.
-            val account = _state.value.account(message.accountId)
-            if (message.unread && account?.capabilities?.markRead == true) {
-                updateOlder(setOf(message.key)) { it.copy(unread = false) }
-                runCatching { sync.setRead(message, read = true) }
+            val unread = markRead.filter { m -> m.unread && _state.value.account(m.accountId)?.capabilities?.markRead == true }
+            if (unread.isEmpty()) return@launch
+            val keys = unread.map { it.key }.toSet()
+            updateOlder(keys) { it.copy(unread = false) }
+            mutate { s ->
+                s.copy(
+                    reader = s.reader?.let { r ->
+                        r.copy(
+                            thread = r.thread.map {
+                                if (it.key in
+                                    keys
+                                ) {
+                                    it.copy(unread = false)
+                                } else {
+                                    it
+                                }
+                            },
+                        )
+                    },
+                )
             }
+            unread.forEach { m -> runCatching { sync.setRead(m, read = true) } }
         }
+    }
+
+    /**
+     * The open conversation with what the list just read from the database (a new reply, a change);
+     * the open message stays even if it has left the database (older mail shown from the server).
+     */
+    private fun refreshThread(reader: Reader, members: Map<String, List<MailMessage>>): Reader {
+        if (reader.thread.isEmpty()) return reader
+        val fresh = members[conversationKey(reader.message)] ?: return reader
+        val thread = (fresh + reader.thread.filter { it.key == reader.message.key }).distinctBy { it.key }.sortedBy { it.receivedAt }
+        return reader.copy(thread = thread)
     }
 
     private fun archive(message: MailMessage) {
@@ -1146,11 +1255,13 @@ class AppViewModel(
      * Runs [action] for every selected message whose account allows it, then clears the selection.
      * Each message is its own optimistic change, so one refusal does not undo the others.
      */
-    private fun bulk(closeReader: Boolean = false, action: suspend (MailMessage, Capabilities) -> Unit) {
+    private fun bulk(closeReader: Boolean = false, whole: Boolean = false, action: suspend (MailMessage, Capabilities) -> Unit) {
         val s = _state.value
-        val targets = s.selectedMessages.mapNotNull { m -> s.account(m.accountId)?.let { m to it.capabilities } }
+        // [whole]: in conversation view the rest of each checked conversation too (replies in Sent).
+        val chosen = if (whole) s.wholeConversations(s.selectedMessages) else s.selectedMessages
+        val targets = chosen.mapNotNull { m -> s.account(m.accountId)?.let { m to it.capabilities } }
         if (targets.isEmpty()) return
-        if (closeReader && targets.any { it.first.id == s.reader?.message?.id }) onIntent(AppIntent.CloseReader)
+        if (closeReader && targets.any { it.first.key in s.readerKeys }) onIntent(AppIntent.CloseReader)
         mutate { it.copy(selection = emptySet()) }
         targets.forEach { (m, caps) -> serverAction { action(m, caps) } }
     }

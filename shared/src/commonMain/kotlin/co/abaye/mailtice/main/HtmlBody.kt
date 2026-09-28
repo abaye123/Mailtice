@@ -4,12 +4,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,14 +20,24 @@ import co.abaye.mailtice.platform.joinPath
 import dev.nucleusframework.webview.request.RequestInterceptor
 import dev.nucleusframework.webview.request.WebRequest
 import dev.nucleusframework.webview.request.WebRequestInterceptResult
+import dev.nucleusframework.webview.web.LoadingState
 import dev.nucleusframework.webview.web.WebView
 import dev.nucleusframework.webview.web.WebViewNavigator
 import dev.nucleusframework.webview.web.WebViewState
 import dev.nucleusframework.webview.web.rememberWebViewNavigator
 import dev.nucleusframework.webview.web.rememberWebViewState
 import dev.nucleusframework.webview.web.rememberWebViewStateWithHTMLData
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlin.math.ceil
 
 private const val MAX_INLINE_DOCUMENT = 1_500_000
+
+/**
+ * The page's height in CSS pixels (dp). Run by the app, not by the page: page scripts stay off.
+ * The body has no height of its own, so it measures the content even while the view is taller.
+ */
+private const val MEASURE_SCRIPT = "Math.max(document.body.scrollHeight, Math.ceil(document.body.getBoundingClientRect().height))"
 
 /** Writes [document] to the reader's page file and returns a file: URL that changes with it (so it reloads). */
 private fun writePage(document: String): String {
@@ -112,7 +124,12 @@ val LocalReaderPrefs = staticCompositionLocalOf { ReaderPrefs() }
  * runs); a click on a link is handed to [onOpenUrl] for the real browser instead of navigating.
  */
 @Composable
-internal fun HtmlBody(document: String, onOpenUrl: (String) -> Unit, modifier: Modifier = Modifier) {
+internal fun HtmlBody(
+    document: String,
+    onOpenUrl: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    onContentHeight: ((Int) -> Unit)? = null,
+) {
     if (!holdsWebViewSlot()) {
         Box(modifier)
         return
@@ -129,5 +146,23 @@ internal fun HtmlBody(document: String, onOpenUrl: (String) -> Unit, modifier: M
     // The page itself loads as about:blank or data:; anything a click leads to goes to the browser.
     val interceptor = remember { externalLinks { open(it) } }
     val navigator = rememberWebViewNavigator(requestInterceptor = interceptor)
+    val report by rememberUpdatedState(onContentHeight)
+    if (onContentHeight != null) {
+        // Measured once loaded, then again for a while: images and fonts arriving late change it.
+        LaunchedEffect(state, navigator) {
+            snapshotFlow { state.loadingState }.first { it is LoadingState.Finished }
+            var round = 0
+            while (true) {
+                navigator.evaluateJavaScript(MEASURE_SCRIPT) { result ->
+                    result.trim().trim('"').toDoubleOrNull()?.takeIf { it > 0 }?.let { report?.invoke(ceil(it).toInt()) }
+                }
+                delay(if (round++ < FAST_MEASURES) FAST_MEASURE_MS else SLOW_MEASURE_MS)
+            }
+        }
+    }
     WebView(state, modifier, navigator)
 }
+
+private const val FAST_MEASURES = 8
+private const val FAST_MEASURE_MS = 250L
+private const val SLOW_MEASURE_MS = 1_000L

@@ -465,6 +465,10 @@
     <string name="home_checked">Checked %1$s</string>
     <string name="home_not_checked">Not checked yet</string>
     <string name="home_open_inbox">Open inbox</string>
+    <string name="thread_me">me</string>
+    <string name="thread_more">%1$d more messages</string>
+    <string name="settings_conversations">Conversation view</string>
+    <string name="settings_conversations_desc">Group replies to the same message into one conversation, as Gmail does.</string>
     <string name="settings_open_home">Open on the home page</string>
     <string name="settings_open_home_desc">Start with every account at a glance; off, straight in the mail.</string>
     <string name="rel_now">just now</string>

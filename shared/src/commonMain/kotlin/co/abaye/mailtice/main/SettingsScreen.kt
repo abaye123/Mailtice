@@ -105,6 +105,8 @@ import mailtice.shared.generated.resources.settings_accent
 import mailtice.shared.generated.resources.settings_appearance
 import mailtice.shared.generated.resources.settings_close_to_tray
 import mailtice.shared.generated.resources.settings_close_to_tray_desc
+import mailtice.shared.generated.resources.settings_conversations
+import mailtice.shared.generated.resources.settings_conversations_desc
 import mailtice.shared.generated.resources.settings_data
 import mailtice.shared.generated.resources.settings_density
 import mailtice.shared.generated.resources.settings_density_desc
@@ -197,6 +199,12 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                         ReadingPane.Off -> stringResource(Res.string.reading_off)
                     }
                 }) { onIntent(AppIntent.SetReadingPane(it)) }
+            }
+            SettingRow(
+                stringResource(Res.string.settings_conversations),
+                subtitle = stringResource(Res.string.settings_conversations_desc),
+            ) {
+                Switch(checked = settings.conversationView, onCheckedChange = { onIntent(AppIntent.SetConversationView(it)) })
             }
             SettingRow(stringResource(Res.string.settings_open_home), subtitle = stringResource(Res.string.settings_open_home_desc)) {
                 Switch(checked = settings.openHomeAtStart, onCheckedChange = { onIntent(AppIntent.SetOpenHomeAtStart(it)) })

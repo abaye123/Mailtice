@@ -189,13 +189,37 @@ UPDATE message SET notifiedAt = ? WHERE accountId = ? AND id = ?;
 deleteMessage:
 DELETE FROM message WHERE accountId = ? AND id = ?;
 
--- A Gmail conversation, oldest first.
+-- A Gmail conversation, oldest first, with each message's folders.
 selectThread:
-SELECT * FROM message WHERE accountId = ? AND threadId = ? ORDER BY receivedAt;
+SELECT m.*, (
+  SELECT group_concat(mf2.folderId, char(31)) FROM message_folder mf2
+  WHERE mf2.accountId = m.accountId AND mf2.messageId = m.id
+) AS folderIds
+FROM message m WHERE m.accountId = ? AND m.threadId = ? ORDER BY m.receivedAt;
+
+-- Several Gmail conversations at once, oldest first: the list's conversation view.
+selectThreads:
+SELECT m.*, (
+  SELECT group_concat(mf2.folderId, char(31)) FROM message_folder mf2
+  WHERE mf2.accountId = m.accountId AND mf2.messageId = m.id
+) AS folderIds
+FROM message m WHERE m.accountId = ? AND m.threadId IN ? ORDER BY m.receivedAt;
+
+-- An account's mail without a thread id (IMAP), oldest first: conversation view groups it by subject in code.
+selectUnthreaded:
+SELECT m.*, (
+  SELECT group_concat(mf2.folderId, char(31)) FROM message_folder mf2
+  WHERE mf2.accountId = m.accountId AND mf2.messageId = m.id
+) AS folderIds
+FROM message m WHERE m.accountId = ? AND m.threadId = '' ORDER BY m.receivedAt;
 
 -- IMAP has no thread id: candidates by subject, narrowed in code (ThreadExport.baseSubject).
 selectBySubject:
-SELECT * FROM message WHERE accountId = ? AND subject LIKE '%' || ? || '%' ORDER BY receivedAt;
+SELECT m.*, (
+  SELECT group_concat(mf2.folderId, char(31)) FROM message_folder mf2
+  WHERE mf2.accountId = m.accountId AND mf2.messageId = m.id
+) AS folderIds
+FROM message m WHERE m.accountId = ? AND m.subject LIKE '%' || ? || '%' ORDER BY m.receivedAt;
 
 -- Scheduled send ------------------------------------------------------------------------------
 

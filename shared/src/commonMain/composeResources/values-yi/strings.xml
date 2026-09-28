@@ -428,6 +428,10 @@
     <string name="home_checked">איבערגעקוקט %1$s</string>
     <string name="home_not_checked">נאך נישט איבערגעקוקט</string>
     <string name="home_open_inbox">צום פאסט קעסטל</string>
+    <string name="thread_me">איך</string>
+    <string name="thread_more">נאך %1$d מעלדונגען</string>
+    <string name="settings_conversations">שמועס אנזיכט</string>
+    <string name="settings_conversations_desc">צוזאמגרופירן ענטפערס אויף דער זעלבער מעלדונג אין איין שמועס, ווי אין Gmail.</string>
     <string name="settings_open_home">עפענען אויפן היים בלאט</string>
     <string name="settings_open_home_desc">אנהייבן מיט א איבערבליק פון אלע חשבונות; ווען אויסגעלאשן, גלייך צו דער פאסט.</string>
     <string name="rel_now">יעצט</string>

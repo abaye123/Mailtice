@@ -19,6 +19,7 @@ import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.StorageUsage
+import co.abaye.mailtice.domain.conversationKey
 import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.RemoteFolder
@@ -273,14 +274,37 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
      * has one (Gmail), otherwise by subject once "Re:"/"Fwd:" prefixes are dropped.
      */
     fun threadOf(message: MailMessage): List<MailMessage> {
-        if (message.threadId.isNotBlank() && message.threadId != message.id) {
-            return q.selectThread(message.accountId, message.threadId, ::mapMessage).executeAsList().ifEmpty { listOf(message) }
+        if (message.threadId.isNotBlank()) {
+            return q.selectThread(message.accountId, message.threadId, ::mapInboxMessage).executeAsList().ifEmpty { listOf(message) }
         }
         val base = ThreadExport.baseSubject(message.subject)
         if (base.isBlank()) return listOf(message)
-        return q.selectBySubject(message.accountId, base, ::mapMessage).executeAsList()
+        return q.selectBySubject(message.accountId, base, ::mapInboxMessage).executeAsList()
             .filter { ThreadExport.baseSubject(it.subject).equals(base, ignoreCase = true) }
             .ifEmpty { listOf(message) }
+    }
+
+    /**
+     * The stored conversations of [messages], by [conversationKey], each oldest first: one query per
+     * account for mail with a thread id, and one per account for mail without (IMAP), grouped here by
+     * subject - a search per row would scan the table hundreds of times on every change.
+     */
+    fun conversationsOf(messages: List<MailMessage>): Map<String, List<MailMessage>> {
+        val out = mutableMapOf<String, List<MailMessage>>()
+        messages.filter { it.threadId.isNotBlank() }.groupBy { it.accountId }.forEach { (accountId, rows) ->
+            // Well under SQLite's limit on bound values per statement.
+            rows.map { it.threadId }.distinct().chunked(THREAD_BATCH).forEach { ids ->
+                out += q.selectThreads(accountId, ids, ::mapInboxMessage).executeAsList().groupBy(::conversationKey)
+            }
+        }
+        messages.filter { it.threadId.isBlank() }.groupBy { it.accountId }.forEach { (accountId, rows) ->
+            val wanted = rows.map(::conversationKey).filterTo(mutableSetOf()) { key -> rows.none { it.key == key } }
+            if (wanted.isEmpty()) return@forEach
+            q.selectUnthreaded(accountId, ::mapInboxMessage).executeAsList().groupBy(::conversationKey)
+                .filterKeys { it in wanted }
+                .let(out::putAll)
+        }
+        return out
     }
 
     // ---- scheduled send ---------------------------------------------------------------------
@@ -525,5 +549,6 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
 
     companion object {
         const val DAY_MS = 24L * 60 * 60 * 1000
+        private const val THREAD_BATCH = 400
     }
 }

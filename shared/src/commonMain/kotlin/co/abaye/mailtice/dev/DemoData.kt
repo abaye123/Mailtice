@@ -35,7 +35,11 @@ internal data class DemoMail(
     val html: Boolean = false,
     /** Keys of the folders holding the message (Gmail: labels). */
     val folders: List<String> = listOf(DemoFolders.INBOX),
+    /** Messages with the same key form one Gmail conversation; IMAP accounts thread by subject anyway. */
+    val thread: String = "",
 )
+
+private const val KITCHEN_THREAD = "kitchen"
 
 internal object DemoFolders {
     const val INBOX = "INBOX"
@@ -158,6 +162,35 @@ private val personalMail = listOf(
         minutesAgo = 3 * HOUR + 20,
         flagged = true,
         attachments = listOf(Attachment("הצעת מחיר - מטבח.pdf", 512_000), Attachment("הדמיה.jpg", 1_843_200)),
+        thread = KITCHEN_THREAD,
+    ),
+    DemoMail(
+        "נועה לוי",
+        "noa.levi@example.com",
+        "Re: הצעת מחיר לשיפוץ המטבח",
+        "היי יוסי, תודה על ההצעה! אפשר לקבל גם גרסה עם ארונות עליונים ומשטח קוורץ? ומה לגבי לוח הזמנים?",
+        minutesAgo = 1 * DAY + 4 * HOUR,
+        folders = listOf(DemoFolders.SENT),
+        thread = KITCHEN_THREAD,
+    ),
+    DemoMail(
+        "יוסי מזרחי",
+        "yossi.m@example.net",
+        "Re: הצעת מחיר לשיפוץ המטבח",
+        "שלום נועה, בהמשך לפגישה אצלכם מצרף הצעה ראשונית: ארונות תחתונים, כיור ועבודת התקנה. נשמח לשמוע מה דעתך.",
+        minutesAgo = 2 * DAY + 1 * HOUR,
+        attachments = listOf(Attachment("הצעה ראשונית.pdf", 402_000)),
+        thread = KITCHEN_THREAD,
+    ),
+    DemoMail(
+        "נועה לוי",
+        "noa.levi@example.com",
+        "הצעת מחיר לשיפוץ המטבח",
+        "שלום יוסי, כפי שדיברנו בטלפון, נשמח לקבל הצעת מחיר לשיפוץ המטבח. המידות המשוערות מצורפות.",
+        minutesAgo = 3 * DAY,
+        attachments = listOf(Attachment("מידות המטבח.pdf", 240_000)),
+        folders = listOf(DemoFolders.SENT),
+        thread = KITCHEN_THREAD,
     ),
     DemoMail(
         "SkyFly Airlines",

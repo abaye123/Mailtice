@@ -465,6 +465,10 @@
     <string name="home_checked">נבדק %1$s</string>
     <string name="home_not_checked">עדיין לא נבדק</string>
     <string name="home_open_inbox">לתיבת הדואר</string>
+    <string name="thread_me">אני</string>
+    <string name="thread_more">%1$d הודעות נוספות</string>
+    <string name="settings_conversations">תצוגת שיחות</string>
+    <string name="settings_conversations_desc">קיבוץ תשובות לאותה הודעה לשיחה אחת, כמו ב-Gmail.</string>
     <string name="settings_open_home">פתיחה בדף הבית</string>
     <string name="settings_open_home_desc">להתחיל עם סקירה של כל החשבונות; כשכבוי, ישר לדואר.</string>
     <string name="rel_now">עכשיו</string>

@@ -1,5 +1,7 @@
 package co.abaye.mailtice.main
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +38,7 @@ import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +53,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,6 +88,7 @@ import co.abaye.mailtice.ui.AutoLinkedText
 import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
 import co.abaye.mailtice.ui.formatBytes
+import kotlinx.coroutines.delay
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.inbox_archive
 import mailtice.shared.generated.resources.inbox_mark_unread
@@ -107,6 +112,8 @@ import mailtice.shared.generated.resources.reader_reply_all
 import mailtice.shared.generated.resources.reader_show_images
 import mailtice.shared.generated.resources.reader_show_quoted
 import mailtice.shared.generated.resources.reader_to
+import mailtice.shared.generated.resources.thread_me
+import mailtice.shared.generated.resources.thread_more
 import mailtice.shared.generated.resources.translate_action
 import mailtice.shared.generated.resources.translate_done
 import mailtice.shared.generated.resources.translate_failed
@@ -163,13 +170,17 @@ fun ReaderPane(
     var showQuoted by remember(message.key) { mutableStateOf(false) }
     var showImages by remember(message.key) { mutableStateOf(prefs.loadRemoteImages) }
     val padding = Modifier.padding(horizontal = if (cards) 32.dp else 24.dp)
+    // A conversation: the messages before the open one fold above it, the later ones below.
+    val index = reader.thread.indexOfFirst { it.key == message.key }
+    val older = if (reader.isConversation && index >= 0) reader.thread.take(index) else emptyList()
+    val newer = if (reader.isConversation && index >= 0) reader.thread.drop(index + 1) else emptyList()
     Column(modifier.fillMaxSize()) {
         ReaderActions(reader, account, onIntent, showBack, working)
         if (working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
         if (!cards) HorizontalDivider(color = colors.outlineVariant)
         if (html != null) {
             Column(padding.fillMaxSize().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ReaderHeader(reader, account, labels, working, onIntent)
+                ReaderHeader(reader, account, labels, working, onIntent, older)
                 val remote = remember(html) { htmlLoadsRemote(html) }
                 if (remote && !showImages) ImagesBar { showImages = true }
                 val quoted = remember(html) { htmlHasQuote(html) }
@@ -177,12 +188,33 @@ fun ReaderPane(
                 val document = remember(html, showQuoted, showImages, inline) {
                     emailDocument(html, hideQuotes = quoted && !showQuoted, remoteImages = showImages, inlineImages = inline)
                 }
+                // As tall as the message, so what follows it (the rest of the conversation, the reply
+                // buttons) comes right after a short one; a long one fills the pane and scrolls inside.
+                // Until measured it is short; if it cannot be measured, it fills the pane as before.
+                var measured by remember(document) { mutableStateOf<Int?>(null) }
+                var unmeasurable by remember(document) { mutableStateOf(false) }
+                LaunchedEffect(document) {
+                    delay(MEASURE_TIMEOUT_MS)
+                    if (measured == null) unmeasurable = true
+                }
+                val height by animateDpAsState((measured ?: PENDING_HEIGHT).dp, label = "page height")
+                val pageModifier = if (unmeasurable && measured == null) {
+                    Modifier.weight(1f).fillMaxWidth()
+                } else {
+                    Modifier.weight(1f, fill = false).fillMaxWidth().height(height)
+                }
                 // A native view draws above Compose: while the viewer is open over it, the page steps aside.
                 if (webPaused) {
-                    Box(Modifier.weight(1f).fillMaxWidth())
+                    Box(pageModifier)
                 } else {
-                    HtmlBody(document, onOpenUrl = { onIntent(AppIntent.OpenUrl(it)) }, modifier = Modifier.weight(1f).fillMaxWidth())
+                    HtmlBody(
+                        document,
+                        onOpenUrl = { onIntent(AppIntent.OpenUrl(it)) },
+                        modifier = pageModifier,
+                        onContentHeight = { measured = it },
+                    )
                 }
+                if (newer.isNotEmpty()) FoldedMessages(newer, account, onIntent)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
                     Spacer(Modifier.weight(1f))
@@ -194,7 +226,7 @@ fun ReaderPane(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).then(padding).padding(vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                ReaderHeader(reader, account, labels, working, onIntent)
+                ReaderHeader(reader, account, labels, working, onIntent, older)
                 when {
                     body != null -> {
                         val split = remember(body) { splitQuote(body.text.ifBlank { message.snippet }) }
@@ -227,6 +259,7 @@ fun ReaderPane(
 
                     else -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 }
+                if (newer.isNotEmpty()) FoldedMessages(newer, account, onIntent)
                 if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
             }
         }
@@ -235,7 +268,14 @@ fun ReaderPane(
 
 /** Subject (with its translation in brackets), account and labels, sender, attachments and the translation bar. */
 @Composable
-private fun ReaderHeader(reader: Reader, account: Account?, labels: List<Folder>, working: Boolean, onIntent: (AppIntent) -> Unit) {
+private fun ReaderHeader(
+    reader: Reader,
+    account: Account?,
+    labels: List<Folder>,
+    working: Boolean,
+    onIntent: (AppIntent) -> Unit,
+    older: List<MailMessage> = emptyList(),
+) {
     val message = reader.message
     val colors = MaterialTheme.colorScheme
     val cards = cardStyle()
@@ -267,6 +307,7 @@ private fun ReaderHeader(reader: Reader, account: Account?, labels: List<Folder>
                 labels.forEach { LabelChip(it, small = false) }
             }
         }
+        if (older.isNotEmpty()) FoldedMessages(older, account, onIntent)
         SenderLine(message, account)
         val body = reader.body
         // Images the HTML shows inline are part of the message, not attachments to list (as in Gmail).
@@ -291,6 +332,69 @@ private fun ReaderHeader(reader: Reader, account: Account?, labels: List<Folder>
         }
         if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
         if (body != null) TranslateBar(reader, onIntent)
+    }
+}
+
+private const val MEASURE_TIMEOUT_MS = 1_500L
+private const val PENDING_HEIGHT = 120
+
+/**
+ * Messages of the conversation other than the open one, one line each: who, the start of the text and
+ * when; a click opens that one instead. Four or more fold further, as in Gmail: the first, a count of
+ * the ones between, and the last.
+ */
+@Composable
+private fun FoldedMessages(messages: List<MailMessage>, account: Account?, onIntent: (AppIntent) -> Unit) {
+    var unfolded by remember(messages.firstOrNull()?.key, messages.size) { mutableStateOf(false) }
+    Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (messages.size < 4 || unfolded) {
+            messages.forEach { FoldedMessage(it, account, onIntent) }
+        } else {
+            FoldedMessage(messages.first(), account, onIntent)
+            TextButton(onClick = { unfolded = true }, Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.UnfoldMore, null, Modifier.size(18.dp))
+                Text(stringResource(Res.string.thread_more, messages.size - 2), Modifier.padding(start = 6.dp))
+            }
+            FoldedMessage(messages.last(), account, onIntent)
+        }
+    }
+}
+
+@Composable
+private fun FoldedMessage(message: MailMessage, account: Account?, onIntent: (AppIntent) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val own = account != null && message.fromAddress.equals(account.email, ignoreCase = true)
+    val weight = if (message.unread) FontWeight.SemiBold else FontWeight.Normal
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerLow)
+            .clickable { onIntent(AppIntent.ExpandInThread(message)) }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        LetterAvatar(message.sender, account?.color?.color ?: colors.primary, size = 32.dp)
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (own) stringResource(Res.string.thread_me) else message.sender,
+                style = MaterialTheme.typography.bodyMedium.merge(ContentDirection),
+                fontWeight = if (message.unread) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                message.snippet,
+                style = MaterialTheme.typography.bodySmall.merge(ContentDirection),
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            dateLabel(message.receivedAt),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = weight,
+            color = if (message.unread) colors.primary else colors.onSurfaceVariant,
+        )
     }
 }
 
@@ -364,11 +468,17 @@ private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppInten
                 onIntent(AppIntent.CloseReader)
             })
         }
+        // An open conversation is archived or deleted whole.
+        val conversation = reader.isConversation
         if (caps?.archive == true) {
-            TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), { onIntent(AppIntent.Archive(message)) })
+            TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), {
+                onIntent(if (conversation) AppIntent.ArchiveConversation(reader.thread) else AppIntent.Archive(message))
+            })
         }
         if (caps?.trash == true) {
-            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), { onIntent(AppIntent.Trash(message)) })
+            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), {
+                onIntent(if (conversation) AppIntent.TrashConversation(reader.thread) else AppIntent.Trash(message))
+            })
         }
         if (caps?.markRead == true) {
             TooltipIconButton(Icons.Outlined.MarkEmailUnread, stringResource(Res.string.inbox_mark_unread), {

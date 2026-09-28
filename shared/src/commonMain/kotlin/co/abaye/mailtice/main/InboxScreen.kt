@@ -80,11 +80,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -100,6 +103,7 @@ import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.MailThread
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ReadingPane
 import co.abaye.mailtice.platform.Platform
@@ -143,6 +147,7 @@ import mailtice.shared.generated.resources.selection_clear
 import mailtice.shared.generated.resources.selection_count
 import mailtice.shared.generated.resources.selection_download
 import mailtice.shared.generated.resources.selection_uncheck
+import mailtice.shared.generated.resources.thread_me
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -333,16 +338,25 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit, modifier
             contentPadding = if (cards) PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp) else PaddingValues(0.dp),
             verticalArrangement = Arrangement.spacedBy(if (cards) gap else 0.dp),
         ) {
-            items(visible, key = { it.key }) { message ->
+            // Conversation view: one row per conversation; otherwise each message is a row of its own.
+            val rows = if (state.conversationView) {
+                state.conversations
+            } else {
+                visible.map { MailThread(it.key, listOf(it), listOf(it)) }
+            }
+            val open = state.readerKeys
+            items(rows, key = { it.key }) { thread ->
+                val message = thread.latest
                 MailRow(
-                    message,
+                    thread,
                     accounts[message.accountId],
-                    opened = state.reader?.message?.id == message.id,
-                    checked = message.key in state.selection,
+                    opened = thread.all.any { it.key in open },
+                    checked = thread.messages.all { it.key in state.selection },
                     selecting = state.selection.isNotEmpty(),
-                    labels = state.labelsOf(message),
+                    labels = thread.messages.flatMap { state.labelsOf(it) }.distinctBy { it.id },
                     fromServer = message.key !in stored,
                     showAccount = showAccount,
+                    conversation = state.conversationView,
                     onIntent = onIntent,
                 )
                 if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -488,13 +502,21 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
 private fun SelectionBar(state: AppState, onIntent: (AppIntent) -> Unit) {
     val selected = state.selectedMessages
     val caps = selected.mapNotNull { state.account(it.accountId)?.capabilities }
+    // Conversation view counts conversations, the rows the user checked, not the messages in them.
+    val count = if (state.conversationView) {
+        state.conversations.count { t ->
+            t.messages.any { it.key in state.selection }
+        }
+    } else {
+        selected.size
+    }
     Row(
         Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 4.dp).height(56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.selection_clear), { onIntent(AppIntent.ClearSelection) })
         Text(
-            stringResource(Res.string.selection_count, selected.size),
+            stringResource(Res.string.selection_count, count),
             Modifier.weight(1f).padding(horizontal = 4.dp),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
@@ -666,7 +688,7 @@ fun AccountDot(account: Account, modifier: Modifier = Modifier) {
  */
 @Composable
 private fun MailRow(
-    message: MailMessage,
+    thread: MailThread,
     account: Account?,
     opened: Boolean,
     checked: Boolean,
@@ -674,8 +696,10 @@ private fun MailRow(
     labels: List<Folder>,
     fromServer: Boolean,
     showAccount: Boolean,
+    conversation: Boolean,
     onIntent: (AppIntent) -> Unit,
 ) {
+    val message = thread.latest
     val colors = MaterialTheme.colorScheme
     val spec = LocalDensitySpec.current
     val cards = cardStyle()
@@ -689,12 +713,13 @@ private fun MailRow(
         hovered -> if (cards) colors.surfaceContainerHigh else colors.surfaceContainerLow
         else -> colors.surface
     }
-    val weight = if (message.unread) FontWeight.SemiBold else FontWeight.Normal
+    val weight = if (thread.unread) FontWeight.SemiBold else FontWeight.Normal
+    val toggle = if (conversation) AppIntent.ToggleSelectMany(thread.messages) else AppIntent.ToggleSelect(message)
     val senderStyle = if (spec.avatar >= 40.dp) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium
     Box(
         Modifier.fillMaxWidth().clip(if (cards) RoundedCornerShape(16.dp) else RectangleShape).background(background)
             .hoverable(interaction)
-            .clickable { onIntent(if (selecting) AppIntent.ToggleSelect(message) else AppIntent.OpenMail(message)) },
+            .clickable { onIntent(if (selecting) toggle else AppIntent.OpenMail(message)) },
     ) {
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
             if (!cards) Box(Modifier.width(4.dp).fillMaxHeight().background(accountColor))
@@ -704,14 +729,26 @@ private fun MailRow(
                 verticalAlignment = if (spec.snippetLines > 0) Alignment.Top else Alignment.CenterVertically,
             ) {
                 if (spec.avatar > 0.dp) {
-                    SelectableAvatar(message, accountColor, checked, spec.avatar) { onIntent(AppIntent.ToggleSelect(message)) }
+                    SelectableAvatar(message, accountColor, checked, spec.avatar) { onIntent(toggle) }
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         // No avatar and no stripe (compact cards): a dot keeps the account visible.
                         if (cards && spec.avatar == 0.dp && account != null) AccountDot(account)
+                        // A conversation names who wrote in it ("me" for the account) and how many messages it has.
+                        val me = stringResource(Res.string.thread_me)
+                        val sender = if (thread.size > 1) {
+                            buildAnnotatedString {
+                                append(thread.participants(account?.email.orEmpty(), me).joinToString(", "))
+                                withStyle(SpanStyle(color = colors.onSurfaceVariant, fontWeight = FontWeight.Normal)) {
+                                    append("  ${thread.size}")
+                                }
+                            }
+                        } else {
+                            buildAnnotatedString { append(message.sender) }
+                        }
                         Text(
-                            message.sender,
+                            sender,
                             Modifier.weight(1f),
                             style = senderStyle.merge(ContentDirection),
                             textAlign = align,
@@ -719,7 +756,7 @@ private fun MailRow(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (message.hasAttachments) {
+                        if (thread.hasAttachments) {
                             Icon(
                                 Icons.Outlined.AttachFile,
                                 null,
@@ -739,7 +776,7 @@ private fun MailRow(
                             dateLabel(message.receivedAt),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = weight,
-                            color = if (message.unread) colors.primary else colors.onSurfaceVariant,
+                            color = if (thread.unread) colors.primary else colors.onSurfaceVariant,
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -773,8 +810,9 @@ private fun MailRow(
             val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
             val fade = listOf(background.copy(alpha = 0f), background, background)
             RowActions(
-                message,
+                thread,
                 account,
+                conversation,
                 onIntent,
                 Modifier.align(Alignment.TopEnd).padding(top = spec.rowPadding / 2)
                     .background(Brush.horizontalGradient(if (rtl) fade.reversed() else fade))
@@ -813,13 +851,30 @@ private fun SelectableAvatar(message: MailMessage, color: Color, checked: Boolea
 
 /** Only what this account supports - nothing is offered that would fail. */
 @Composable
-private fun RowActions(message: MailMessage, account: Account?, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
+private fun RowActions(
+    thread: MailThread,
+    account: Account?,
+    conversation: Boolean,
+    onIntent: (AppIntent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val caps = account?.capabilities ?: return
+    val message = thread.latest
     Row(modifier) {
         if (caps.markRead) {
-            if (message.unread) {
+            // A conversation reads as a whole; marking it unread marks its newest message, as in Gmail.
+            if (thread.unread) {
                 TooltipIconButton(Icons.Outlined.MarkEmailRead, stringResource(Res.string.inbox_mark_read), {
-                    onIntent(AppIntent.SetRead(message, read = true))
+                    onIntent(
+                        if (conversation) {
+                            AppIntent.SetConversationRead(
+                                thread.all,
+                                read = true,
+                            )
+                        } else {
+                            AppIntent.SetRead(message, read = true)
+                        },
+                    )
                 })
             } else {
                 TooltipIconButton(Icons.Outlined.MarkEmailUnread, stringResource(Res.string.inbox_mark_unread), {
@@ -827,11 +882,16 @@ private fun RowActions(message: MailMessage, account: Account?, onIntent: (AppIn
                 })
             }
         }
+        // Archive takes the conversation's rows out of this list; the trash takes all of it.
         if (caps.archive) {
-            TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), { onIntent(AppIntent.Archive(message)) })
+            TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), {
+                onIntent(if (conversation) AppIntent.ArchiveConversation(thread.messages) else AppIntent.Archive(message))
+            })
         }
         if (caps.trash) {
-            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), { onIntent(AppIntent.Trash(message)) })
+            TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), {
+                onIntent(if (conversation) AppIntent.TrashConversation(thread.all) else AppIntent.Trash(message))
+            })
         }
     }
 }

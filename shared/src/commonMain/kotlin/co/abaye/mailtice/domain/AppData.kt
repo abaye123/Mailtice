@@ -128,6 +128,8 @@ data class UserSettings(
     val uiLanguageAuto: Boolean = true,
     /** Checks at a pace learned from each account's week and recent mail; off, every [pollSeconds]. */
     val smartPolling: Boolean = true,
+    /** The list groups each conversation into one row and the reader shows it whole, as Gmail does. */
+    val conversationView: Boolean = true,
     /** The app opens on the home dashboard; off, straight in the mail. */
     val openHomeAtStart: Boolean = true,
     /** Offline mode: the whole mailbox kept and downloaded ahead, actions queued without a connection. */

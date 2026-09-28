@@ -14,10 +14,13 @@ import co.abaye.mailtice.domain.FolderRole
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.MailThread
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.StorageUsage
+import co.abaye.mailtice.domain.conversationKey
+import co.abaye.mailtice.domain.groupConversations
 import co.abaye.mailtice.provider.ImapLoginException
 import co.abaye.mailtice.sync.PollPlan
 
@@ -187,7 +190,17 @@ data class Reader(
     val translation: ReaderTranslation? = null,
     /** Inline images of the HTML, Content-ID to a data: URI, once downloaded. */
     val inlineImages: Map<String, String> = emptyMap(),
-)
+    /**
+     * The whole conversation [message] is part of, oldest first, in conversation view; [message] is
+     * the one shown open. Empty (or just [message]) when there is no conversation to show.
+     */
+    val thread: List<MailMessage> = emptyList(),
+    /** Stored bodies of the conversation's messages, by key, read ahead so opening one is instant. */
+    val bodies: Map<String, MailBody> = emptyMap(),
+) {
+    /** More than the one message: the reader shows the others folded around it. */
+    val isConversation: Boolean get() = thread.size > 1
+}
 
 enum class TranslationState { Loading, Done, Failed }
 
@@ -229,6 +242,8 @@ data class AppState(
     val accounts: List<Account> = emptyList(),
     val folders: Map<String, List<Folder>> = emptyMap(),
     val inbox: List<MailMessage> = emptyList(),
+    /** Conversation view: each listed conversation's stored messages by [conversationKey], oldest first. */
+    val threadMembers: Map<String, List<MailMessage>> = emptyMap(),
     val unread: Map<String, Long> = emptyMap(),
     /** accountId -> folderId -> unread, for the counts next to folders. */
     val unreadByFolder: Map<String, Map<String, Long>> = emptyMap(),
@@ -297,6 +312,23 @@ data class AppState(
     val olderExhausted: Boolean get() = scopeAccounts.all { it.id in older.exhausted }
 
     val selectedMessages: List<MailMessage> get() = visibleMessages.filter { it.key in selection }
+
+    val conversationView: Boolean get() = data.settings.conversationView
+
+    /** The open message and the rest of its open conversation. */
+    val readerKeys: Set<String> get() = reader?.let { r -> (r.thread + r.message).mapTo(mutableSetOf()) { it.key } }.orEmpty()
+
+    /** The list as conversation rows, newest first (conversation view). */
+    val conversations: List<MailThread> get() = groupConversations(visibleMessages, threadMembers)
+
+    /**
+     * Every stored message of the conversations [messages] belong to (conversation view), or just
+     * [messages]: marking read or deleting a conversation covers all of it, replies in Sent too.
+     */
+    fun wholeConversations(messages: List<MailMessage>): List<MailMessage> {
+        if (!conversationView) return messages
+        return (messages + messages.flatMap { threadMembers[conversationKey(it)].orEmpty() }).distinctBy { it.key }
+    }
 
     /** Accounts the list currently covers: the one picked in the sidebar, or all of them. */
     val scopeAccounts: List<Account> get() = if (filter.accountId.isEmpty()) accounts else accounts.filter { it.id == filter.accountId }

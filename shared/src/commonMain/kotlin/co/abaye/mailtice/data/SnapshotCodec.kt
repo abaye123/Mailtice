@@ -47,6 +47,7 @@ private const val KEY_LANGUAGE_AUTO = "languageAuto"
 private const val KEY_POLL = "pollSeconds"
 private const val KEY_SMART_POLL = "smartPolling"
 private const val KEY_OPEN_HOME = "openHomeAtStart"
+private const val KEY_CONVERSATIONS = "conversationView"
 private const val KEY_OFFLINE = "offlineMode"
 private const val KEY_OFFLINE_ATTACHMENTS = "offlineAttachmentsMb"
 private const val KEY_NOTIFICATIONS = "notifications"
@@ -79,6 +80,7 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_POLL=${s.pollSeconds}")
         add("$KEY_SMART_POLL=${s.smartPolling}")
         add("$KEY_OPEN_HOME=${s.openHomeAtStart}")
+        add("$KEY_CONVERSATIONS=${s.conversationView}")
         add("$KEY_OFFLINE=${s.offlineMode}")
         add("$KEY_OFFLINE_ATTACHMENTS=${s.offlineAttachmentsMb}")
         add("$KEY_NOTIFICATIONS=${s.notificationsEnabled}")
@@ -123,6 +125,7 @@ fun decodeSnapshot(raw: String): AppData {
         uiLanguageAuto = flag(KEY_LANGUAGE_AUTO, defaults.uiLanguageAuto),
         smartPolling = flag(KEY_SMART_POLL, defaults.smartPolling),
         openHomeAtStart = flag(KEY_OPEN_HOME, defaults.openHomeAtStart),
+        conversationView = flag(KEY_CONVERSATIONS, defaults.conversationView),
         offlineMode = flag(KEY_OFFLINE, defaults.offlineMode),
         offlineAttachmentsMb =
         map[KEY_OFFLINE_ATTACHMENTS]?.toIntOrNull()?.takeIf { it in OfflineAttachmentLimits } ?: defaults.offlineAttachmentsMb,

@@ -64,6 +64,9 @@ sealed interface AppIntent {
     data class SetListFraction(val fraction: Float) : AppIntent
 
     data class ToggleSelect(val message: MailMessage) : AppIntent
+
+    /** Checks every listed message of a conversation row, or unchecks them all when all are checked. */
+    data class ToggleSelectMany(val messages: List<MailMessage>) : AppIntent
     data object SelectAll : AppIntent
     data object ClearSelection : AppIntent
     data class BulkSetRead(val read: Boolean) : AppIntent
@@ -107,6 +110,14 @@ sealed interface AppIntent {
     data object CloseReader : AppIntent
     data class SetRead(val message: MailMessage, val read: Boolean) : AppIntent
     data class Archive(val message: MailMessage) : AppIntent
+
+    /** Conversation view: the same actions for several messages of one conversation at once. */
+    data class SetConversationRead(val messages: List<MailMessage>, val read: Boolean) : AppIntent
+    data class ArchiveConversation(val messages: List<MailMessage>) : AppIntent
+    data class TrashConversation(val messages: List<MailMessage>) : AppIntent
+
+    /** Opens another message of the conversation in the reader, folding the one open until now. */
+    data class ExpandInThread(val message: MailMessage) : AppIntent
     data class OpenInWeb(val message: MailMessage) : AppIntent
     data class OpenHtml(val message: MailMessage) : AppIntent
     data object RefreshNow : AppIntent
@@ -121,6 +132,7 @@ sealed interface AppIntent {
     data class SetSunsetCity(val city: SunsetCity) : AppIntent
     data class SetSmartPolling(val smart: Boolean) : AppIntent
     data class SetOpenHomeAtStart(val on: Boolean) : AppIntent
+    data class SetConversationView(val on: Boolean) : AppIntent
 
     /** Moves an account one place up or down in the order every list shows. */
     data class MoveAccount(val accountId: String, val up: Boolean) : AppIntent

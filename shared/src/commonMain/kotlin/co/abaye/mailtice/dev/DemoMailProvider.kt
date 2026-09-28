@@ -275,9 +275,15 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
         val folderIds = mail.folders.map { folderId(account, it) }.toSet()
         // Gmail ids are opaque; IMAP ids are "<folder>/<uid>" like the real backend.
         val id = if (account.kind == ProviderKind.Gmail) "demo${uid.toString(16)}" else "${folderIds.first()}/$uid"
+        // Gmail threads by id (a message on its own is its own thread); IMAP has none and threads by subject.
+        val threadId = when {
+            account.kind != ProviderKind.Gmail -> ""
+            mail.thread.isNotEmpty() -> "demo-${account.id}-${mail.thread}"
+            else -> id
+        }
         return RemoteMessage(
             id = id,
-            threadId = id,
+            threadId = threadId,
             uid = uid,
             fromName = mail.fromName,
             fromAddress = mail.fromAddress,
