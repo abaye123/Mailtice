@@ -249,6 +249,8 @@ data class AppState(
     /** Conversation view: each listed conversation's stored messages by [conversationKey], oldest first. */
     val threadMembers: Map<String, List<MailMessage>> = emptyMap(),
     val unread: Map<String, Long> = emptyMap(),
+    /** Unread inbox mail within the badge's time window (the setting); null when it counts all of it. */
+    val recentUnread: Int? = null,
     /** accountId -> folderId -> unread, for the counts next to folders. */
     val unreadByFolder: Map<String, Map<String, Long>> = emptyMap(),
     val statuses: Map<String, AccountStatus> = emptyMap(),
@@ -289,6 +291,9 @@ data class AppState(
     val message: AppMessage? = null,
 ) {
     val unreadTotal: Int get() = unread.values.sum().toInt()
+
+    /** The number on the app icon: all unread inbox mail, or only the recent part of it (the setting). */
+    val badgeCount: Int get() = recentUnread ?: unreadTotal
 
     fun account(id: String): Account? = accounts.firstOrNull { it.id == id }
 

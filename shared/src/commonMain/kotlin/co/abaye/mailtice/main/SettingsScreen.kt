@@ -48,6 +48,7 @@ import co.abaye.mailtice.app.AppKey
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppFont
+import co.abaye.mailtice.domain.BadgeAgeOptions
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.OfflineAttachmentLimits
 import co.abaye.mailtice.domain.PaneStyle
@@ -72,6 +73,11 @@ import mailtice.shared.generated.resources.accent_rose
 import mailtice.shared.generated.resources.accent_slate
 import mailtice.shared.generated.resources.accent_teal
 import mailtice.shared.generated.resources.accent_violet
+import mailtice.shared.generated.resources.badge_age_all
+import mailtice.shared.generated.resources.badge_age_day
+import mailtice.shared.generated.resources.badge_age_days
+import mailtice.shared.generated.resources.badge_age_month
+import mailtice.shared.generated.resources.badge_age_week
 import mailtice.shared.generated.resources.city_beer_sheva
 import mailtice.shared.generated.resources.city_eilat
 import mailtice.shared.generated.resources.city_haifa
@@ -103,6 +109,8 @@ import mailtice.shared.generated.resources.reading_off
 import mailtice.shared.generated.resources.reading_split
 import mailtice.shared.generated.resources.settings_accent
 import mailtice.shared.generated.resources.settings_appearance
+import mailtice.shared.generated.resources.settings_badge_age
+import mailtice.shared.generated.resources.settings_badge_age_desc
 import mailtice.shared.generated.resources.settings_close_reader
 import mailtice.shared.generated.resources.settings_close_reader_desc
 import mailtice.shared.generated.resources.settings_close_to_tray
@@ -155,11 +163,21 @@ import mailtice.shared.generated.resources.settings_storage_total
 import mailtice.shared.generated.resources.settings_sunset_city
 import mailtice.shared.generated.resources.settings_sync
 import mailtice.shared.generated.resources.settings_theme
+import mailtice.shared.generated.resources.settings_updates
+import mailtice.shared.generated.resources.settings_version
 import mailtice.shared.generated.resources.settings_window
 import mailtice.shared.generated.resources.smart_poll_status
 import mailtice.shared.generated.resources.theme_dark
 import mailtice.shared.generated.resources.theme_light
 import mailtice.shared.generated.resources.theme_system
+import mailtice.shared.generated.resources.update_check_now
+import mailtice.shared.generated.resources.update_restart_now
+import mailtice.shared.generated.resources.update_status_checking
+import mailtice.shared.generated.resources.update_status_downloading
+import mailtice.shared.generated.resources.update_status_failed
+import mailtice.shared.generated.resources.update_status_latest
+import mailtice.shared.generated.resources.update_status_ready
+import mailtice.shared.generated.resources.update_status_unsupported
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -300,6 +318,11 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                 ) {
                     Switch(checked = settings.closeToTray, onCheckedChange = { onIntent(AppIntent.SetCloseToTray(it)) })
                 }
+                SettingBlock(stringResource(Res.string.settings_badge_age), subtitle = stringResource(Res.string.settings_badge_age_desc)) {
+                    ChoicePicker(BadgeAgeOptions, settings.badgeMaxAgeDays, {
+                        badgeAgeLabel(it)
+                    }) { onIntent(AppIntent.SetBadgeMaxAge(it)) }
+                }
                 SettingRow(
                     stringResource(Res.string.settings_launch_at_login),
                     subtitle = stringResource(Res.string.settings_launch_at_login_desc),
@@ -329,6 +352,11 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                 }
             }
 
+            LocalAppUpdates.current?.let { updates ->
+                HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                UpdatesSection(updates)
+            }
+
             HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
             StorageSection(state, onIntent)
 
@@ -344,6 +372,42 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                 ) {
                     Text(stringResource(Res.string.settings_reset))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun badgeAgeLabel(days: Int): String = when (days) {
+    0 -> stringResource(Res.string.badge_age_all)
+    1 -> stringResource(Res.string.badge_age_day)
+    7 -> stringResource(Res.string.badge_age_week)
+    30 -> stringResource(Res.string.badge_age_month)
+    else -> stringResource(Res.string.badge_age_days, days)
+}
+
+/** The running version, where the self-update stands, and a check on demand (desktop). */
+@Composable
+private fun UpdatesSection(updates: AppUpdates) {
+    SectionHeader(stringResource(Res.string.settings_updates))
+    val status = updates.status
+    val subtitle = when (status) {
+        UpdateStatus.Unsupported -> stringResource(Res.string.update_status_unsupported)
+        UpdateStatus.Idle -> ""
+        UpdateStatus.Checking -> stringResource(Res.string.update_status_checking)
+        is UpdateStatus.UpToDate -> stringResource(Res.string.update_status_latest, relativeTime(status.checkedAt, Platform.now()))
+        is UpdateStatus.Downloading -> stringResource(Res.string.update_status_downloading, status.version, status.percent)
+        is UpdateStatus.Ready -> stringResource(Res.string.update_status_ready, status.version)
+        UpdateStatus.Failed -> stringResource(Res.string.update_status_failed)
+    }
+    val version = updates.currentVersion.ifBlank { "-" }
+    SettingRow(stringResource(Res.string.settings_version, version), subtitle = subtitle.ifBlank { null }) {
+        if (status is UpdateStatus.Ready) {
+            Button(onClick = updates::restartNow) { Text(stringResource(Res.string.update_restart_now)) }
+        } else {
+            val busy = status == UpdateStatus.Checking || status is UpdateStatus.Downloading
+            OutlinedButton(onClick = updates::checkNow, enabled = !busy && status != UpdateStatus.Unsupported) {
+                Text(stringResource(Res.string.update_check_now))
             }
         }
     }

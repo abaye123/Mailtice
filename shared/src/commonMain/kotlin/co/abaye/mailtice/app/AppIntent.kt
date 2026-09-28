@@ -134,6 +134,7 @@ sealed interface AppIntent {
     data class SetOpenHomeAtStart(val on: Boolean) : AppIntent
     data class SetConversationView(val on: Boolean) : AppIntent
     data class SetCloseReaderOnSwitch(val on: Boolean) : AppIntent
+    data class SetBadgeMaxAge(val days: Int) : AppIntent
 
     /** Opens the account's mail on the provider's own site, in the browser profile it belongs to. */
     data class OpenAccountInWeb(val accountId: String) : AppIntent

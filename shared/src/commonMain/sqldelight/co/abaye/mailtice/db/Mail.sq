@@ -318,6 +318,15 @@ WHERE m.unread = 1 AND EXISTS (
 )
 GROUP BY m.accountId;
 
+-- Unread in the inbox that arrived since :since, all accounts together: the app icon's badge when
+-- it counts only recent mail (the setting).
+unreadSince:
+SELECT count(*) FROM message m
+WHERE m.unread = 1 AND m.receivedAt >= :since AND EXISTS (
+  SELECT 1 FROM message_folder mf JOIN folder f ON f.accountId = mf.accountId AND f.id = mf.folderId
+  WHERE mf.accountId = m.accountId AND mf.messageId = m.id AND f.sync = 1 AND f.role = 'Inbox'
+);
+
 -- Unread per synced folder, for the counts next to each folder in the sidebar.
 unreadByFolder:
 SELECT mf.accountId, mf.folderId, count(*) AS unread FROM message_folder mf

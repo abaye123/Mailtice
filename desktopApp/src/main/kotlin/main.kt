@@ -43,6 +43,7 @@ import co.abaye.mailtice.dev.enableDemoModeFromEnvironment
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.PaneStyle
 import co.abaye.mailtice.main.DesktopUpdate
+import co.abaye.mailtice.main.LocalAppUpdates
 import co.abaye.mailtice.main.LocalHostHasTitleBar
 import co.abaye.mailtice.main.LocalWindowDrag
 import co.abaye.mailtice.main.SavedWindow
@@ -125,7 +126,7 @@ fun main(args: Array<String>) {
 
         val state = vm?.state?.collectAsState()?.value
         val closeToTray = state?.data?.settings?.closeToTray ?: true
-        val unread = state?.unreadTotal ?: 0
+        val unread = state?.badgeCount ?: 0
         val paneStyle = state?.data?.settings?.paneStyle ?: PaneStyle.Cards
 
         // A second launch (or a click on a summary notification) brings the hidden window back.
@@ -183,6 +184,7 @@ fun main(args: Array<String>) {
                     Box(Modifier.fillMaxSize()) {
                         CompositionLocalProvider(
                             LocalHostHasTitleBar provides true,
+                            LocalAppUpdates provides update,
                             LocalWindowDrag provides Modifier.windowDragArea(),
                         ) {
                             App(

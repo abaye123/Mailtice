@@ -2,6 +2,7 @@ package co.abaye.mailtice.data
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOne
 import app.cash.sqldelight.db.SqlDriver
 import co.abaye.mailtice.db.MailDatabase
 import co.abaye.mailtice.db.Message_body
@@ -175,6 +176,9 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
             }
         }
     }
+
+    /** Unread inbox mail that arrived since [since], every account together. */
+    fun unreadSince(since: Long): Flow<Long> = q.unreadSince(since).asFlow().mapToOne(dispatcher)
 
     val unreadCounts: Flow<Map<String, Long>> =
         q.unreadCounts().asFlow().mapToList(dispatcher).map { rows -> rows.associate { it.accountId to it.unread } }

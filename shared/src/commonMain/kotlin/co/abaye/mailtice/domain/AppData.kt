@@ -89,6 +89,9 @@ val OfflineAttachmentLimits: List<Int> = listOf(0, 10, 25, -1)
 /** Allowed poll intervals. Gmail quota is generous, but a desktop app has no reason to go faster. */
 val PollIntervals: List<Int> = listOf(30, 60, 120, 300)
 
+/** How far back the app icon's unread badge counts, in days; 0 = all unread mail. */
+val BadgeAgeOptions: List<Int> = listOf(0, 1, 3, 7, 30)
+
 @Immutable
 data class UserSettings(
     val theme: ThemeMode = ThemeMode.System,
@@ -128,6 +131,8 @@ data class UserSettings(
     val uiLanguageAuto: Boolean = true,
     /** Checks at a pace learned from each account's week and recent mail; off, every [pollSeconds]. */
     val smartPolling: Boolean = true,
+    /** The app icon's unread badge counts only mail from the last this many days; 0 = all of it. */
+    val badgeMaxAgeDays: Int = 0,
     /** Moving to another folder, label or account closes the open message. */
     val closeReaderOnSwitch: Boolean = true,
     /**

@@ -93,6 +93,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -118,6 +119,7 @@ import kotlin.io.encoding.Base64
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+private const val BADGE_WINDOW_TICK_MS = 60 * 60 * 1000L
 private const val SEARCH_DEBOUNCE_MS = 200L
 
 /** Quiet time after the last keystroke before the draft is saved. */
@@ -213,6 +215,23 @@ class AppViewModel(
                 mutate { it.copy(unread = counts) }
                 refreshDigests()
             }
+        }
+        // The badge's window slides with the clock, so the count is read again every hour as well.
+        scope.launch {
+            _state.map { it.data.settings.badgeMaxAgeDays }.distinctUntilChanged()
+                .flatMapLatest { days ->
+                    if (days <= 0) {
+                        flowOf(null)
+                    } else {
+                        flow {
+                            while (true) {
+                                emit(Unit)
+                                delay(BADGE_WINDOW_TICK_MS)
+                            }
+                        }.flatMapLatest { repo.unreadSince(Platform.now() - days * MailRepository.DAY_MS) }
+                    }
+                }
+                .collect { count -> mutate { it.copy(recentUnread = count?.toInt()) } }
         }
         scope.launch { sync.lastSynced.collect { t -> mutate { it.copy(lastSynced = t) } } }
         scope.launch { repo.identities.collect { ids -> mutate { it.copy(identities = ids) } } }
@@ -626,6 +645,8 @@ class AppViewModel(
             is AppIntent.SetOpenHomeAtStart -> settings { it.copy(openHomeAtStart = intent.on) }
 
             is AppIntent.SetCloseReaderOnSwitch -> settings { it.copy(closeReaderOnSwitch = intent.on) }
+
+            is AppIntent.SetBadgeMaxAge -> settings { it.copy(badgeMaxAgeDays = intent.days) }
 
             is AppIntent.OpenAccountInWeb -> _state.value.account(intent.accountId)?.let { account ->
                 webMailUrl(account)?.let { openWeb(account, it) }

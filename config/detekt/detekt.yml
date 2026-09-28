@@ -11,7 +11,7 @@ Compose:
     # in both detekt and ktlint, and the two lists had drifted - this one still named two locals
     # that no longer exist and had never learned about LocalCompactLayout, so detekt reported a
     # local ktlint was happy with.
-    allowedCompositionLocals: LocalHostHasTitleBar,LocalWindowDrag,LocalCompactLayout,LocalDensitySpec,LocalPaneStyle,LocalHebrewDate,LocalTranslationOffer,LocalReaderPrefs
+    allowedCompositionLocals: LocalHostHasTitleBar,LocalAppUpdates,LocalWindowDrag,LocalCompactLayout,LocalDensitySpec,LocalPaneStyle,LocalHebrewDate,LocalTranslationOffer,LocalReaderPrefs
   CompositionLocalNaming:
     active: true
   ConditionHoist:

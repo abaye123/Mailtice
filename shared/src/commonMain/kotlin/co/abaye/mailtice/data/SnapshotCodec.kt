@@ -3,6 +3,7 @@ package co.abaye.mailtice.data
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.AppFont
+import co.abaye.mailtice.domain.BadgeAgeOptions
 import co.abaye.mailtice.domain.ListDensity
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.OfflineAttachmentLimits
@@ -49,6 +50,7 @@ private const val KEY_SMART_POLL = "smartPolling"
 private const val KEY_OPEN_HOME = "openHomeAtStart"
 private const val KEY_CONVERSATIONS = "conversationView"
 private const val KEY_CLOSE_READER = "closeReaderOnSwitch"
+private const val KEY_BADGE_AGE = "badgeMaxAgeDays"
 private const val KEY_ACCOUNT_BROWSERS = "accountBrowsers"
 private const val KEY_OFFLINE = "offlineMode"
 private const val KEY_OFFLINE_ATTACHMENTS = "offlineAttachmentsMb"
@@ -84,6 +86,7 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_OPEN_HOME=${s.openHomeAtStart}")
         add("$KEY_CONVERSATIONS=${s.conversationView}")
         add("$KEY_CLOSE_READER=${s.closeReaderOnSwitch}")
+        add("$KEY_BADGE_AGE=${s.badgeMaxAgeDays}")
         // "<account id>=<profile key>" per account; ids never hold "=", keys may.
         add("$KEY_ACCOUNT_BROWSERS=${s.accountBrowsers.entries.joinToString(LIST_SEPARATOR.toString()) { "${it.key}=${it.value}" }}")
         add("$KEY_OFFLINE=${s.offlineMode}")
@@ -132,6 +135,7 @@ fun decodeSnapshot(raw: String): AppData {
         openHomeAtStart = flag(KEY_OPEN_HOME, defaults.openHomeAtStart),
         conversationView = flag(KEY_CONVERSATIONS, defaults.conversationView),
         closeReaderOnSwitch = flag(KEY_CLOSE_READER, defaults.closeReaderOnSwitch),
+        badgeMaxAgeDays = map[KEY_BADGE_AGE]?.toIntOrNull()?.takeIf { it in BadgeAgeOptions } ?: defaults.badgeMaxAgeDays,
         accountBrowsers = list(KEY_ACCOUNT_BROWSERS)?.filter { '=' in it }
             ?.associate { it.substringBefore('=') to it.substringAfter('=') } ?: defaults.accountBrowsers,
         offlineMode = flag(KEY_OFFLINE, defaults.offlineMode),
