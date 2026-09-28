@@ -24,6 +24,7 @@ oauth.local.properties
 client_secret_*.json
 # Generated from values-he by :shared:mirrorHebrewStringsForAndroid.
 shared/src/commonMain/composeResources/values-iw/
+shared/src/commonMain/composeResources/values-ji/
 # Release signing (Android). CI gets the same values from repository secrets.
 *.jks
 *.keystore

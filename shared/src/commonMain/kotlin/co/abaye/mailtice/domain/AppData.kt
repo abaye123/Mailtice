@@ -36,6 +36,7 @@ enum class ReadingPane { Split, Off }
 
 enum class UiLanguage(val code: String, val label: String, val rtl: Boolean) {
     Hebrew("he", "עברית", true),
+    Yiddish("yi", "אידיש", true),
     English("en", "English", false),
     ;
 

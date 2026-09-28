@@ -403,7 +403,7 @@ private fun TranslateBar(reader: Reader, onIntent: (AppIntent) -> Unit) {
     val offer = LocalTranslationOffer.current
     val translation = reader.translation
     val body = reader.body ?: return
-    val hebrew = offer.target == "he"
+    val hebrew = offer.target == "he" || offer.target == "yi"
     if (translation == null && (!offer.enabled || !looksForeign(reader.message.subject + "\n" + body.text, offer.target))) return
     val colors = MaterialTheme.colorScheme
     Row(

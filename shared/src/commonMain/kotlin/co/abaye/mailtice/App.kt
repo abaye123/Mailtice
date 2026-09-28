@@ -63,7 +63,7 @@ fun App(
                 if (!settings.showHebrewDate) {
                     null
                 } else {
-                    HebrewDateStyle(settings.hebrewDateAtSunset, settings.sunsetCity, hebrewLetters = language == UiLanguage.Hebrew)
+                    HebrewDateStyle(settings.hebrewDateAtSunset, settings.sunsetCity, hebrewLetters = language != UiLanguage.English)
                 }
             }
             val translation = remember(settings.offerTranslation, language) { TranslationOffer(settings.offerTranslation, language.code) }

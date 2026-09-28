@@ -2,7 +2,7 @@
 
 A unified inbox with notifications for several mail accounts at once: Gmail and Google Workspace,
 Outlook and Microsoft 365, Yahoo, and any IMAP server. It runs on Windows, macOS, Linux and Android,
-with a Hebrew (right-to-left) and an English interface, and is built with Compose Multiplatform and
+with a Hebrew and a Yiddish (right-to-left) and an English interface, and is built with Compose Multiplatform and
 [Nucleus](https://github.com/NucleusFramework/Nucleus).
 
 Website and downloads: <https://mailtice.abaye.co>

@@ -57,7 +57,10 @@ private val EnglishNames = mapOf(
     "hi" to "Hindi", "th" to "Thai", "vi" to "Vietnamese", "sv" to "Swedish", "da" to "Danish", "no" to "Norwegian", "fi" to "Finnish",
 )
 
-/** A language code as a name in the interface language; the code itself when it is not listed. */
+/**
+ * A language code as a name in the interface language; the code itself when it is not listed. The
+ * Hebrew names serve the Yiddish interface too, where they read naturally.
+ */
 fun languageName(code: String, inHebrew: Boolean): String {
     val base = code.substringBefore('-').lowercase()
     return (if (inHebrew) HebrewNames else EnglishNames)[base] ?: code

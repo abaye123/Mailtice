@@ -212,8 +212,8 @@ aboutLibraries {
 
 /**
  * Compose Resources on Android compares `values-*` against Locale.getLanguage(), which still answers
- * "iw" for Hebrew there. Publish the Hebrew bundle a second time under that code; generated, not
- * committed, so the translation keeps a single source.
+ * "iw" for Hebrew there (and "ji" for Yiddish on older versions). Publish those bundles a second time
+ * under the old codes; generated, not committed, so each translation keeps a single source.
  */
 val mirrorHebrewStringsForAndroid = tasks.register<Copy>("mirrorHebrewStringsForAndroid") {
     val resources = layout.projectDirectory.dir("src/commonMain/composeResources")
@@ -221,8 +221,14 @@ val mirrorHebrewStringsForAndroid = tasks.register<Copy>("mirrorHebrewStringsFor
     into(resources.dir("values-iw"))
 }
 
+val mirrorYiddishStringsForAndroid = tasks.register<Copy>("mirrorYiddishStringsForAndroid") {
+    val resources = layout.projectDirectory.dir("src/commonMain/composeResources")
+    from(resources.dir("values-yi"))
+    into(resources.dir("values-ji"))
+}
+
 tasks.matching { it.name.endsWith("ForCommonMain") }.configureEach {
-    dependsOn(mirrorHebrewStringsForAndroid)
+    dependsOn(mirrorHebrewStringsForAndroid, mirrorYiddishStringsForAndroid)
 }
 
 tasks.matching {
