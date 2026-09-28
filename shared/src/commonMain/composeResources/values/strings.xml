@@ -464,9 +464,15 @@
     <string name="home_week">%1$d this week</string>
     <string name="home_checked">Checked %1$s</string>
     <string name="home_not_checked">Not checked yet</string>
+    <string name="home_open_web">On the web</string>
+    <string name="reader_close">Close message</string>
+    <string name="web_profile_title">Which browser profile?</string>
+    <string name="web_profile_body">%1$s will open in the profile you choose, and next time it opens there straight away.</string>
     <string name="home_open_inbox">Open inbox</string>
     <string name="thread_me">me</string>
     <string name="thread_more">%1$d more messages</string>
+    <string name="settings_close_reader">Close the message when switching folders</string>
+    <string name="settings_close_reader_desc">Moving to another folder, label or account closes the open message.</string>
     <string name="settings_conversations">Conversation view</string>
     <string name="settings_conversations_desc">Group replies to the same message into one conversation, as Gmail does.</string>
     <string name="settings_open_home">Open on the home page</string>

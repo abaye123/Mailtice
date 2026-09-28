@@ -427,9 +427,15 @@
     <string name="home_week">%1$d די וואך</string>
     <string name="home_checked">איבערגעקוקט %1$s</string>
     <string name="home_not_checked">נאך נישט איבערגעקוקט</string>
+    <string name="home_open_web">אויפן וועבזייטל</string>
+    <string name="reader_close">פארמאכן די מעלדונג</string>
+    <string name="web_profile_title">אין וועלכן בלעטערער פראפיל?</string>
+    <string name="web_profile_body">%1$s וועט זיך עפענען אין דעם פראפיל וואס דו קלייבסט אויס, און דאס קומענדיגע מאל גלייך דארט.</string>
     <string name="home_open_inbox">צום פאסט קעסטל</string>
     <string name="thread_me">איך</string>
     <string name="thread_more">נאך %1$d מעלדונגען</string>
+    <string name="settings_close_reader">פארמאכן די מעלדונג ביים איבערגיין א טעקע</string>
+    <string name="settings_close_reader_desc">איבערגיין צו אן אנדער טעקע, צייכן אדער חשבון פארמאכט די אפענע מעלדונג.</string>
     <string name="settings_conversations">שמועס אנזיכט</string>
     <string name="settings_conversations_desc">צוזאמגרופירן ענטפערס אויף דער זעלבער מעלדונג אין איין שמועס, ווי אין Gmail.</string>
     <string name="settings_open_home">עפענען אויפן היים בלאט</string>

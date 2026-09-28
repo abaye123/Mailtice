@@ -17,6 +17,11 @@ interface Authorizer {
     /** Browser profiles the sign-in page can open in; empty where the choice does not exist (Android). */
     fun browserProfiles(): List<BrowserProfile> = emptyList()
 
+    /** Opens [url] in [profile] (null = the default browser), falling back to the default browser. */
+    fun openUrl(url: String, profile: BrowserProfile?) {
+        co.abaye.mailtice.platform.Platform.openUrl(url)
+    }
+
     /** [profile] null = the default browser. */
     suspend fun authorize(provider: OAuthProvider, loginHint: String? = null, profile: BrowserProfile? = null): AuthCode
 }

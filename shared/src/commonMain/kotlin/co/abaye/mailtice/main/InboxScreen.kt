@@ -215,6 +215,7 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
                         working = state.working,
                         labels = state.labelsOf(reader.message),
                         webPaused = state.preview != null,
+                        showClose = true,
                     )
                 }
             }

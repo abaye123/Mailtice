@@ -103,6 +103,8 @@ import mailtice.shared.generated.resources.reading_off
 import mailtice.shared.generated.resources.reading_split
 import mailtice.shared.generated.resources.settings_accent
 import mailtice.shared.generated.resources.settings_appearance
+import mailtice.shared.generated.resources.settings_close_reader
+import mailtice.shared.generated.resources.settings_close_reader_desc
 import mailtice.shared.generated.resources.settings_close_to_tray
 import mailtice.shared.generated.resources.settings_close_to_tray_desc
 import mailtice.shared.generated.resources.settings_conversations
@@ -199,6 +201,12 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                         ReadingPane.Off -> stringResource(Res.string.reading_off)
                     }
                 }) { onIntent(AppIntent.SetReadingPane(it)) }
+            }
+            SettingRow(
+                stringResource(Res.string.settings_close_reader),
+                subtitle = stringResource(Res.string.settings_close_reader_desc),
+            ) {
+                Switch(checked = settings.closeReaderOnSwitch, onCheckedChange = { onIntent(AppIntent.SetCloseReaderOnSwitch(it)) })
             }
             SettingRow(
                 stringResource(Res.string.settings_conversations),

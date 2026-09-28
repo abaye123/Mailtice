@@ -32,6 +32,10 @@ sealed interface AppDialog {
     data class ConfirmClearCache(val accountId: String) : AppDialog
 }
 
+/** Opening [url] (an account's web mail) once the browser profile for [accountId] is picked. */
+@Immutable
+data class WebProfileRequest(val accountId: String, val url: String)
+
 /** Where a sign-in stands; the add-account dialog shows one screen per phase. */
 enum class SignInPhase {
     /** The provider's page is open in the browser (or Play services); waiting for the redirect. */
@@ -280,6 +284,8 @@ data class AppState(
     /** Providers the build has credentials for and this platform can sign in to. */
     val availableProviders: List<ProviderKind> = ProviderKind.entries,
     val dialog: AppDialog = AppDialog.Hidden,
+    /** Web mail waiting for the user to say which browser profile the account lives in. */
+    val webProfileRequest: WebProfileRequest? = null,
     val message: AppMessage? = null,
 ) {
     val unreadTotal: Int get() = unread.values.sum().toInt()

@@ -133,6 +133,14 @@ sealed interface AppIntent {
     data class SetSmartPolling(val smart: Boolean) : AppIntent
     data class SetOpenHomeAtStart(val on: Boolean) : AppIntent
     data class SetConversationView(val on: Boolean) : AppIntent
+    data class SetCloseReaderOnSwitch(val on: Boolean) : AppIntent
+
+    /** Opens the account's mail on the provider's own site, in the browser profile it belongs to. */
+    data class OpenAccountInWeb(val accountId: String) : AppIntent
+
+    /** The profile picked for [AppState.webProfileRequest] (null = the default browser); remembered. */
+    data class ChooseWebProfile(val profileKey: String?) : AppIntent
+    data object DismissWebProfile : AppIntent
 
     /** Moves an account one place up or down in the order every list shows. */
     data class MoveAccount(val accountId: String, val up: Boolean) : AppIntent

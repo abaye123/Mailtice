@@ -464,9 +464,15 @@
     <string name="home_week">%1$d השבוע</string>
     <string name="home_checked">נבדק %1$s</string>
     <string name="home_not_checked">עדיין לא נבדק</string>
+    <string name="home_open_web">באתר</string>
+    <string name="reader_close">סגירת ההודעה</string>
+    <string name="web_profile_title">באיזה פרופיל דפדפן?</string>
+    <string name="web_profile_body">%1$s ייפתח בפרופיל שתבחר, ובפעם הבאה ייפתח שם ישר.</string>
     <string name="home_open_inbox">לתיבת הדואר</string>
     <string name="thread_me">אני</string>
     <string name="thread_more">%1$d הודעות נוספות</string>
+    <string name="settings_close_reader">סגירת ההודעה במעבר תיקייה</string>
+    <string name="settings_close_reader_desc">מעבר לתיקייה, תגית או חשבון אחר סוגר את ההודעה הפתוחה.</string>
     <string name="settings_conversations">תצוגת שיחות</string>
     <string name="settings_conversations_desc">קיבוץ תשובות לאותה הודעה לשיחה אחת, כמו ב-Gmail.</string>
     <string name="settings_open_home">פתיחה בדף הבית</string>

@@ -25,6 +25,10 @@ class LoopbackAuthorizer : Authorizer {
 
     override fun browserProfiles(): List<BrowserProfile> = BrowserProfiles.list()
 
+    override fun openUrl(url: String, profile: BrowserProfile?) {
+        if (profile == null || !BrowserProfiles.open(profile, url)) Platform.openUrl(url)
+    }
+
     override suspend fun authorize(provider: OAuthProvider, loginHint: String?, profile: BrowserProfile?): AuthCode =
         withContext(Dispatchers.IO) {
             ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { server ->

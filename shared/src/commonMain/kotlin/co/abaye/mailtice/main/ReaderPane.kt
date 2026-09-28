@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.ReplyAll
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
@@ -95,6 +96,7 @@ import mailtice.shared.generated.resources.inbox_mark_unread
 import mailtice.shared.generated.resources.inbox_trash
 import mailtice.shared.generated.resources.reader_back
 import mailtice.shared.generated.resources.reader_body_failed
+import mailtice.shared.generated.resources.reader_close
 import mailtice.shared.generated.resources.reader_download_all
 import mailtice.shared.generated.resources.reader_download_one
 import mailtice.shared.generated.resources.reader_download_thread
@@ -158,6 +160,7 @@ fun ReaderPane(
     working: Boolean = false,
     labels: List<Folder> = emptyList(),
     webPaused: Boolean = false,
+    showClose: Boolean = false,
 ) {
     val message = reader.message
     val colors = MaterialTheme.colorScheme
@@ -175,7 +178,7 @@ fun ReaderPane(
     val older = if (reader.isConversation && index >= 0) reader.thread.take(index) else emptyList()
     val newer = if (reader.isConversation && index >= 0) reader.thread.drop(index + 1) else emptyList()
     Column(modifier.fillMaxSize()) {
-        ReaderActions(reader, account, onIntent, showBack, working)
+        ReaderActions(reader, account, onIntent, showBack, working, showClose)
         if (working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
         if (!cards) HorizontalDivider(color = colors.outlineVariant)
         if (html != null) {
@@ -455,7 +458,14 @@ private fun ReplyButtons(message: MailMessage, onIntent: (AppIntent) -> Unit) {
 
 /** Only what this account supports - nothing is offered that would fail. Every icon has a tooltip. */
 @Composable
-private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppIntent) -> Unit, showBack: Boolean, working: Boolean) {
+private fun ReaderActions(
+    reader: Reader,
+    account: Account?,
+    onIntent: (AppIntent) -> Unit,
+    showBack: Boolean,
+    working: Boolean,
+    showClose: Boolean = false,
+) {
     val message = reader.message
     val caps = account?.capabilities
     Row(
@@ -467,6 +477,9 @@ private fun ReaderActions(reader: Reader, account: Account?, onIntent: (AppInten
             TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), {
                 onIntent(AppIntent.CloseReader)
             })
+        } else if (showClose) {
+            // Beside the list: the pane goes back to its empty state.
+            TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.reader_close), { onIntent(AppIntent.CloseReader) })
         }
         // An open conversation is archived or deleted whole.
         val conversation = reader.isConversation

@@ -48,6 +48,8 @@ private const val KEY_POLL = "pollSeconds"
 private const val KEY_SMART_POLL = "smartPolling"
 private const val KEY_OPEN_HOME = "openHomeAtStart"
 private const val KEY_CONVERSATIONS = "conversationView"
+private const val KEY_CLOSE_READER = "closeReaderOnSwitch"
+private const val KEY_ACCOUNT_BROWSERS = "accountBrowsers"
 private const val KEY_OFFLINE = "offlineMode"
 private const val KEY_OFFLINE_ATTACHMENTS = "offlineAttachmentsMb"
 private const val KEY_NOTIFICATIONS = "notifications"
@@ -81,6 +83,9 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_SMART_POLL=${s.smartPolling}")
         add("$KEY_OPEN_HOME=${s.openHomeAtStart}")
         add("$KEY_CONVERSATIONS=${s.conversationView}")
+        add("$KEY_CLOSE_READER=${s.closeReaderOnSwitch}")
+        // "<account id>=<profile key>" per account; ids never hold "=", keys may.
+        add("$KEY_ACCOUNT_BROWSERS=${s.accountBrowsers.entries.joinToString(LIST_SEPARATOR.toString()) { "${it.key}=${it.value}" }}")
         add("$KEY_OFFLINE=${s.offlineMode}")
         add("$KEY_OFFLINE_ATTACHMENTS=${s.offlineAttachmentsMb}")
         add("$KEY_NOTIFICATIONS=${s.notificationsEnabled}")
@@ -126,6 +131,9 @@ fun decodeSnapshot(raw: String): AppData {
         smartPolling = flag(KEY_SMART_POLL, defaults.smartPolling),
         openHomeAtStart = flag(KEY_OPEN_HOME, defaults.openHomeAtStart),
         conversationView = flag(KEY_CONVERSATIONS, defaults.conversationView),
+        closeReaderOnSwitch = flag(KEY_CLOSE_READER, defaults.closeReaderOnSwitch),
+        accountBrowsers = list(KEY_ACCOUNT_BROWSERS)?.filter { '=' in it }
+            ?.associate { it.substringBefore('=') to it.substringAfter('=') } ?: defaults.accountBrowsers,
         offlineMode = flag(KEY_OFFLINE, defaults.offlineMode),
         offlineAttachmentsMb =
         map[KEY_OFFLINE_ATTACHMENTS]?.toIntOrNull()?.takeIf { it in OfflineAttachmentLimits } ?: defaults.offlineAttachmentsMb,

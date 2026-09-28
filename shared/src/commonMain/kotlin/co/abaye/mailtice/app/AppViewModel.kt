@@ -3,6 +3,7 @@ package co.abaye.mailtice.app
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.lifecycle.ViewModel
 import androidx.navigation3.runtime.NavBackStack
+import co.abaye.mailtice.app.WebProfileRequest
 import co.abaye.mailtice.auth.AuthCancelledException
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Authorizer
@@ -33,6 +34,7 @@ import co.abaye.mailtice.domain.RetentionOptions
 import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.domain.UserSettings
 import co.abaye.mailtice.domain.conversationKey
+import co.abaye.mailtice.domain.webMailUrl
 import co.abaye.mailtice.export.ExportLabels
 import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.main.PreviewKind
@@ -342,19 +344,19 @@ class AppViewModel(
             }
 
             is AppIntent.SetFilterAccount -> {
-                mutate { it.copy(filter = it.filter.copy(accountId = intent.accountId, folderId = ""), selection = emptySet()) }
+                switchList { it.copy(accountId = intent.accountId, folderId = "") }
                 ensureSynced()
             }
 
             is AppIntent.SetFilterFolder -> {
-                mutate { it.copy(filter = it.filter.copy(folderId = intent.folderId), selection = emptySet()) }
+                switchList { it.copy(folderId = intent.folderId) }
                 ensureSynced()
             }
 
             AppIntent.LoadOlder -> loadOlder()
 
             is AppIntent.SetView -> {
-                mutate { it.copy(filter = it.filter.copy(view = intent.view, folderId = ""), selection = emptySet()) }
+                switchList { it.copy(view = intent.view, folderId = "") }
                 ensureSynced()
             }
 
@@ -588,20 +590,13 @@ class AppViewModel(
 
             is AppIntent.OpenView -> {
                 navigateToMail()
-                mutate {
-                    it.copy(
-                        filter = it.filter.copy(accountId = intent.accountId, view = intent.view, folderId = ""),
-                        selection = emptySet(),
-                    )
-                }
+                switchList { it.copy(accountId = intent.accountId, view = intent.view, folderId = "") }
                 ensureSynced()
             }
 
             is AppIntent.OpenLabel -> {
                 navigateToMail()
-                mutate {
-                    it.copy(filter = it.filter.copy(accountId = intent.accountId, folderId = intent.folderId), selection = emptySet())
-                }
+                switchList { it.copy(accountId = intent.accountId, folderId = intent.folderId) }
                 ensureSynced()
             }
 
@@ -629,6 +624,21 @@ class AppViewModel(
             }
 
             is AppIntent.SetOpenHomeAtStart -> settings { it.copy(openHomeAtStart = intent.on) }
+
+            is AppIntent.SetCloseReaderOnSwitch -> settings { it.copy(closeReaderOnSwitch = intent.on) }
+
+            is AppIntent.OpenAccountInWeb -> _state.value.account(intent.accountId)?.let { account ->
+                webMailUrl(account)?.let { openWeb(account, it) }
+            }
+
+            is AppIntent.ChooseWebProfile -> {
+                val request = _state.value.webProfileRequest ?: return
+                mutate { it.copy(webProfileRequest = null) }
+                rememberBrowser(request.accountId, intent.profileKey.orEmpty())
+                authorizer.openUrl(request.url, _state.value.browserProfiles.firstOrNull { it.key == intent.profileKey })
+            }
+
+            AppIntent.DismissWebProfile -> mutate { it.copy(webProfileRequest = null) }
 
             is AppIntent.SetConversationView -> {
                 mutate { it.copy(selection = emptySet()) }
@@ -833,6 +843,7 @@ class AppViewModel(
                     }
                 }
                 if (known != null) sync.restart(scope, known.id)
+                if (profileKey != null) rememberBrowser(id, profileKey)
                 signInStep(
                     AddAccountStep.SignIn(kind, SignInPhase.Done, reconnectId, accountId = id, email = email, profileKey = profileKey),
                 )
@@ -1749,7 +1760,50 @@ class AppViewModel(
     private fun openInWeb(message: MailMessage) {
         val account = _state.value.account(message.accountId) ?: return
         if (!account.capabilities.openInWeb) return
-        Platform.openUrl("https://mail.google.com/mail/u/${account.email}/#all/${message.id}")
+        openWeb(account, "https://mail.google.com/mail/u/${account.email}/#all/${message.id}")
+    }
+
+    /**
+     * Opens [url] in the browser profile [account] lives in: the one remembered for it, else a
+     * profile signed in with the same address (Chromium knows it), else - with several profiles to
+     * choose from - asks once and remembers. A remembered profile that is gone falls back to the
+     * default browser.
+     */
+    private fun openWeb(account: Account, url: String) {
+        val s = _state.value
+        val profiles = s.browserProfiles
+        val saved = s.data.settings.accountBrowsers[account.id]
+        if (saved != null) {
+            authorizer.openUrl(url, profiles.firstOrNull { it.key == saved })
+            return
+        }
+        val signedIn = profiles.firstOrNull { it.email.equals(account.email, ignoreCase = true) }
+        when {
+            signedIn != null -> {
+                rememberBrowser(account.id, signedIn.key)
+                authorizer.openUrl(url, signedIn)
+            }
+
+            profiles.size > 1 -> mutate { it.copy(webProfileRequest = WebProfileRequest(account.id, url)) }
+
+            else -> authorizer.openUrl(url, profiles.firstOrNull())
+        }
+    }
+
+    private fun rememberBrowser(accountId: String, profileKey: String) =
+        settings { it.copy(accountBrowsers = it.accountBrowsers + (accountId to profileKey)) }
+
+    /**
+     * Moves the list to another folder, label or account: the checked rows go, and so does the open
+     * message (the setting), which belongs to the list it was opened from.
+     */
+    private fun switchList(change: (InboxFilter) -> InboxFilter) {
+        mutate { s ->
+            val filter = change(s.filter)
+            val moved = filter.accountId != s.filter.accountId || filter.folderId != s.filter.folderId || filter.view != s.filter.view
+            val close = moved && s.data.settings.closeReaderOnSwitch
+            s.copy(filter = filter, selection = emptySet(), reader = if (close) null else s.reader)
+        }
     }
 
     private fun onNotificationAction(action: NotificationAction) {

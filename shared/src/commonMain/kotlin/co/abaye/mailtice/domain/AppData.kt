@@ -128,6 +128,13 @@ data class UserSettings(
     val uiLanguageAuto: Boolean = true,
     /** Checks at a pace learned from each account's week and recent mail; off, every [pollSeconds]. */
     val smartPolling: Boolean = true,
+    /** Moving to another folder, label or account closes the open message. */
+    val closeReaderOnSwitch: Boolean = true,
+    /**
+     * The browser profile each account's web mail opens in, by account id: a [co.abaye.mailtice.auth.BrowserProfile.key],
+     * or "" for the default browser. Remembered from the sign-in, or from the first time it is asked.
+     */
+    val accountBrowsers: Map<String, String> = emptyMap(),
     /** The list groups each conversation into one row and the reader shows it whole, as Gmail does. */
     val conversationView: Boolean = true,
     /** The app opens on the home dashboard; off, straight in the mail. */

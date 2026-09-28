@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -67,6 +68,7 @@ import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountDigest
 import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.MailView
+import co.abaye.mailtice.domain.webMailUrl
 import co.abaye.mailtice.platform.Platform
 import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
@@ -86,6 +88,7 @@ import mailtice.shared.generated.resources.home_noon
 import mailtice.shared.generated.resources.home_not_checked
 import mailtice.shared.generated.resources.home_old_unread
 import mailtice.shared.generated.resources.home_open_inbox
+import mailtice.shared.generated.resources.home_open_web
 import mailtice.shared.generated.resources.home_sync_now
 import mailtice.shared.generated.resources.home_unread
 import mailtice.shared.generated.resources.home_unread_total
@@ -320,6 +323,13 @@ private fun AccountCard(
                         TextButton(onClick = {
                             onIntent(AppIntent.Reconnect(account.id))
                         }) { Text(stringResource(Res.string.accounts_reconnect)) }
+                    }
+                    // The provider's own site, in the browser profile the account is signed in to.
+                    if (webMailUrl(account) != null) {
+                        TextButton(onClick = { onIntent(AppIntent.OpenAccountInWeb(account.id)) }) {
+                            Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, Modifier.size(16.dp))
+                            Text(stringResource(Res.string.home_open_web), Modifier.padding(start = 6.dp))
+                        }
                     }
                     TextButton(onClick = {
                         onIntent(AppIntent.OpenView(account.id, MailView.Inbox))

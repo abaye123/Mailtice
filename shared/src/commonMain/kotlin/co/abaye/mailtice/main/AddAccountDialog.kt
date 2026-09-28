@@ -96,6 +96,8 @@ import mailtice.shared.generated.resources.signin_failed_title
 import mailtice.shared.generated.resources.signin_open_mail
 import mailtice.shared.generated.resources.signin_reconnected_title
 import mailtice.shared.generated.resources.signin_retry
+import mailtice.shared.generated.resources.web_profile_body
+import mailtice.shared.generated.resources.web_profile_title
 import org.jetbrains.compose.resources.stringResource
 
 /** Addresses, hosts, ports and passwords read left-to-right even in a Hebrew interface. */
@@ -232,6 +234,51 @@ private fun BrowserChooser(step: AddAccountStep.ChooseBrowser, state: AppState, 
                 color = MaterialTheme.colorScheme.outline,
                 marked = last.isEmpty(),
             ) { onIntent(AppIntent.ChooseBrowser(null)) }
+        }
+    }
+}
+
+/**
+ * Which browser profile an account's web mail opens in, asked the first time when no profile is
+ * signed in with the account's address. The answer is remembered.
+ */
+@Composable
+fun WebProfileDialog(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
+    val request = state.webProfileRequest ?: return
+    val account = state.account(request.accountId) ?: return
+    val close = { onIntent(AppIntent.DismissWebProfile) }
+    FlowDialog(onDismiss = close) {
+        Column(modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(Res.string.web_profile_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.dialog_cancel), close)
+            }
+            Text(
+                stringResource(Res.string.web_profile_body, account.email),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Column(
+                Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.browserProfiles.forEach { profile ->
+                    BrowserRow(
+                        title = profile.name,
+                        subtitle = listOf(profile.browser, profile.email).filter { it.isNotBlank() }.joinToString(" · "),
+                        letter = profile.name,
+                        color = profile.browserColor(),
+                        marked = false,
+                    ) { onIntent(AppIntent.ChooseWebProfile(profile.key)) }
+                }
+                BrowserRow(
+                    title = stringResource(Res.string.browser_default),
+                    subtitle = null,
+                    letter = "",
+                    color = MaterialTheme.colorScheme.outline,
+                    marked = false,
+                ) { onIntent(AppIntent.ChooseWebProfile(null)) }
+            }
         }
     }
 }

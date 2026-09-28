@@ -32,6 +32,7 @@ import co.abaye.mailtice.main.LocalCompactLayout
 import co.abaye.mailtice.main.MainShell
 import co.abaye.mailtice.main.ReaderScreen
 import co.abaye.mailtice.main.SettingsScreen
+import co.abaye.mailtice.main.WebProfileDialog
 import co.abaye.mailtice.ui.AppDialogHost
 import co.abaye.mailtice.ui.LocalDensitySpec
 import co.abaye.mailtice.ui.LocalPaneStyle
@@ -60,6 +61,7 @@ fun RootScreen(state: AppState, backStack: NavBackStack<AppKey>, onIntent: (AppI
             modifier = Modifier.align(AbsoluteAlignment.BottomLeft).padding(start = toastInset(state)),
         )
         AppDialogHost(state = state, onIntent = onIntent)
+        WebProfileDialog(state = state, onIntent = onIntent)
         ComposeWindow(state = state, onIntent = onIntent)
     }
 }
