@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
@@ -60,6 +61,7 @@ import dev.nucleusframework.window.WindowControls
 import dev.nucleusframework.window.WindowScaffold
 import dev.nucleusframework.window.macOSLargeCornerRadius
 import dev.nucleusframework.window.material.MaterialDecoratedWindow
+import dev.nucleusframework.window.tao.TaoDecoratedWindowScope
 import dev.nucleusframework.window.windowDragArea
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -71,6 +73,7 @@ import mailtice.shared.generated.resources.tray_open
 import mailtice.shared.generated.resources.tray_quit
 import mailtice.shared.generated.resources.tray_refresh
 import mailtice.shared.generated.resources.tray_tooltip
+import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -115,15 +118,20 @@ fun main(args: Array<String>) {
         // A second launch (or a click on a summary notification) brings the hidden window back.
         SingleInstanceRestoreEffect { show() }
         LaunchedEffect(vm) { vm?.raiseWindow?.collect { show() } }
-        // Off the UI thread: the Windows and Linux badges go through native calls.
-        LaunchedEffect(unread) { withContext(Dispatchers.IO) { TaskbarBadge.show(unread) } }
+        val badgeText = stringResource(Res.string.tray_tooltip, unread)
+        // Off the UI thread: the badges go through native calls. Windows waits for the window's handle
+        // (set below) and draws again whenever the window comes back, since hiding it drops the button.
+        LaunchedEffect(unread, visible) { withContext(Dispatchers.IO) { TaskbarBadge.show(unread, badgeText) } }
 
         // The menu builder is not a composable scope, so labels are resolved here and captured.
         val openLabel = stringResource(Res.string.tray_open)
         val refreshLabel = stringResource(Res.string.tray_refresh)
         val quitLabel = stringResource(Res.string.tray_quit)
+        // The tray icon carries the unread count too, where the taskbar button is gone (closed to tray).
+        val baseIcon = imageResource(Res.drawable.app_icon)
+        val trayIcon = remember(baseIcon, unread) { BitmapPainter(BadgeIcons.trayIcon(baseIcon, unread)) }
         Tray(
-            icon = painterResource(Res.drawable.app_icon),
+            icon = trayIcon,
             tooltip = stringResource(Res.string.tray_tooltip, unread),
             primaryAction = { show() },
         ) {
@@ -143,6 +151,11 @@ fun main(args: Array<String>) {
                 minimumSize = DpSize(720.dp, 520.dp),
             ) {
                 val windowScope = this
+                val handle = (this as? TaoDecoratedWindowScope)?.window?.nativeHandle ?: 0L
+                LaunchedEffect(handle) {
+                    TaskbarBadge.windowHandle = handle
+                    withContext(Dispatchers.IO) { TaskbarBadge.show(unread, badgeText) }
+                }
                 WindowBackground(colors.background)
                 WindowAppearance(if (dark) WindowAppearanceMode.Dark else WindowAppearanceMode.Light)
 
