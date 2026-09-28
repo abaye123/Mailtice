@@ -350,6 +350,6 @@ jobs:
             *-alpha*|*-beta*|*-rc*) flags+=(--prerelease) ;;
           esac
           gh release create "$tag" release/* \
-            --title "Music Radio ${tag#v}" \
+            --title "Mailtice ${tag#v}" \
             --generate-notes \
             "${flags[@]}"

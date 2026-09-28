@@ -212,8 +212,8 @@ aboutLibraries {
 
 /**
  * Compose Resources on Android compares `values-*` against Locale.getLanguage(), which still answers
- * "iw" for Hebrew there. Publish the Hebrew bundle a second time under that code (same fix as in
- * MusicRadio); generated, not committed, so the translation keeps a single source.
+ * "iw" for Hebrew there. Publish the Hebrew bundle a second time under that code; generated, not
+ * committed, so the translation keeps a single source.
  */
 val mirrorHebrewStringsForAndroid = tasks.register<Copy>("mirrorHebrewStringsForAndroid") {
     val resources = layout.projectDirectory.dir("src/commonMain/composeResources")

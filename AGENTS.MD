@@ -1,8 +1,7 @@
 # Mailtice - Compose Multiplatform mail client (desktop + Android)
 
 Unified inbox + notifications for Gmail/Workspace (Gmail API), Outlook/Microsoft 365 and Yahoo
-(IMAP + XOAUTH2) and any IMAP server (password). Built on the Nucleus template used by MusicRadio
-and EdgeTranslator.
+(IMAP + XOAUTH2) and any IMAP server (password). Built on Compose Multiplatform and Nucleus.
 
 ## Project Structure
 
