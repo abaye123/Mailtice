@@ -61,6 +61,13 @@
     <string name="message_action_failed">Gmail האט אפגעווארפן די ענדערונג. דער אימעיל איז צוריק אין דער ליסטע.</string>
     <string name="message_launch_at_login_failed">Windows האט נישט דערלויבט אנצוהייבן ביים אנהייבן דעם קאמפיוטער.</string>
     <string name="message_reset_done">די אפליקאציע איז צוריקגעשטעלט געווארן</string>
+    <string name="about_developed_by">אנטוויקלט דורך %1$s</string>
+    <string name="about_open_source">אפענער קאוד · ביישטייערונגען און מעלדונגען פון פעלערן זענען באגריסט</string>
+    <string name="about_report_bug">מעלדן א פעלער</string>
+    <string name="about_libraries">דרויסנדיגע ביבליאטעקן</string>
+    <string name="about_by">פון %1$s · אונטער דער לייסענס %2$s</string>
+    <string name="about_lib_compose">דער אינטערפעיס אויפן קאמפיוטער און אנדרויד</string>
+    <string name="about_lib_nucleus">פענצטער, טאץ, מעלדונגען און דערהיינטיגונגען אויפן קאמפיוטער</string>
     <string name="about_version">ווערסיע %1$s</string>
     <string name="about_licenses">אפענע קאוד לייסענסעס</string>
     <string name="about_repo">דער קוואל קאוד אויף %1$s</string>

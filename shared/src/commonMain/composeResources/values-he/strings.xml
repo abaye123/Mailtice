@@ -69,6 +69,13 @@
     <string name="message_launch_at_login_failed">Windows לא אישר הפעלה עם עליית המחשב.</string>
     <string name="message_reset_done">האפליקציה אופסה</string>
 
+    <string name="about_developed_by">פותח על ידי %1$s</string>
+    <string name="about_open_source">קוד פתוח · תרומות ודיווח על באגים מתקבלים בברכה</string>
+    <string name="about_report_bug">דיווח על באג</string>
+    <string name="about_libraries">ספריות חיצוניות</string>
+    <string name="about_by">מאת %1$s · ברישיון %2$s</string>
+    <string name="about_lib_compose">ממשק המשתמש במחשב ובאנדרואיד</string>
+    <string name="about_lib_nucleus">חלון, מגש מערכת, התראות ועדכונים במחשב</string>
     <string name="about_version">גרסה %1$s</string>
     <string name="about_licenses">רישיונות קוד פתוח</string>
     <string name="about_repo">קוד המקור ב-%1$s</string>
