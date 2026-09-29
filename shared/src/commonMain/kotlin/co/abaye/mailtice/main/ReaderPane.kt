@@ -14,9 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -62,6 +65,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -155,7 +159,8 @@ fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modif
  * After the approved design: an action bar, a large subject with the account as a chip, the sender
  * with an avatar, then the body across the full width. HTML mail is drawn by the platform's own
  * browser engine and scrolls inside its own area under the fixed header; plain text scrolls with
- * the header. Quoted earlier messages start folded either way.
+ * the header. Quoted earlier messages start folded either way. [composer], when given, is an inline
+ * reply to this message and takes the place of the reply buttons.
  */
 @Composable
 fun ReaderPane(
@@ -168,6 +173,7 @@ fun ReaderPane(
     labels: List<Folder> = emptyList(),
     webPaused: Boolean = false,
     showClose: Boolean = false,
+    composer: (@Composable () -> Unit)? = null,
 ) {
     val message = reader.message
     val colors = MaterialTheme.colorScheme
@@ -244,12 +250,20 @@ fun ReaderPane(
                     )
                 }
                 if (newer.isNotEmpty()) FoldedMessages(newer, account, onIntent)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
-                    Spacer(Modifier.weight(1f))
-                    if (quoted) QuoteToggle(showQuoted) { showQuoted = !showQuoted }
-                    // Opened in full on request: the way back to the quick view.
-                    if (simple && fullView) ViewToggle(full = true) { fullView = false }
+                if (composer == null || quoted || (simple && fullView)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (composer == null && account?.capabilities?.send == true) ReplyButtons(message, onIntent)
+                        Spacer(Modifier.weight(1f))
+                        if (quoted) QuoteToggle(showQuoted) { showQuoted = !showQuoted }
+                        // Opened in full on request: the way back to the quick view.
+                        if (simple && fullView) ViewToggle(full = true) { fullView = false }
+                    }
+                }
+                // The page keeps its own scrolling, so the reply gets a bounded area that scrolls too.
+                if (composer != null) {
+                    Box(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()).padding(bottom = 12.dp)) {
+                        composer()
+                    }
                 }
             }
         } else {
@@ -307,7 +321,11 @@ fun ReaderPane(
                     else -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 }
                 if (newer.isNotEmpty()) FoldedMessages(newer, account, onIntent)
-                if (account?.capabilities?.send == true) ReplyButtons(message, onIntent)
+                if (composer != null) {
+                    InlineReplySlot(composer)
+                } else if (account?.capabilities?.send == true) {
+                    ReplyButtons(message, onIntent)
+                }
             }
         }
     }
@@ -538,6 +556,18 @@ private fun ImagesBar(onShow: () -> Unit) {
     }
 }
 
+/** An inline reply under the message, scrolled into view when it opens so the cursor is not off screen. */
+@Composable
+private fun InlineReplySlot(composer: @Composable () -> Unit) {
+    val bring = remember { BringIntoViewRequester() }
+    LaunchedEffect(bring) {
+        // One frame first, so the composer has been laid out and has a place to scroll to.
+        withFrameNanos { }
+        bring.bringIntoView()
+    }
+    Box(Modifier.fillMaxWidth().bringIntoViewRequester(bring).padding(bottom = 12.dp)) { composer() }
+}
+
 @Composable
 private fun ReplyButtons(message: MailMessage, onIntent: (AppIntent) -> Unit) {
     FlowRow(
@@ -581,9 +611,6 @@ private fun ReaderActions(
             TooltipIconButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(Res.string.reader_back), {
                 onIntent(AppIntent.CloseReader)
             })
-        } else if (showClose) {
-            // Beside the list: the pane goes back to its empty state.
-            TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.reader_close), { onIntent(AppIntent.CloseReader) })
         }
         // An open conversation is archived or deleted whole.
         val conversation = reader.isConversation
@@ -602,12 +629,13 @@ private fun ReaderActions(
                 onIntent(AppIntent.SetRead(message, read = false))
             })
         }
+        Box(Modifier.weight(1f))
+        // Reply heads the group at the far end, beside "open as HTML".
         if (caps?.send == true) {
             TooltipIconButton(Icons.AutoMirrored.Outlined.Reply, stringResource(Res.string.reader_reply), {
                 onIntent(AppIntent.StartCompose(ComposeMode.Reply, message))
             })
         }
-        Box(Modifier.weight(1f))
         if (Platform.isDesktop && reader.body?.html?.isNotBlank() == true) {
             TooltipIconButton(Icons.Outlined.Code, stringResource(Res.string.reader_open_html), { onIntent(AppIntent.OpenHtml(message)) })
         }
@@ -617,6 +645,10 @@ private fun ReaderActions(
             })
         }
         MoreActions(message, enabled = !working, onIntent)
+        if (showClose && !showBack) {
+            // Beside the list: the pane goes back to its empty state. Last, at the far end, like a window's close.
+            TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.reader_close), { onIntent(AppIntent.CloseReader) })
+        }
     }
 }
 

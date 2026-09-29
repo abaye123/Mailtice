@@ -218,6 +218,7 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
                         labels = state.labelsOf(reader.message),
                         webPaused = state.preview != null,
                         showClose = true,
+                        composer = if (state.composesInReader) ({ InlineComposer(state, onIntent) }) else null,
                     )
                 }
             }
@@ -250,6 +251,7 @@ private fun FullWidthInbox(state: AppState, onIntent: (AppIntent) -> Unit, cards
                         working = state.working,
                         labels = state.labelsOf(reader.message),
                         webPaused = state.preview != null,
+                        composer = if (state.composesInReader) ({ InlineComposer(state, onIntent) }) else null,
                     )
                 }
             }

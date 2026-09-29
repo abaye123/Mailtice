@@ -74,8 +74,13 @@ private fun toastInset(state: AppState): androidx.compose.ui.unit.Dp {
     if (!rtl || LocalCompactLayout.current) return 0.dp
     return when (compose.window) {
         ComposeWindowMode.Normal -> 24.dp + 560.dp
+
         ComposeWindowMode.Minimized -> 24.dp + 320.dp
+
         ComposeWindowMode.Maximized -> 0.dp
+
+        // In the reader it leaves the corner free; away from its message it is docked there.
+        ComposeWindowMode.Inline -> if (state.composesInReader) 0.dp else 24.dp + 560.dp
     }
 }
 

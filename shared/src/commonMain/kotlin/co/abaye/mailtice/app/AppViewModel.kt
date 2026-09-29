@@ -455,6 +455,7 @@ class AppViewModel(
                         quoteHtml = current.quoteHtml,
                         attachments = current.attachments,
                         scheduledId = current.scheduledId,
+                        sourceKey = current.sourceKey,
                         initialHtml = current.initialHtml,
                         fromEmail = current.fromEmail,
                         editorVersion = current.editorVersion,
@@ -1453,6 +1454,9 @@ class AppViewModel(
             threadId = message.threadId.takeIf { account.kind == ProviderKind.Gmail && it.isNotBlank() },
             fromEmail = replyFrom.email,
             initialHtml = signatureHtml(replyFrom),
+            // On desktop a reply or forward opens under the message, like Gmail's; phones keep the full screen.
+            sourceKey = message.key,
+            window = if (Platform.isDesktop) ComposeWindowMode.Inline else ComposeWindowMode.Normal,
         )
         mutate { it.copy(compose = draft) }
         scope.launch {

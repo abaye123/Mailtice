@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mailtice</string>
-    <string name="app_tagline">All your Gmail accounts in one place</string>
+    <string name="app_tagline">All your mail accounts in one place</string>
 
     <string name="nav_inbox">Inbox</string>
     <string name="nav_accounts">Accounts</string>
@@ -317,6 +317,7 @@
     <string name="compose_maximize">Full screen</string>
     <string name="compose_restore">Restore</string>
     <string name="compose_close">Close</string>
+    <string name="compose_pop_out">Open in a window</string>
     <string name="compose_formatting">Formatting options</string>
     <string name="compose_attach">Attach files</string>
     <string name="compose_delete_draft">Discard draft</string>

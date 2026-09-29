@@ -1,6 +1,7 @@
 package co.abaye.mailtice.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.AttachFile
@@ -140,6 +142,7 @@ import mailtice.shared.generated.resources.compose_invalid_address
 import mailtice.shared.generated.resources.compose_maximize
 import mailtice.shared.generated.resources.compose_minimize
 import mailtice.shared.generated.resources.compose_new_title
+import mailtice.shared.generated.resources.compose_pop_out
 import mailtice.shared.generated.resources.compose_reply_title
 import mailtice.shared.generated.resources.compose_restore
 import mailtice.shared.generated.resources.compose_schedule
@@ -181,11 +184,14 @@ private val LtrText = TextStyle(textDirection = TextDirection.Ltr)
  * it), with minimise / maximise / close in its title bar. Recipients become chips with suggestions
  * from mail already received, the body is a rich-text editor, a reply's quote stays folded under
  * "⋯", files can be attached, and "Send" has a menu to schedule it. Phones get the whole screen.
+ * An inline reply is drawn by the reader ([InlineComposer]) while its message is open, and docked
+ * here like any other draft once the user moves away from it, so it never vanishes.
  */
 @Composable
 fun ComposeWindow(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
     val draft = state.compose ?: return
     val compact = LocalCompactLayout.current
+    if (!compact && state.composesInReader) return
     BoxWithConstraints(modifier.fillMaxSize()) {
         val maxH = maxHeight
         when {
@@ -226,16 +232,80 @@ fun ComposeWindow(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modi
     }
 }
 
+/**
+ * A reply or forward written inside the reader, under the message it answers (Gmail's default).
+ * The same editor as the window's, with a compact header that can pop it out into the window.
+ */
+@Composable
+fun InlineComposer(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
+    val draft = state.compose ?: return
+    val shape = RoundedCornerShape(16.dp)
+    Surface(
+        modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+    ) { ComposeSheet(draft, state, onIntent, docked = true, inline = true) }
+}
+
+/** The title bar's text: the subject once there is one, otherwise what kind of message this is. */
+@Composable
+private fun composeTitle(draft: ComposeDraft): String = when {
+    draft.subject.isNotBlank() -> draft.subject
+    draft.mode == ComposeMode.Forward -> stringResource(Res.string.compose_forward_title)
+    draft.mode == ComposeMode.New -> stringResource(Res.string.compose_new_title)
+    else -> stringResource(Res.string.compose_reply_title)
+}
+
+/** Gmail's quiet "Draft saved" under the title; null while there is nothing to say. */
+@Composable
+private fun draftStatus(draft: ComposeDraft): String? = when (draft.draftSave) {
+    DraftSave.Saving -> stringResource(Res.string.draft_saving)
+    DraftSave.Saved -> stringResource(Res.string.draft_saved)
+    DraftSave.Failed -> stringResource(Res.string.draft_failed)
+    DraftSave.None -> null
+}
+
+@Composable
+private fun DraftStatusLine(draft: ComposeDraft) {
+    val status = draftStatus(draft) ?: return
+    Text(
+        status,
+        style = MaterialTheme.typography.labelSmall,
+        color = if (draft.draftSave == DraftSave.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * The inline composer's header: no window bar to click, just the title with the draft status,
+ * a way out into the window (to keep writing while reading other mail) and close.
+ */
+@Composable
+private fun InlineHeader(draft: ComposeDraft, onIntent: (AppIntent) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                composeTitle(draft),
+                style = MaterialTheme.typography.titleSmall.merge(ContentDirection),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            DraftStatusLine(draft)
+        }
+        TooltipIconButton(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(Res.string.compose_pop_out), {
+            onIntent(AppIntent.ComposeWindow(ComposeWindowMode.Normal))
+        })
+        TooltipIconButton(Icons.Outlined.Close, stringResource(Res.string.compose_close), {
+            onIntent(AppIntent.CloseCompose)
+        }, enabled = !draft.sending)
+    }
+}
+
 @Composable
 private fun ComposeHeader(draft: ComposeDraft, onIntent: (AppIntent) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val minimized = draft.window == ComposeWindowMode.Minimized
-    val title = when {
-        draft.subject.isNotBlank() -> draft.subject
-        draft.mode == ComposeMode.Forward -> stringResource(Res.string.compose_forward_title)
-        draft.mode == ComposeMode.New -> stringResource(Res.string.compose_new_title)
-        else -> stringResource(Res.string.compose_reply_title)
-    }
+    val title = composeTitle(draft)
     Row(
         Modifier.fillMaxWidth().height(44.dp).background(colors.surfaceContainerHighest)
             .clickable { onIntent(AppIntent.ComposeWindow(if (minimized) ComposeWindowMode.Normal else ComposeWindowMode.Minimized)) }
@@ -250,20 +320,7 @@ private fun ComposeHeader(draft: ComposeDraft, onIntent: (AppIntent) -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // Gmail's quiet "Draft saved" under the title.
-            val status = when (draft.draftSave) {
-                DraftSave.Saving -> stringResource(Res.string.draft_saving)
-                DraftSave.Saved -> stringResource(Res.string.draft_saved)
-                DraftSave.Failed -> stringResource(Res.string.draft_failed)
-                DraftSave.None -> null
-            }
-            if (status != null && !minimized) {
-                Text(
-                    status,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (draft.draftSave == DraftSave.Failed) colors.error else colors.onSurfaceVariant,
-                )
-            }
+            if (!minimized) DraftStatusLine(draft)
         }
         if (!LocalCompactLayout.current) {
             TooltipIconButton(
@@ -284,9 +341,13 @@ private fun ComposeHeader(draft: ComposeDraft, onIntent: (AppIntent) -> Unit) {
     }
 }
 
+/**
+ * The editor itself. [inline] lays it out for the reader: as tall as its content (the reader
+ * scrolls it) and under a compact header instead of the window's title bar.
+ */
 @OptIn(FlowPreview::class)
 @Composable
-private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppIntent) -> Unit, docked: Boolean) {
+private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppIntent) -> Unit, docked: Boolean, inline: Boolean = false) {
     val current by rememberUpdatedState(draft)
     fun update(block: (ComposeDraft) -> ComposeDraft) = onIntent(AppIntent.UpdateCompose(block(current)))
     // Reloaded when the signature is swapped for another address's ([ComposeDraft.editorVersion]).
@@ -311,13 +372,13 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
     val colors = MaterialTheme.colorScheme
 
     Column(
-        Modifier.fillMaxSize().onPreviewKeyEvent { e ->
+        (if (inline) Modifier.fillMaxWidth() else Modifier.fillMaxSize()).onPreviewKeyEvent { e ->
             val send = e.type == KeyEventType.KeyDown && e.key == Key.Enter && (e.isCtrlPressed || e.isMetaPressed)
             if (send) onIntent(AppIntent.SendCompose)
             send
         },
     ) {
-        ComposeHeader(draft, onIntent)
+        if (inline) InlineHeader(draft, onIntent) else ComposeHeader(draft, onIntent)
         Column(Modifier.padding(horizontal = 16.dp)) {
             FromRow(draft, state, enabled) { identity -> onIntent(AppIntent.SetComposeFrom(identity.accountId, identity.email)) }
             RecipientField(
@@ -356,11 +417,19 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
             LineField(stringResource(Res.string.compose_subject), draft.subject, enabled) { v -> update { it.copy(subject = v) } }
         }
         // The body: editor, the folded quote, then the attached files.
-        Box(Modifier.weight(1f).fillMaxWidth().fileDropTarget(onHover = { dropHover = it }, onFiles = onDropped)) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp)) {
+        // Inline, the reader's own column scrolls it; in the window the body scrolls under the fields.
+        val bodyBox = if (inline) Modifier.fillMaxWidth() else Modifier.weight(1f).fillMaxWidth()
+        val bodyColumn = if (inline) Modifier.fillMaxWidth() else Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        val editorHeight = when {
+            inline -> 140.dp
+            docked -> 160.dp
+            else -> 280.dp
+        }
+        Box(bodyBox.fileDropTarget(onHover = { dropHover = it }, onFiles = onDropped)) {
+            Column(bodyColumn.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 BasicRichTextEditor(
                     state = rich,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = if (docked) 160.dp else 280.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = editorHeight),
                     enabled = enabled,
                     textStyle = MaterialTheme.typography.bodyLarge.merge(ContentDirection).copy(color = colors.onSurface),
                     cursorBrush = SolidColor(colors.primary),
@@ -411,7 +480,7 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
                     }
                 }
             }
-            if (dropHover) DropHint()
+            if (dropHover) DropHint(Modifier.matchParentSize())
         }
         if (draft.invalidAddresses) {
             Text(
@@ -437,10 +506,10 @@ private fun ComposeSheet(draft: ComposeDraft, state: AppState, onIntent: (AppInt
 
 /** Over the body while a file is dragged across it. */
 @Composable
-private fun DropHint() {
+private fun DropHint(modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     Box(
-        Modifier.fillMaxSize().padding(8.dp).clip(RoundedCornerShape(12.dp))
+        modifier.fillMaxSize().padding(8.dp).clip(RoundedCornerShape(12.dp))
             .background(colors.primaryContainer.copy(alpha = 0.85f)),
         contentAlignment = Alignment.Center,
     ) {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mailtice</string>
-    <string name="app_tagline">כל חשבונות ה-Gmail במקום אחד</string>
+    <string name="app_tagline">כל תיבות המייל שלך במקום אחד</string>
 
     <string name="nav_inbox">תיבה</string>
     <string name="nav_accounts">חשבונות</string>
@@ -317,6 +317,7 @@
     <string name="compose_maximize">מסך מלא</string>
     <string name="compose_restore">חזרה לגודל רגיל</string>
     <string name="compose_close">סגירה</string>
+    <string name="compose_pop_out">פתיחה בחלון נפרד</string>
     <string name="compose_formatting">אפשרויות עיצוב</string>
     <string name="compose_attach">צירוף קבצים</string>
     <string name="compose_delete_draft">מחיקת הטיוטה</string>

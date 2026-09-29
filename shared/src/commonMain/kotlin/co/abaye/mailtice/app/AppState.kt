@@ -106,8 +106,12 @@ enum class ComposeMode { New, Reply, ReplyAll, Forward }
 /** Where the draft's copy on the server stands, for the compose window's title bar. */
 enum class DraftSave { None, Saving, Saved, Failed }
 
-/** The compose window's size: docked at the bottom corner, just its title bar, or large and centred. */
-enum class ComposeWindowMode { Normal, Minimized, Maximized }
+/**
+ * The compose window's size: docked at the bottom corner, just its title bar, or large and centred.
+ * [Inline] is a reply or forward written inside the reader, under the message it answers (Gmail's
+ * default); while that message is not open it falls back to the docked window.
+ */
+enum class ComposeWindowMode { Normal, Minimized, Maximized, Inline }
 
 /** A file attached in the compose window. */
 @Immutable
@@ -148,6 +152,11 @@ data class ComposeDraft(
     val quoteHtml: String? = null,
     val attachments: List<DraftAttachment> = emptyList(),
     val window: ComposeWindowMode = ComposeWindowMode.Normal,
+    /**
+     * [MailMessage.key] of the message a reply or forward was started from; an [ComposeWindowMode.Inline]
+     * draft is drawn in the reader while that message (or its conversation) is open.
+     */
+    val sourceKey: String? = null,
     /** Set while editing a message from the scheduled queue; sending or rescheduling replaces it. */
     val scheduledId: String? = null,
     /** The draft saved on the server ([co.abaye.mailtice.provider.MailProvider.saveDraft]), and in which account. */
@@ -330,6 +339,10 @@ data class AppState(
 
     /** The open message and the rest of its open conversation. */
     val readerKeys: Set<String> get() = reader?.let { r -> (r.thread + r.message).mapTo(mutableSetOf()) { it.key } }.orEmpty()
+
+    /** The draft is written inside the reader: inline, and answering the open message or its conversation. */
+    val composesInReader: Boolean get() =
+        compose?.let { it.window == ComposeWindowMode.Inline && it.sourceKey != null && it.sourceKey in readerKeys } == true
 
     /** The list as conversation rows, newest first (conversation view). */
     val conversations: List<MailThread> get() = groupConversations(visibleMessages, threadMembers)

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mailtice</string>
-    <string name="app_tagline">אלע Gmail חשבונות אויף איין ארט</string>
+    <string name="app_tagline">אלע אייערע אימעיל קעסטלעך אויף איין ארט</string>
     <string name="nav_inbox">קעסטל</string>
     <string name="nav_accounts">חשבונות</string>
     <string name="nav_settings">איינשטעלונגען</string>
@@ -284,6 +284,7 @@
     <string name="compose_maximize">גאנצער עקראן</string>
     <string name="compose_restore">צוריק צו נארמאלער גרייס</string>
     <string name="compose_close">פארמאכן</string>
+    <string name="compose_pop_out">עפענען אין א באזונדער פענצטער</string>
     <string name="compose_formatting">פארמאטירונג אפציעס</string>
     <string name="compose_attach">צולייגן פיילס</string>
     <string name="compose_delete_draft">אויסמעקן די סקיצע</string>
