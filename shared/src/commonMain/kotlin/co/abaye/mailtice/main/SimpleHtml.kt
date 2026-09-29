@@ -40,6 +40,29 @@ private val BackgroundAttribute = Regex("(?i)\\s(bgcolor|background)\\s*=")
 
 private const val SIMPLE_LIMIT = 200_000
 
+/**
+ * How [html] is best shown. [Simple]: as themed text ([simpleHtmlText]). [Rich]: laid out with
+ * tables, images and inline styles, which [co.abaye.mailtice.main.html.RichHtmlBody] draws natively.
+ * [Web]: needs a browser - floats, flex or grid, positioned boxes, background images, forms, media.
+ */
+enum class HtmlTier { Simple, Rich, Web }
+
+private val BrowserOnlyTags = Regex(
+    "(?i)<(svg|video|audio|iframe|object|embed|form|input|button|select|textarea|canvas|map|frameset)\\b",
+)
+private val BrowserOnlyStyle = Regex(
+    "(?i)(position\\s*:\\s*(absolute|fixed)|float\\s*:\\s*(left|right)|display\\s*:\\s*(grid|flex)|background(-image)?\\s*:[^;\"']*url\\(|\\sbackground\\s*=)",
+)
+private const val RICH_LIMIT = 400_000
+
+fun htmlTier(html: String): HtmlTier {
+    if (isSimpleHtml(html)) return HtmlTier.Simple
+    if (html.length > RICH_LIMIT) return HtmlTier.Web
+    val shown = html.replace(HiddenBlocks, "")
+    if (BrowserOnlyTags.containsMatchIn(shown) || BrowserOnlyStyle.containsMatchIn(shown)) return HtmlTier.Web
+    return HtmlTier.Rich
+}
+
 /** Whether [html] reads fine as styled text, without a browser: no tables, images, media or layout styles. */
 fun isSimpleHtml(html: String): Boolean {
     if (html.length > SIMPLE_LIMIT) return false
@@ -64,7 +87,8 @@ private val NamedEntities = mapOf(
 )
 private val NamedEntity = Regex("&([a-zA-Z]+);")
 
-private fun decode(text: String): String = HtmlText.decodeEntities(
+/** Text from HTML with its character references decoded: numeric, the basic five and the common named ones. */
+internal fun decodeHtmlText(text: String): String = HtmlText.decodeEntities(
     text.replace(NamedEntity) { m -> NamedEntities[m.groupValues[1].lowercase()]?.let { Char(it).toString() } ?: m.value },
 )
 
@@ -98,7 +122,7 @@ fun simpleHtmlText(html: String, linkColor: Color, quoteColor: Color, onOpen: (S
         if (last != '\n') put("\n")
     }
     fun text(raw: String) {
-        val decoded = decode(raw)
+        val decoded = decodeHtmlText(raw)
         if (pre > 0) {
             put(decoded)
             return
@@ -127,7 +151,7 @@ fun simpleHtmlText(html: String, linkColor: Color, quoteColor: Color, onOpen: (S
 
         "a" -> {
             val m = Href.find(attrs)
-            val href = m?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.let(::decode)?.trim()
+            val href = m?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.let(::decodeHtmlText)?.trim()
             val safe = href?.takeIf { h -> listOf("http://", "https://", "mailto:").any { h.startsWith(it, ignoreCase = true) } }
             safe?.let { url -> out.pushLink(LinkAnnotation.Clickable(url, linkStyles) { onOpen(url) }) }
         }

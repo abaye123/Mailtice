@@ -104,7 +104,8 @@ private val CidRef = Regex("(?i)cid:([^\"'\\s)>]+)")
 /** The Content-IDs [html] shows inline ("cid:..." references), unescaped. */
 fun cidRefs(html: String): Set<String> = CidRef.findAll(html).map { unescapeCid(it.groupValues[1]) }.toSet()
 
-private fun unescapeCid(raw: String): String = raw.replace("%40", "@").replace("%2E", ".", ignoreCase = true).replace("&amp;", "&")
+/** A cid: reference as its Content-ID: the escapes HTML and URLs put in it undone. */
+internal fun unescapeCid(raw: String): String = raw.replace("%40", "@").replace("%2E", ".", ignoreCase = true).replace("&amp;", "&")
 
 /** The target attribute of a link or image-map area, whatever its quoting. */
 private val LinkTarget = Regex("(?i)(<(?:a|area)\\b[^>]*?)\\s+target\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)")

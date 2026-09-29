@@ -85,6 +85,7 @@ import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.main.html.RichHtmlBody
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.translate.LocalTranslationOffer
 import co.abaye.mailtice.translate.languageName
@@ -181,11 +182,12 @@ fun ReaderPane(
     // Simple HTML reads as styled text; the webview is for mail laid out with tables and images,
     // or when asked for ("full view"), or always (the setting).
     var fullView by remember(message.key) { mutableStateOf(false) }
-    val simple = remember(html) { html != null && isSimpleHtml(html) }
+    val tier = remember(html) { html?.let(::htmlTier) }
+    val simple = tier != null && tier != HtmlTier.Web
     val wantsWeb = html != null && when (prefs.htmlView) {
         HtmlView.Full -> true
         HtmlView.Simple -> fullView
-        HtmlView.Auto -> !simple || fullView
+        HtmlView.Auto -> tier == HtmlTier.Web || fullView
     }
     // While the next message loads, the layout stays as it was: leaving the webview for a moment and
     // coming back would start the browser engine again for every message opened.
@@ -257,9 +259,21 @@ fun ReaderPane(
             ) {
                 ReaderHeader(reader, account, labels, working, onIntent, older)
                 when {
-                    body != null && html != null -> SimpleHtmlBody(html, showQuoted, {
-                        showQuoted = !showQuoted
-                    }, { fullView = true }, onIntent)
+                    body != null && html != null -> {
+                        // Laid-out mail with remote images: held back until asked for, as in the webview.
+                        val rich = tier != HtmlTier.Simple
+                        if (rich && !showImages && remember(html) { htmlLoadsRemote(html) }) ImagesBar { showImages = true }
+                        NativeHtmlBody(
+                            html,
+                            rich = rich,
+                            showQuoted = showQuoted,
+                            remoteImages = showImages,
+                            inlineImages = reader.inlineImages,
+                            onToggleQuote = { showQuoted = !showQuoted },
+                            onFullView = { fullView = true },
+                            onIntent = onIntent,
+                        )
+                    }
 
                     body != null -> {
                         val split = remember(body) { splitQuote(body.text.ifBlank { message.snippet }) }
@@ -436,13 +450,17 @@ private fun htmlLoadsRemote(html: String): Boolean =
     Regex("(?i)(<img[^>]+src\\s*=\\s*[\"']?https?:|url\\(\\s*['\"]?https?:|<link[^>]+href\\s*=\\s*[\"']?https?:)").containsMatchIn(html)
 
 /**
- * HTML mail shown as styled text ([simpleHtmlText]): the message itself, its quoted earlier
- * messages folded behind the toggle, and a way to open it in the webview as its sender built it.
+ * HTML mail drawn without the webview: as themed text ([simpleHtmlText]), or when [rich] laid out
+ * natively ([RichHtmlBody]). The quoted earlier messages fold behind the toggle, and a button opens
+ * the message in the webview as its sender built it.
  */
 @Composable
-private fun SimpleHtmlBody(
+private fun NativeHtmlBody(
     html: String,
+    rich: Boolean,
     showQuoted: Boolean,
+    remoteImages: Boolean,
+    inlineImages: Map<String, String>,
     onToggleQuote: () -> Unit,
     onFullView: () -> Unit,
     onIntent: (AppIntent) -> Unit,
@@ -455,16 +473,22 @@ private fun SimpleHtmlBody(
     }
     val linkColor = colors.primary
     val dim = colors.onSurfaceVariant
-    val mainText = remember(main, linkColor, dim) { simpleHtmlText(main, linkColor, dim, open) }
-    SelectionContainer {
-        Text(mainText, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge.merge(ContentDirection))
+    if (rich) {
+        RichHtmlBody(main, remoteImages, inlineImages, open)
+    } else {
+        val mainText = remember(main, linkColor, dim) { simpleHtmlText(main, linkColor, dim, open) }
+        SelectionContainer {
+            Text(mainText, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge.merge(ContentDirection))
+        }
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (quoted.isNotEmpty()) QuoteToggle(showQuoted, onToggleQuote)
         Spacer(Modifier.weight(1f))
         ViewToggle(full = false, onClick = onFullView)
     }
-    if (quoted.isNotEmpty() && showQuoted) {
+    if (quoted.isNotEmpty() && showQuoted && rich) {
+        RichHtmlBody(quoted, remoteImages, inlineImages, open)
+    } else if (quoted.isNotEmpty() && showQuoted) {
         val quotedText = remember(quoted, linkColor, dim) { simpleHtmlText(quoted, linkColor, dim, open) }
         SelectionContainer {
             Text(
