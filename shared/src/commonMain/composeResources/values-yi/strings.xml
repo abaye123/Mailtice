@@ -464,6 +464,7 @@
     <string name="settings_open_home">עפענען אויפן היים בלאט</string>
     <string name="settings_open_home_desc">אנהייבן מיט א איבערבליק פון אלע חשבונות; ווען אויסגעלאשן, גלייך צו דער פאסט.</string>
     <string name="rel_now">יעצט</string>
+    <string name="home_syncing">סינכראניזירט...</string>
     <string name="home_sync_now">סינכראניזיר יעצט</string>
     <string name="accounts_move_up">רוקן ארויף</string>
     <string name="accounts_move_down">רוקן אראפ</string>

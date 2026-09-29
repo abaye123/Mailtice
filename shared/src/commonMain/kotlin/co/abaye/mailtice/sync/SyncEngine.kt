@@ -81,6 +81,11 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
     /** Accounts whose last round left work for the next one (a first sync in pages). */
     private val pending = mutableSetOf<String>()
 
+    private val _running = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Accounts in the middle of a round right now; what "Sync now" shows progress by. */
+    val running: StateFlow<Set<String>> = _running.asStateFlow()
+
     private val _lastSynced = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     /** When each account last finished a round without an error. */
@@ -210,9 +215,18 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
      * nobody announces them twice). Throws what the provider throws; statuses are updated here.
      */
     suspend fun syncOnce(account: Account): List<MailMessage> = lock(account.id).withLock {
+        _running.update { it + account.id }
+        try {
+            round(account)
+        } finally {
+            _running.update { it - account.id }
+        }
+    }
+
+    private suspend fun round(account: Account): List<MailMessage> {
         val provider = providers.forAccount(account)
         setStatus(account.id, if (repo.foldersNow(account.id).isEmpty()) AccountStatus.Syncing else statusOf(account.id))
-        try {
+        return try {
             val now = Platform.now()
             // What the user did offline goes first, so the round does not undo it with the server's state.
             replayPending(account, provider)
@@ -222,7 +236,7 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
                 refreshIdentities(account, provider)
                 lastFolderRefresh[account.id] = now
             }
-            val stored = repo.account(account.id) ?: return@withLock emptyList()
+            val stored = repo.account(account.id) ?: return emptyList()
             // Offline mode keeps the whole mailbox, whatever the account's window.
             val current = if (offline.enabled) stored.copy(retentionDays = 0) else stored
             val synced = repo.foldersNow(account.id).filter { it.sync }

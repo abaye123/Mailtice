@@ -264,6 +264,8 @@ data class AppState(
     val identities: Map<String, List<SenderIdentity>> = emptyMap(),
     /** When each account last synced without an error. */
     val lastSynced: Map<String, Long> = emptyMap(),
+    /** A check the user asked for ("Sync now") is under way; the buttons show it. */
+    val refreshing: Boolean = false,
     val filter: InboxFilter = InboxFilter(),
     val reader: Reader? = null,
     /** The attachment open in the viewer over everything, or null. */

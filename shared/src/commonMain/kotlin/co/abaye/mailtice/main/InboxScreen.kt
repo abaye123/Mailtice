@@ -75,6 +75,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -114,6 +115,7 @@ import co.abaye.mailtice.ui.LocalDensitySpec
 import co.abaye.mailtice.ui.Pane
 import co.abaye.mailtice.ui.Tooltip
 import co.abaye.mailtice.ui.TooltipIconButton
+import co.abaye.mailtice.ui.rememberSpin
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.datetime.TimeZone
@@ -491,7 +493,14 @@ private fun Toolbar(state: AppState, onIntent: (AppIntent) -> Unit) {
                 }
             }
         }
-        TooltipIconButton(Icons.Outlined.Refresh, stringResource(Res.string.inbox_refresh), { onIntent(AppIntent.RefreshNow) })
+        val spin = rememberSpin(state.refreshing)
+        TooltipIconButton(
+            Icons.Outlined.Refresh,
+            stringResource(Res.string.inbox_refresh),
+            { onIntent(AppIntent.RefreshNow) },
+            enabled = !state.refreshing,
+            iconModifier = Modifier.graphicsLayer { rotationZ = spin.value },
+        )
     }
 }
 

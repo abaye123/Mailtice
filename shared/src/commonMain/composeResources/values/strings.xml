@@ -513,6 +513,7 @@
         <item quantity="one">yesterday</item>
         <item quantity="other">%1$d days ago</item>
     </plurals>
+    <string name="home_syncing">Syncing...</string>
     <string name="home_sync_now">Sync now</string>
     <string name="accounts_move_up">Move up</string>
     <string name="accounts_move_down">Move down</string>

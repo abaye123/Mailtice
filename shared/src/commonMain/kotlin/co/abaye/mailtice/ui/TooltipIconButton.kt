@@ -26,12 +26,13 @@ fun TooltipIconButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    iconModifier: Modifier = Modifier,
     enabled: Boolean = true,
     tint: Color = LocalContentColor.current,
 ) {
     Tooltip(label, modifier) {
         IconButton(onClick = onClick, enabled = enabled) {
-            Icon(icon, contentDescription = label, tint = tint)
+            Icon(icon, contentDescription = label, modifier = iconModifier, tint = tint)
         }
     }
 }

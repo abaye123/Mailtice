@@ -93,6 +93,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -102,6 +103,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.TimeZone
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.compose_attach
@@ -120,6 +122,8 @@ import kotlin.io.encoding.Base64
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+private const val REFRESH_MIN_MS = 900L
+private const val REFRESH_MAX_MS = 60_000L
 private const val BADGE_WINDOW_TICK_MS = 60 * 60 * 1000L
 private const val SEARCH_DEBOUNCE_MS = 200L
 
@@ -544,7 +548,7 @@ class AppViewModel(
                 sync.body(intent.message).html.takeIf { it.isNotBlank() }?.let(Platform::openHtml)
             }
 
-            AppIntent.RefreshNow -> sync.refreshNow()
+            AppIntent.RefreshNow -> refreshNow()
 
             is AppIntent.SetTheme -> settings { it.copy(theme = intent.mode) }
 
@@ -1077,6 +1081,21 @@ class AppViewModel(
     }
 
     // ---- inbox & reader ---------------------------------------------------------------------
+
+    /**
+     * "Sync now": wakes every account's loop and shows it as busy until the rounds it started are
+     * done - at least a moment, so a quick round still reads as one, and at most a minute.
+     */
+    private fun refreshNow() {
+        if (_state.value.refreshing) return
+        mutate { it.copy(refreshing = true) }
+        sync.refreshNow()
+        scope.launch {
+            delay(REFRESH_MIN_MS)
+            withTimeoutOrNull(REFRESH_MAX_MS) { sync.running.first { it.isEmpty() } }
+            mutate { it.copy(refreshing = false) }
+        }
+    }
 
     /**
      * Opens [message] - in conversation view, its whole conversation, with the first unread message

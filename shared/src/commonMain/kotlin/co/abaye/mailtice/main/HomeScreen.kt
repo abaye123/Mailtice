@@ -56,6 +56,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,6 +71,7 @@ import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.webMailUrl
 import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.ui.rememberSpin
 import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
@@ -90,6 +92,7 @@ import mailtice.shared.generated.resources.home_old_unread
 import mailtice.shared.generated.resources.home_open_inbox
 import mailtice.shared.generated.resources.home_open_web
 import mailtice.shared.generated.resources.home_sync_now
+import mailtice.shared.generated.resources.home_syncing
 import mailtice.shared.generated.resources.home_unread
 import mailtice.shared.generated.resources.home_unread_total
 import mailtice.shared.generated.resources.home_week
@@ -179,14 +182,12 @@ private fun HomeHeader(state: AppState, now: Long, onIntent: (AppIntent) -> Unit
                 Text(date, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
             }
             // At the far end of the title row (the left in Hebrew): every account checked right now.
-            val syncing = state.accounts.any { state.status(it.id) == AccountStatus.Syncing }
-            FilledTonalButton(onClick = { onIntent(AppIntent.RefreshNow) }) {
-                if (syncing) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Outlined.Sync, null, Modifier.size(18.dp))
-                }
-                Text(stringResource(Res.string.home_sync_now), Modifier.padding(start = 8.dp))
+            // Busy while a check the user asked for runs, or while an account is still on its first sync.
+            val syncing = state.refreshing || state.accounts.any { state.status(it.id) == AccountStatus.Syncing }
+            val spin = rememberSpin(syncing)
+            FilledTonalButton(onClick = { onIntent(AppIntent.RefreshNow) }, enabled = !state.refreshing) {
+                Icon(Icons.Outlined.Sync, null, Modifier.size(18.dp).graphicsLayer { rotationZ = -spin.value })
+                Text(stringResource(if (syncing) Res.string.home_syncing else Res.string.home_sync_now), Modifier.padding(start = 8.dp))
             }
         }
         Spacer(Modifier.height(14.dp))
