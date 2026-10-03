@@ -87,7 +87,6 @@ fun AccountsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
             }
         }
     }
-    AddAccountDialog(state, onIntent)
 }
 
 /** Takes the place of the account list until there is one, with the same way in as the button above. */

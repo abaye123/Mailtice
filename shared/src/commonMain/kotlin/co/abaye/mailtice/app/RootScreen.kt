@@ -23,6 +23,7 @@ import androidx.navigation3.ui.NavDisplay
 import co.abaye.mailtice.main.AboutScreen
 import co.abaye.mailtice.main.AccountDetailScreen
 import co.abaye.mailtice.main.AccountsScreen
+import co.abaye.mailtice.main.AddAccountDialog
 import co.abaye.mailtice.main.AttachmentPreviewOverlay
 import co.abaye.mailtice.main.ComposeWindow
 import co.abaye.mailtice.main.HomeScreen
@@ -62,6 +63,8 @@ fun RootScreen(state: AppState, backStack: NavBackStack<AppKey>, onIntent: (AppI
         )
         AppDialogHost(state = state, onIntent = onIntent)
         WebProfileDialog(state = state, onIntent = onIntent)
+        // Over every screen: "Reconnect" is offered from the inbox and the home page too, not only here.
+        AddAccountDialog(state = state, onIntent = onIntent)
         ComposeWindow(state = state, onIntent = onIntent)
     }
 }

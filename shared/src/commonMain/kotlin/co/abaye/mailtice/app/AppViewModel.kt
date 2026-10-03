@@ -899,10 +899,20 @@ class AppViewModel(
         if (DemoMode.enabled && account.kind.oauth) {
             sync.restart(scope, account.id)
             mutate { it.copy(message = AppMessage.AccountReconnected) }
-        } else if (account.kind.oauth && _state.value.browserProfiles.size > 1) {
-            mutate { it.copy(addAccount = AddAccountStep.ChooseBrowser(account.kind, reconnectId = account.id)) }
         } else if (account.kind.oauth) {
-            signInOAuth(account.kind, existing = account)
+            // The browser profile the account lives in, when known: the one it signed in through (or
+            // was opened in) before, else one signed in with the same address. Only otherwise ask.
+            val profiles = _state.value.browserProfiles
+            val saved = _state.value.data.settings.accountBrowsers[account.id]
+            val profile = when {
+                saved != null -> profiles.firstOrNull { it.key == saved }?.key
+                else -> profiles.firstOrNull { it.email.equals(account.email, ignoreCase = true) }?.key
+            }
+            if (saved == null && profile == null && profiles.size > 1) {
+                mutate { it.copy(addAccount = AddAccountStep.ChooseBrowser(account.kind, reconnectId = account.id)) }
+            } else {
+                signInOAuth(account.kind, existing = account, profileKey = profile)
+            }
         } else {
             val server = account.imap ?: return
             mutate {
