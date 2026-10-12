@@ -216,6 +216,7 @@ fun InboxScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modifi
                         onIntent,
                         working = state.working,
                         labels = state.labelsOf(reader.message),
+                        trashable = state.trashable(reader),
                         webPaused = state.preview != null,
                         showClose = true,
                         composer = if (state.composesInReader) ({ InlineComposer(state, onIntent) }) else null,
@@ -250,6 +251,7 @@ private fun FullWidthInbox(state: AppState, onIntent: (AppIntent) -> Unit, cards
                         showBack = true,
                         working = state.working,
                         labels = state.labelsOf(reader.message),
+                        trashable = state.trashable(reader),
                         webPaused = state.preview != null,
                         composer = if (state.composesInReader) ({ InlineComposer(state, onIntent) }) else null,
                     )
@@ -362,6 +364,7 @@ private fun MessageList(state: AppState, onIntent: (AppIntent) -> Unit, modifier
                     fromServer = message.key !in stored,
                     showAccount = showAccount,
                     conversation = state.conversationView,
+                    trashable = state.trashable(if (state.conversationView) thread.all else listOf(message)),
                     onIntent = onIntent,
                 )
                 if (!cards) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -547,7 +550,7 @@ private fun SelectionBar(state: AppState, onIntent: (AppIntent) -> Unit) {
         if (caps.any { it.archive }) {
             TooltipIconButton(Icons.Outlined.Archive, stringResource(Res.string.inbox_archive), { onIntent(AppIntent.BulkArchive) })
         }
-        if (caps.any { it.trash }) {
+        if (caps.any { it.trash } && state.trashable(selected)) {
             TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), { onIntent(AppIntent.BulkTrash) })
         }
         if (selected.any { it.hasAttachments }) {
@@ -709,6 +712,7 @@ private fun MailRow(
     fromServer: Boolean,
     showAccount: Boolean,
     conversation: Boolean,
+    trashable: Boolean,
     onIntent: (AppIntent) -> Unit,
 ) {
     val message = thread.latest
@@ -825,6 +829,7 @@ private fun MailRow(
                 thread,
                 account,
                 conversation,
+                trashable,
                 onIntent,
                 Modifier.align(Alignment.TopEnd).padding(top = spec.rowPadding / 2)
                     .background(Brush.horizontalGradient(if (rtl) fade.reversed() else fade))
@@ -867,6 +872,7 @@ private fun RowActions(
     thread: MailThread,
     account: Account?,
     conversation: Boolean,
+    trashable: Boolean,
     onIntent: (AppIntent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -900,7 +906,7 @@ private fun RowActions(
                 onIntent(if (conversation) AppIntent.ArchiveConversation(thread.messages) else AppIntent.Archive(message))
             })
         }
-        if (caps.trash) {
+        if (caps.trash && trashable) {
             TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), {
                 onIntent(if (conversation) AppIntent.TrashConversation(thread.all) else AppIntent.Trash(message))
             })

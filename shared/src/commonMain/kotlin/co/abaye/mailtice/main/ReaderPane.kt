@@ -151,6 +151,7 @@ fun ReaderScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Modif
         showBack = true,
         working = state.working,
         labels = state.labelsOf(reader.message),
+        trashable = state.trashable(reader),
         webPaused = state.preview != null,
     )
 }
@@ -171,6 +172,7 @@ fun ReaderPane(
     showBack: Boolean = false,
     working: Boolean = false,
     labels: List<Folder> = emptyList(),
+    trashable: Boolean = true,
     webPaused: Boolean = false,
     showClose: Boolean = false,
     composer: (@Composable () -> Unit)? = null,
@@ -207,7 +209,7 @@ fun ReaderPane(
     val older = if (reader.isConversation && index >= 0) reader.thread.take(index) else emptyList()
     val newer = if (reader.isConversation && index >= 0) reader.thread.drop(index + 1) else emptyList()
     Column(modifier.fillMaxSize()) {
-        ReaderActions(reader, account, onIntent, showBack, working, showClose)
+        ReaderActions(reader, account, onIntent, showBack, working, showClose, trashable)
         if (working) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
         if (!cards) HorizontalDivider(color = colors.outlineVariant)
         if (useWeb) {
@@ -599,6 +601,7 @@ private fun ReaderActions(
     showBack: Boolean,
     working: Boolean,
     showClose: Boolean = false,
+    trashable: Boolean = true,
 ) {
     val message = reader.message
     val caps = account?.capabilities
@@ -619,7 +622,7 @@ private fun ReaderActions(
                 onIntent(if (conversation) AppIntent.ArchiveConversation(reader.thread) else AppIntent.Archive(message))
             })
         }
-        if (caps?.trash == true) {
+        if (caps?.trash == true && trashable) {
             TooltipIconButton(Icons.Outlined.Delete, stringResource(Res.string.inbox_trash), {
                 onIntent(if (conversation) AppIntent.TrashConversation(reader.thread) else AppIntent.Trash(message))
             })

@@ -420,7 +420,7 @@ class AppViewModel(
 
             AppIntent.BulkTrash -> {
                 updateOlder(_state.value.selection) { null }
-                bulk(closeReader = true, whole = true) { m, caps -> if (caps.trash) sync.trash(m) }
+                bulk(closeReader = true, whole = true) { m, caps -> if (caps.trash && !_state.value.inTrash(m)) sync.trash(m) }
             }
 
             AppIntent.BulkDownloadAttachments -> {
@@ -1214,7 +1214,7 @@ class AppViewModel(
 
     private fun trash(message: MailMessage) {
         val account = _state.value.account(message.accountId) ?: return
-        if (!account.capabilities.trash) return
+        if (!account.capabilities.trash || _state.value.inTrash(message)) return
         updateOlder(setOf(message.key)) { null }
         if (_state.value.reader?.message?.id == message.id) onIntent(AppIntent.CloseReader)
         scope.launch {

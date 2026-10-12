@@ -312,6 +312,23 @@ data class AppState(
 
     fun foldersOf(accountId: String): List<Folder> = folders[accountId].orEmpty()
 
+    /**
+     * Already in its account's trash. Deleting it there would only move it to the trash again, so
+     * delete is not offered for it until permanent delete exists (Gmail needs another scope for it).
+     */
+    fun inTrash(message: MailMessage): Boolean {
+        // A row fetched from the server is not stored and carries no folders: in the Trash view it came from there.
+        if (message.folderIds.isEmpty()) return filter.folderId.isEmpty() && filter.view == MailView.Trash
+        val trash = foldersOf(message.accountId).filter { it.role == FolderRole.Trash }.map { it.id }
+        return message.folderIds.any { it in trash }
+    }
+
+    /** Delete moves at least one of [messages]: not when all of them are in the trash already. */
+    fun trashable(messages: List<MailMessage>): Boolean = messages.any { !inTrash(it) }
+
+    /** The reader deletes an open conversation whole, a single message alone. */
+    fun trashable(reader: Reader): Boolean = trashable(if (reader.isConversation) reader.thread else listOf(reader.message))
+
     /** Accounts that can send, in sidebar order; the compose "from" picker offers these. */
     val sendingAccounts: List<Account> get() = accounts.filter { it.capabilities.send }
 
