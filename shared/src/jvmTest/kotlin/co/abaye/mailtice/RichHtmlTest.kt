@@ -25,6 +25,16 @@ class RichHtmlTest {
     }
 
     @Test
+    fun aHugeTagDoesNotOverflowTheStack() {
+        // Unquoted attribute text and many short quoted values, as a long generated tag has.
+        val attrs = (1..20_000).joinToString(" ") { "a$it=v data-$it=\"q\"" }
+        val root = parseHtml("<div $attrs>text</div>")
+        val div = root.first("div")!!
+        assertEquals("v", div.attr("a20000"))
+        assertEquals("q", div.attr("data-1"))
+    }
+
+    @Test
     fun theParserForgivesWhatMailGetsWrong() {
         // Unclosed cells, rows and paragraphs, no tbody, a stray closer, head and comments.
         val root =
