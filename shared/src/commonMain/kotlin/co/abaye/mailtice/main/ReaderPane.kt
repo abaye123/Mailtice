@@ -628,8 +628,10 @@ private fun ReaderActions(
             })
         }
         if (caps?.markRead == true) {
+            // As in Gmail: a message marked unread is one to come back to, so it leaves the screen.
             TooltipIconButton(Icons.Outlined.MarkEmailUnread, stringResource(Res.string.inbox_mark_unread), {
                 onIntent(AppIntent.SetRead(message, read = false))
+                onIntent(AppIntent.CloseReader)
             })
         }
         Box(Modifier.weight(1f))
