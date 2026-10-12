@@ -18,6 +18,7 @@ import co.abaye.mailtice.provider.MailProviders
 import co.abaye.mailtice.provider.OlderQuery
 import co.abaye.mailtice.provider.OutgoingMail
 import co.abaye.mailtice.provider.ProviderException
+import co.abaye.mailtice.provider.SyncBatch
 import co.abaye.mailtice.provider.ThreadHeaders
 import io.github.santimattius.structured.annotations.StructuredScope
 import kotlinx.coroutines.CancellationException
@@ -58,6 +59,9 @@ private const val PROFILE_TTL_MS = 6L * 60 * 60_000
 
 /** Failed rounds in a row a first sync rides out before the account is shown as offline. */
 private const val FIRST_SYNC_PATIENCE = 5
+
+/** How long a trash done here is remembered; far longer than one round takes. */
+private const val TRASHED_HERE_MS = 10 * 60_000L
 
 /**
  * One sync round per account ([syncOnce]) - used by the desktop loop, the open Android app and the
@@ -116,6 +120,12 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
 
     /** Mail sent from this app, before the sync has seen it in Sent. */
     private val sentHere = mutableMapOf<String, Long>()
+
+    /**
+     * Messages trashed here lately, (account id, message id) to when the server took it
+     * ([Long.MAX_VALUE] while it is on its way): see [withoutTrashedSince].
+     */
+    private val trashedHere = MutableStateFlow<Map<Pair<String, String>, Long>>(emptyMap())
 
     // ---- loops ------------------------------------------------------------------------------
 
@@ -241,7 +251,9 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
             val current = if (offline.enabled) stored.copy(retentionDays = 0) else stored
             val synced = repo.foldersNow(account.id).filter { it.sync }
             val since = if (current.retentionDays > 0) now - current.retentionDays * MailRepository.DAY_MS else null
+            val started = Platform.now()
             val batch = provider.sync(current, synced, since, repo.knownIds(account.id, synced.map { it.id }))
+                .withoutTrashedSince(account.id, started)
             repo.applyBatch(account.id, batch)
             repo.prune(current)
             if (batch.more) pending += account.id
@@ -337,16 +349,44 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         check(account.capabilities.trash) { "Trash is not available for this account" }
         val links = repo.folderIdsOf(account.id, message.id)
         links.forEach { repo.unlink(account.id, message.id, it) }
+        val key = account.id to message.id
+        val now = Platform.now()
+        trashedHere.update { map -> map.filterValues { now - it < TRASHED_HERE_MS } + (key to Long.MAX_VALUE) }
         try {
             providers.forAccount(account).trash(account, message, repo.foldersNow(account.id))
             repo.deleteMessage(account.id, message.id)
+            trashedHere.update { it + (key to Platform.now()) }
         } catch (e: CancellationException) {
+            trashedHere.update { it - key }
             throw e
         } catch (e: Exception) {
-            queueIfOffline(e, message, PendingKind.Trash)
+            try {
+                queueIfOffline(e, message, PendingKind.Trash)
+            } catch (queued: ActionQueuedException) {
+                // Queued: replayed at the start of a round, before that round reads the server.
+                trashedHere.update { it + (key to Platform.now()) }
+                throw queued
+            }
+            trashedHere.update { it - key }
             links.forEach { repo.link(account.id, message.id, it) }
             throw e
         }
+    }
+
+    /**
+     * A round runs beside the actions, not after them: one that read the server before a trash
+     * reached it would file the message back where it was (or link a row that is gone, which fails
+     * the whole batch). A round [started] before the server took a trash leaves that message out;
+     * a later one sees it as it is by then, in the trash.
+     */
+    private fun SyncBatch.withoutTrashedSince(accountId: String, started: Long): SyncBatch {
+        val ids = trashedHere.value.filter { (key, at) -> key.first == accountId && at >= started }.keys.map { it.second }.toSet()
+        if (ids.isEmpty()) return this
+        return copy(
+            newMessages = newMessages.filter { it.id !in ids },
+            flagChanges = flagChanges.filter { it.messageId !in ids },
+            linkChanges = linkChanges.filter { it.messageId !in ids },
+        )
     }
 
     /** Sends, then asks for a round so the sent copy (where the Sent folder is synced) shows up. */

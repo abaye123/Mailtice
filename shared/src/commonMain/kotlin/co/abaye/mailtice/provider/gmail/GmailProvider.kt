@@ -125,7 +125,7 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
     private suspend fun fullSync(token: String, account: Account, folders: List<Folder>, since: Long?, known: Set<String>): SyncBatch {
         val listing = firstSyncListing(token, account, folders, since)
         val profile = listing.profile
-        val membership = listing.membership
+        val membership = listingsLock.withLock { listing.membership.mapValues { it.value.toSet() } }
         val unread = listing.unread
         val starred = listing.starred
         val withFiles = listing.withFiles
@@ -133,8 +133,15 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
         val fresh = membership.keys.filter { it !in known }
         val page = fresh.take(FULL_SYNC_PAGE)
         val more = fresh.size > page.size
-        val newMessages = fetchMetadata(token, page).map { m ->
-            m.toRemote(membership[m.id].orEmpty(), withBody = false).copy(hasAttachments = m.id in withFiles)
+        // Filed by its labels now, not the listing's: a message trashed or archived since the listing
+        // was made (here or elsewhere) is not put back where it was. One no synced label holds any
+        // more leaves the listing, so it is not asked for again on every page.
+        val synced = folders.map { it.id }.toSet()
+        val fetched = fetchMetadata(token, page)
+        val gone = page.toSet() - fetched.filter { m -> m.labelIds.any { it in synced } }.map { it.id }.toSet()
+        if (gone.isNotEmpty()) listingsLock.withLock { listing.membership.keys.removeAll(gone) }
+        val newMessages = fetched.filter { it.id !in gone }.map { m ->
+            m.toRemote(m.labelIds.filter { it in synced }.toSet(), withBody = false).copy(hasAttachments = m.id in withFiles)
         }
         val existing = membership.keys.filter { it in known }
         if (more) println("Gmail: first sync stored ${known.size + newMessages.size} of ${membership.size}, continuing")
@@ -187,7 +194,8 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
         val key: String,
         val madeAt: Long,
         val profile: GmailProfile,
-        val membership: Map<String, Set<String>>,
+        /** Changed under [listingsLock] when a message leaves a label here during the first sync. */
+        val membership: MutableMap<String, MutableSet<String>>,
         val unread: Set<String>,
         val starred: Set<String>,
         val withFiles: Set<String>,
@@ -302,10 +310,27 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
 
     override suspend fun archive(account: Account, message: MailMessage, folders: List<Folder>) {
         withToken(account) { token -> api.modify(token, message.id, remove = listOf(LABEL_INBOX)) }
+        forgetListed(account.id, message.id, LABEL_INBOX)
     }
 
     override suspend fun trash(account: Account, message: MailMessage, folders: List<Folder>) {
         withToken(account) { token -> api.trash(token, message.id) }
+        forgetListed(account.id, message.id)
+    }
+
+    /**
+     * Keeps a first sync still under way from undoing an action: its listing is from before, and a
+     * later page would file the message back under [label] (every label when null).
+     */
+    private suspend fun forgetListed(accountId: String, messageId: String, label: String? = null) {
+        listingsLock.withLock {
+            val membership = listings[accountId]?.membership ?: return
+            if (label == null) {
+                membership.remove(messageId)
+            } else {
+                membership[messageId]?.remove(label)
+            }
+        }
     }
 
     /** Gmail files the sent copy under SENT by itself and threads it by [OutgoingMail.threadId]. */
