@@ -19,10 +19,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -102,6 +104,8 @@ fun main(args: Array<String>) {
         var accent by remember { mutableStateOf(AccentColor.Flag) }
         var vm by remember { mutableStateOf<AppViewModel?>(null) }
         var visible by remember { mutableStateOf(!startHidden) }
+        // Counts the requests to bring the window to the front; the window answers each one.
+        var raises by remember { mutableIntStateOf(0) }
         val colors = rememberAppColorScheme(accent, dark)
         val update = rememberDesktopUpdate()
         // The window opens the way it was left: maximized or not, and at its last size and place.
@@ -123,6 +127,7 @@ fun main(args: Array<String>) {
         val show = {
             visible = true
             windowState.isMinimized = false
+            raises++
         }
 
         val state = vm?.state?.collectAsState()?.value
@@ -166,7 +171,16 @@ fun main(args: Array<String>) {
                 minimumSize = DpSize(720.dp, 520.dp),
             ) {
                 val windowScope = this
-                val handle = (this as? TaoDecoratedWindowScope)?.window?.nativeHandle ?: 0L
+                val tao = (this as? TaoDecoratedWindowScope)?.window
+                val handle = tao?.nativeHandle ?: 0L
+                // Shown and restored is not enough: a window left behind others stays there.
+                // Asked a frame later, once a hidden window is on screen again.
+                LaunchedEffect(raises) {
+                    if (raises > 0 && tao != null) {
+                        withFrameNanos {}
+                        tao.focus()
+                    }
+                }
                 LaunchedEffect(handle) {
                     TaskbarBadge.windowHandle = handle
                     withContext(Dispatchers.IO) { TaskbarBadge.show(unread, badgeText) }
