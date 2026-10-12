@@ -27,3 +27,8 @@
 
 # WorkManager instantiates workers by class name.
 -keep class co.abaye.mailtice.sync.SyncWorker { *; }
+
+# WorkManager's Room database is created by reflection on its no-arg constructor
+# (WorkDatabase_Impl), which R8 otherwise strips: the app then dies at startup in
+# androidx.startup.InitializationProvider, before any of its own code runs.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
