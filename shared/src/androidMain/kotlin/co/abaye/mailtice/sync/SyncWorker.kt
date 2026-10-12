@@ -25,7 +25,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val graph = AppGraphHolder.graph
         val settings = graph.store.load().settings
         withTimeoutOrNull(WORK_BUDGET_MS) {
-            graph.sync.syncAllOnce().forEach { graph.notifications.announce(it, settings) }
+            graph.notifications.announce(graph.sync.syncAllOnce(), settings)
         }
         return Result.success()
     }

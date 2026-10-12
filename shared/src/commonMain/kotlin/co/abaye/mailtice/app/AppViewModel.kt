@@ -64,6 +64,7 @@ import co.abaye.mailtice.provider.gmail.GmailApi
 import co.abaye.mailtice.provider.parseAddressList
 import co.abaye.mailtice.search.MailSearch
 import co.abaye.mailtice.sync.ActionQueuedException
+import co.abaye.mailtice.sync.NewMail
 import co.abaye.mailtice.sync.OfflinePrefs
 import co.abaye.mailtice.sync.SyncEngine
 import co.abaye.mailtice.sync.isNetworkError
@@ -84,6 +85,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -126,6 +128,9 @@ private const val REFRESH_MIN_MS = 900L
 private const val REFRESH_MAX_MS = 60_000L
 private const val BADGE_WINDOW_TICK_MS = 60 * 60 * 1000L
 private const val SEARCH_DEBOUNCE_MS = 200L
+
+/** New mail is held this long after the last round that brought some, so rounds landing together are announced together. */
+private const val ANNOUNCE_GATHER_MS = 2_000L
 
 /** Quiet time after the last keystroke before the draft is saved. */
 private const val DRAFT_SAVE_DELAY_MS = 2_000L
@@ -182,9 +187,7 @@ class AppViewModel(
 
     init {
         observeDatabase()
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            sync.newMail.collect { notifications.announce(it, _state.value.data.settings) }
-        }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { announceNewMail() }
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             NotificationActions.events.collect(::onNotificationAction)
         }
@@ -1860,6 +1863,21 @@ class AppViewModel(
             val moved = filter.accountId != s.filter.accountId || filter.folderId != s.filter.folderId || filter.view != s.filter.view
             val close = moved && s.data.settings.closeReaderOnSwitch
             s.copy(filter = filter, selection = emptySet(), reader = if (close) null else s.reader)
+        }
+    }
+
+    /**
+     * Every account syncs at startup, and a long catch-up comes in pages: each its own round. They
+     * are gathered until the rounds go quiet, so a day's mail across accounts is one summary each,
+     * not a notification per message.
+     */
+    private suspend fun announceNewMail() {
+        val incoming = Channel<NewMail>(Channel.UNLIMITED)
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { sync.newMail.collect { incoming.send(it) } }
+        while (true) {
+            val rounds = mutableListOf(incoming.receive())
+            while (true) rounds += withTimeoutOrNull(ANNOUNCE_GATHER_MS) { incoming.receive() } ?: break
+            notifications.announce(rounds, _state.value.data.settings)
         }
     }
 
