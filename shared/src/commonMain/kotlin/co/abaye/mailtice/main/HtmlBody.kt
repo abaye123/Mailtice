@@ -22,12 +22,12 @@ import dev.nucleusframework.webview.request.RequestInterceptor
 import dev.nucleusframework.webview.request.WebRequest
 import dev.nucleusframework.webview.request.WebRequestInterceptResult
 import dev.nucleusframework.webview.web.LoadingState
+import dev.nucleusframework.webview.web.WebContent
 import dev.nucleusframework.webview.web.WebView
 import dev.nucleusframework.webview.web.WebViewNavigator
 import dev.nucleusframework.webview.web.WebViewState
 import dev.nucleusframework.webview.web.rememberWebViewNavigator
 import dev.nucleusframework.webview.web.rememberWebViewState
-import dev.nucleusframework.webview.web.rememberWebViewStateWithHTMLData
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlin.math.ceil
@@ -136,13 +136,13 @@ internal fun HtmlBody(
         return
     }
     // WebView2 takes at most 2 MB as a string; a bigger page (inline photos) is loaded from a file.
-    val state = if (document.length > MAX_INLINE_DOCUMENT) {
-        val url = remember(document) { writePage(document) }
-        rememberWebViewState(url)
-    } else {
-        rememberWebViewStateWithHTMLData(document)
+    val content = remember(document) {
+        if (document.length > MAX_INLINE_DOCUMENT) WebContent.Url(writePage(document)) else WebContent.Data(document)
     }
-    remember(state) { configure(state, javaScript = false) }
+    // One state for the view's whole life, whichever way the page loads: the library creates a new
+    // native view for a new state before the old one is gone, and the second one fails on Windows.
+    val state = remember { WebViewState(content).also { configure(it, javaScript = false) } }
+    SideEffect { state.content = content }
     val open by rememberUpdatedState(onOpenUrl)
     // The page itself loads as about:blank or data:; anything a click leads to goes to the browser.
     val interceptor = remember { externalLinks { open(it) } }

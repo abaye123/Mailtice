@@ -13,6 +13,7 @@ class HtmlElement(val tag: String, val attrs: Map<String, String>, val children:
 }
 
 private val HiddenBlocks = Regex("(?is)<(head|style|script|title|xml|noscript)\\b.*?</\\1\\s*>|<!--.*?-->|<!\\[CDATA\\[.*?]]>")
+
 // The attribute run is possessive: a plain `(?:a|b)*` recurses once per character in java.util.regex
 // and overflows the stack on a long tag. The alternatives start with different characters, so
 // giving up backtracking changes nothing about what matches.
