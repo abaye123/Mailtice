@@ -1,0 +1,34 @@
+{
+  "reflection": [
+    {
+      "type": "com.sun.jna.platform.win32.Crypt32",
+      "jniAccessible": true,
+      "allPublicMethods": true
+    },
+    {
+      "type": {
+        "proxy": [
+          "com.sun.jna.platform.win32.Crypt32"
+        ]
+      }
+    },
+    {
+      "type": "com.sun.jna.platform.win32.WinCrypt$DATA_BLOB",
+      "allPublicConstructors": true,
+      "fields": [
+        { "name": "cbData" },
+        { "name": "pbData" }
+      ]
+    },
+    {
+      "type": "com.sun.jna.platform.win32.WinCrypt$CRYPTPROTECT_PROMPTSTRUCT",
+      "allPublicConstructors": true,
+      "fields": [
+        { "name": "cbSize" },
+        { "name": "dwPromptFlags" },
+        { "name": "hwndApp" },
+        { "name": "szPrompt" }
+      ]
+    }
+  ]
+}
