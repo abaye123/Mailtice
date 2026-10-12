@@ -29,7 +29,17 @@ private val OutlookNext = Regex("""^(Sent|Date|To|Subject|נשלח|תאריך|א
 private val ForwardMarkers =
     listOf("Forwarded message", "Begin forwarded message", "הודעה שהועברה", "הודעה שהועברה ---", "Message transféré")
 
-fun isForward(text: String): Boolean = ForwardMarkers.any { text.contains(it, ignoreCase = true) }
+// One pass for all markers: contains(ignoreCase) per marker walks a long message once each, on the UI thread.
+private val ForwardPattern = anyOf(ForwardMarkers)
+
+fun isForward(text: String): Boolean = ForwardPattern.containsMatchIn(text)
+
+/**
+ * Matches any of [words], ASCII case aside. Not IGNORE_CASE: on the JVM it folds Unicode case too,
+ * several times slower over a long Hebrew message, and no marker has a cased letter past ASCII
+ * but "transféré", whose capitals nobody writes.
+ */
+private fun anyOf(words: List<String>) = Regex("(?i)" + words.joinToString("|") { Regex.escape(it) })
 
 /**
  * Splits a plain-text body where the quoted earlier messages begin: at a reply header ("On ...
@@ -89,13 +99,15 @@ private val HtmlQuoteMarkers = listOf(
     "border-top:solid #E1E1E1",
 )
 
+private val HtmlQuoteMarker = anyOf(HtmlQuoteMarkers)
+
 /** Whether [html] has a quoted earlier message the reader can fold away. */
 fun htmlHasQuote(html: String): Boolean = htmlQuoteStart(html) != null
 
 /** Where the quoted earlier messages begin in [html]: the start of the tag that marks them; null if none (or a forward). */
 fun htmlQuoteStart(html: String): Int? {
     if (isForward(html)) return null
-    val marker = HtmlQuoteMarkers.mapNotNull { m -> html.indexOf(m, ignoreCase = true).takeIf { it >= 0 } }.minOrNull() ?: return null
+    val marker = HtmlQuoteMarker.find(html)?.range?.first ?: return null
     return html.lastIndexOf('<', marker).takeIf { it >= 0 } ?: marker
 }
 
@@ -109,6 +121,11 @@ internal fun unescapeCid(raw: String): String = raw.replace("%40", "@").replace(
 
 /** The target attribute of a link or image-map area, whatever its quoting. */
 private val LinkTarget = Regex("(?i)(<(?:a|area)\\b[^>]*?)\\s+target\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)")
+
+private val ScriptTag = Regex("(?is)<script\\b.*?</script\\s*>")
+private val EmbedTag = Regex("(?is)<(iframe|object|embed)\\b.*?(</\\1\\s*>|/?>)")
+private val HeadTag = Regex("(?i)<head\\b[^>]*>")
+private val HtmlTag = Regex("(?i)<html\\b[^>]*>")
 
 private const val BASE_CSS = """
 html, body { margin: 0; padding: 0; background: #ffffff; }
@@ -134,23 +151,24 @@ fun emailDocument(html: String, hideQuotes: Boolean, remoteImages: Boolean, inli
     val head = "<meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"$policy\">" +
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><base target=\"_self\">" +
         "<style>$BASE_CSS$quoteCss</style>"
-    val withImages = if (inlineImages.isEmpty()) {
-        html
+    val stripped = html
+        .replace(ScriptTag, "")
+        .replace(EmbedTag, "")
+        // A link with target="_blank" asks WebView2 for a new window, which bypasses the navigation
+        // check that hands links to the browser; without a target every click is a navigation.
+        .replace(LinkTarget, "$1")
+    // The inline images go in last: megabytes of base64 the cleaning above has no need to walk.
+    val clean = if (inlineImages.isEmpty()) {
+        stripped
     } else {
-        html.replace(CidRef) { m ->
+        stripped.replace(CidRef) { m ->
             inlineImages[unescapeCid(m.groupValues[1])]
                 ?: m.value
         }
     }
-    val clean = withImages
-        .replace(Regex("(?is)<script\\b.*?</script\\s*>"), "")
-        .replace(Regex("(?is)<(iframe|object|embed)\\b.*?(</\\1\\s*>|/?>)"), "")
-        // A link with target="_blank" asks WebView2 for a new window, which bypasses the navigation
-        // check that hands links to the browser; without a target every click is a navigation.
-        .replace(LinkTarget, "$1")
-    val headTag = Regex("(?i)<head\\b[^>]*>").find(clean)
+    val headTag = HeadTag.find(clean)
     if (headTag != null) return clean.replaceRange(headTag.range.last + 1, headTag.range.last + 1, head)
-    val htmlTag = Regex("(?i)<html\\b[^>]*>").find(clean)
+    val htmlTag = HtmlTag.find(clean)
     if (htmlTag != null) return clean.replaceRange(htmlTag.range.last + 1, htmlTag.range.last + 1, "<head>$head</head>")
     return "<!DOCTYPE html><html><head>$head</head><body><div dir=\"auto\">$clean</div></body></html>"
 }
