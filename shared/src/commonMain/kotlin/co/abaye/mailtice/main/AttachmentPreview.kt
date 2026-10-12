@@ -271,17 +271,3 @@ fun previewPage(kind: PreviewKind, fileName: String): String? = when (kind) {
 private fun playerPage(background: String, player: String): String =
     "<!DOCTYPE html><html><body style=\"margin:0;height:100vh;display:flex;align-items:center;" +
         "justify-content:center;background:$background\">$player</body></html>"
-
-private fun String.urlEncodedPath(): String = buildString {
-    for (c in this@urlEncodedPath) {
-        if ((c.isLetterOrDigit() && c.code < 128) || c in "-_.~") {
-            append(c)
-        } else {
-            c.toString().encodeToByteArray().forEach { b ->
-                append(
-                    '%',
-                ).append(((b.toInt() and 0xFF) shr 4).toString(16).uppercase()).append((b.toInt() and 0x0F).toString(16).uppercase())
-            }
-        }
-    }
-}

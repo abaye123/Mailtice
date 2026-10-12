@@ -49,11 +49,30 @@ private fun writePage(document: String): String {
     return fileUrl(path) + "?v=" + document.hashCode()
 }
 
-/** A file: URL for a local [path], on Windows as well as elsewhere. */
+/**
+ * A file: URL for a local [path], on Windows as well as elsewhere. Everything past plain ASCII is
+ * percent-encoded: macOS WebKit gets the URL through `NSURL URLWithString`, which turns down a raw
+ * Hebrew name, and the page stays blank.
+ */
 fun fileUrl(path: String): String {
-    val slashed = path.replace('\\', '/').replace(" ", "%20").replace("#", "%23")
+    val slashed = path.replace('\\', '/').urlEncodedPath(keep = "/:")
     return (if (slashed.startsWith("/")) "file://" else "file:///") + slashed
 }
+
+/** [this] as a URL path: its UTF-8 bytes percent-encoded, except unreserved characters and [keep]. */
+internal fun String.urlEncodedPath(keep: String = ""): String = buildString {
+    for (byte in this@urlEncodedPath.encodeToByteArray()) {
+        val b = byte.toInt() and 0xFF
+        val c = b.toChar()
+        if (c in 'a'..'z' || c in 'A'..'Z' || c in '0'..'9' || c in "-_.~" || (b < 128 && c in keep)) {
+            append(c)
+        } else {
+            append('%').append(HEX[b shr 4]).append(HEX[b and 0x0F])
+        }
+    }
+}
+
+private const val HEX = "0123456789ABCDEF"
 
 /**
  * A local file in the webview: a PDF in the engine's own viewer, or the player page around an
