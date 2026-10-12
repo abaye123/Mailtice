@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -723,13 +724,15 @@ private fun MailRow(
     val hovered by interaction.collectIsHoveredAsState()
     val accountColor = account?.color?.color ?: colors.outline
     val align = if (LocalLayoutDirection.current == LayoutDirection.Rtl) TextAlign.Right else TextAlign.Left
+    // Unread stands out by its row too, not by the weight of its text alone (as in Gmail).
     val background = when {
         checked -> colors.primaryContainer
         opened -> colors.secondaryContainer
         hovered -> if (cards) colors.surfaceContainerHigh else colors.surfaceContainerLow
+        thread.unread -> lerp(colors.surface, colors.primaryContainer, UNREAD_TINT)
         else -> colors.surface
     }
-    val weight = if (thread.unread) FontWeight.SemiBold else FontWeight.Normal
+    val weight = if (thread.unread) FontWeight.Bold else FontWeight.Normal
     val toggle = if (conversation) AppIntent.ToggleSelectMany(thread.messages) else AppIntent.ToggleSelect(message)
     val senderStyle = if (spec.avatar >= 40.dp) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium
     Box(
@@ -838,6 +841,9 @@ private fun MailRow(
         }
     }
 }
+
+/** How far an unread row leans from the surface toward the accent's container colour. */
+private const val UNREAD_TINT = 0.45f
 
 /** The sender's letter, or a check mark once checked; hovering hints that it can be clicked. */
 @Composable
