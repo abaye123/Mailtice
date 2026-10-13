@@ -1,5 +1,6 @@
 package co.abaye.mailtice.dev
 
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
@@ -153,7 +154,7 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
             val message = remote(account, sent, receivedAt = clock()).copy(toLine = mail.to.joinToString(", "))
             box[message.id] = message
         }
-        println("Demo send: ${mail.to.size} to, ${mail.cc.size} cc, ${mail.bcc.size} bcc, reply=${mail.inReplyTo != null}")
+        AppLog.log("Demo send: ${mail.to.size} to, ${mail.cc.size} cc, ${mail.bcc.size} bcc, reply=${mail.inReplyTo != null}")
     }
 
     /** Small text files standing in for the real content, named like the fixture attachments. */

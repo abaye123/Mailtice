@@ -1,5 +1,6 @@
 package co.abaye.mailtice.notify
 
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.MailMessage
 import dev.nucleusframework.notification.common.NotificationManager
@@ -48,8 +49,8 @@ class NucleusNotifier : Notifier {
             title = title,
             message = body,
             onActivated = onClick,
-            onFailed = { println("Notifier: OS refused to display the notification") },
+            onFailed = { AppLog.log("Notifier: OS refused to display the notification") },
         ) { buttons() }.send()
-        if (result is NotificationResult.Failure) println("Notifier: not sent - ${result.reason}")
+        if (result is NotificationResult.Failure) AppLog.log("Notifier: not sent - ${result.reason}")
     }
 }

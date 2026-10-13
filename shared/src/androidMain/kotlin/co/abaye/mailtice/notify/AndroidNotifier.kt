@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import co.abaye.mailtice.di.AppGraph
 import co.abaye.mailtice.di.AppGraphHolder
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.androidContext
@@ -154,7 +155,7 @@ private fun BroadcastReceiver.onMessage(context: Context, intent: Intent, name: 
             val graph = AppGraphHolder.graph
             graph.repository.message(accountId, messageId)?.let { action(graph, it) }
         } catch (e: Exception) {
-            println("$name from notification failed: ${e::class.simpleName}")
+            AppLog.log("$name from notification failed: ${e::class.simpleName}")
         } finally {
             pending.finish()
         }

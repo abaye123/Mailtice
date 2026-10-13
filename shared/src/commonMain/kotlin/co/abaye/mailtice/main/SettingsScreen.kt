@@ -132,6 +132,9 @@ import mailtice.shared.generated.resources.settings_conversations_desc
 import mailtice.shared.generated.resources.settings_data
 import mailtice.shared.generated.resources.settings_density
 import mailtice.shared.generated.resources.settings_density_desc
+import mailtice.shared.generated.resources.settings_diagnostics
+import mailtice.shared.generated.resources.settings_diagnostics_desc
+import mailtice.shared.generated.resources.settings_diagnostics_export
 import mailtice.shared.generated.resources.settings_download_folder
 import mailtice.shared.generated.resources.settings_download_folder_change
 import mailtice.shared.generated.resources.settings_download_folder_choose
@@ -406,6 +409,11 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
 
             HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
             SectionHeader(stringResource(Res.string.settings_data))
+            SettingRow(stringResource(Res.string.settings_diagnostics), subtitle = stringResource(Res.string.settings_diagnostics_desc)) {
+                OutlinedButton(onClick = { onIntent(AppIntent.ExportDiagnostics) }) {
+                    Text(stringResource(Res.string.settings_diagnostics_export))
+                }
+            }
             SettingRow(stringResource(Res.string.settings_reset), subtitle = stringResource(Res.string.settings_reset_desc)) {
                 Button(
                     onClick = { onIntent(AppIntent.ResetApp) },

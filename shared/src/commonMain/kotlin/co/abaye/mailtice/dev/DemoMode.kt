@@ -1,5 +1,7 @@
 package co.abaye.mailtice.dev
 
+import co.abaye.mailtice.diag.AppLog
+
 /**
  * What the app runs against in demo mode. Demo mode is for development and UI tests only: every
  * account is served by [DemoMailProvider], nothing touches the network, and the data lives in its
@@ -37,6 +39,6 @@ object DemoMode {
 
     fun start(scenario: DemoScenario) {
         this.scenario = scenario
-        if (enabled) println("Demo mode: ${scenario.name} (no network, separate data directory)")
+        if (enabled) AppLog.log("Demo mode: ${scenario.name} (no network, separate data directory)")
     }
 }

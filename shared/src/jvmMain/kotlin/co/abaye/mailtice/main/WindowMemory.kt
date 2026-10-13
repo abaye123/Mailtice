@@ -1,5 +1,6 @@
 package co.abaye.mailtice.main
 
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.platform.joinPath
 import java.awt.GraphicsEnvironment
@@ -63,6 +64,6 @@ object WindowMemory {
                 target.delete()
                 temp.renameTo(target)
             }
-        }.onFailure { println("Window state not saved: ${it::class.simpleName}") }
+        }.onFailure { AppLog.log("Window state not saved: ${it::class.simpleName}") }
     }
 }

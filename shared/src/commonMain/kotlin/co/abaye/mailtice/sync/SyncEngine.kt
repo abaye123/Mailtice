@@ -2,6 +2,7 @@ package co.abaye.mailtice.sync
 
 import co.abaye.mailtice.auth.ReauthRequiredException
 import co.abaye.mailtice.data.MailRepository
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountStatus
 import co.abaye.mailtice.domain.Folder
@@ -198,11 +199,11 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ReauthRequiredException) {
-                println("Sync: credentials rejected, loop stopped until the user signs in again")
+                AppLog.log("Sync: credentials rejected, loop stopped until the user signs in again")
                 return
             } catch (e: Exception) {
                 failures++
-                println("Sync: round failed, attempt $failures: ${describe(e)}")
+                AppLog.log("Sync: round failed, attempt $failures: ${describe(e)}")
                 // Offline mode waits for the connection watcher instead, so a short window is not missed.
                 val cap = if (offline.enabled) OFFLINE_BACKOFF_MAX_MS else BACKOFF_MAX_MS
                 val backoff = (BACKOFF_BASE_MS shl (failures - 1).coerceAtMost(4)).coerceAtMost(cap)
@@ -334,7 +335,7 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
      */
     private fun forgetIfGone(e: Exception, message: MailMessage): Boolean {
         if (e !is ProviderException.NotFound) return false
-        println("Sync: message no longer on the server, removed locally")
+        AppLog.log("Sync: message no longer on the server, removed locally")
         repo.deleteMessage(message.accountId, message.id)
         return true
     }
@@ -450,7 +451,7 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            println("Sync: send-as addresses not read: ${describe(e)}")
+            AppLog.log("Sync: send-as addresses not read: ${describe(e)}")
         }
     }
 
@@ -466,7 +467,7 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         while (currentCoroutineContext().isActive) {
             val online = probe.online()
             if (online && !wasOnline) {
-                println("Sync: connection is back, syncing everything now")
+                AppLog.log("Sync: connection is back, syncing everything now")
                 kicks.tryEmit(Unit)
             }
             wasOnline = online
@@ -501,7 +502,7 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
                 throw e
             } catch (e: Exception) {
                 if (isNetworkError(e)) throw e
-                println("Sync: queued ${kind.name} refused, dropped: ${describe(e)}")
+                AppLog.log("Sync: queued ${kind.name} refused, dropped: ${describe(e)}")
                 repo.donePending(id)
             }
         }

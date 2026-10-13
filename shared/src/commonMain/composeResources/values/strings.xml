@@ -488,6 +488,9 @@
     <string name="update_status_latest">You have the latest version (checked %1$s).</string>
     <string name="update_status_downloading">Downloading version %1$s (%2$d%%)</string>
     <string name="update_status_ready">Version %1$s is ready. It installs when you quit, or restart now.</string>
+    <string name="settings_diagnostics">Diagnostics file</string>
+    <string name="settings_diagnostics_desc">To attach to a bug report: versions, settings, and for each account its state and message counts. No addresses, names, subjects or message content.</string>
+    <string name="settings_diagnostics_export">Export</string>
     <string name="portable_title">Portable Mailtice</string>
     <string name="portable_setup_body">Your accounts' sign-ins are kept in the data folder beside the app. A password keeps them from anyone who finds the drive; you type it each time the app opens.</string>
     <string name="portable_password">Password</string>

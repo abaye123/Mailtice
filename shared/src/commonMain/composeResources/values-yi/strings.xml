@@ -451,6 +451,9 @@
     <string name="update_status_latest">די נייעסטע ווערסיע איז אינסטאלירט (געקוקט %1$s).</string>
     <string name="update_status_downloading">נעמט אראפ ווערסיע %1$s (%2$d%%)</string>
     <string name="update_status_ready">ווערסיע %1$s איז גרייט. זי ווערט אינסטאלירט ביים ארויסגיין, אדער אנהייבן פון דאס ניי יעצט.</string>
+    <string name="settings_diagnostics">דיאגנאזע טעקע</string>
+    <string name="settings_diagnostics_desc">צו צולייגן צו א באריכט וועגן א פעלער: ווערסיעס, איינשטעלונגען, און פאר יעדן חשבון זיין מצב און צאל בריוו. אן אדרעסן, נעמען, טעמעס אדער אינהאלט פון בריוו.</string>
+    <string name="settings_diagnostics_export">עקספארטירן</string>
     <string name="portable_title">פארטאטיווער Mailtice</string>
     <string name="portable_setup_body">די אריינלאגירונגען פון די חשבונות ווערן געהאלטן אין דער data טעקע לעבן דער פראגראם. א פאסווארט באשיצט זיי פון ווער עס געפינט דעם דרייוו; מען שרייבט עס אריין יעדעס מאל ווען די פראגראם עפנט זיך.</string>
     <string name="portable_password">פאסווארט</string>

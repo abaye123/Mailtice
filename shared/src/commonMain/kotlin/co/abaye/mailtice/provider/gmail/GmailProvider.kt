@@ -2,6 +2,7 @@ package co.abaye.mailtice.provider.gmail
 
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Credential
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
@@ -109,7 +110,7 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
                     incremental(token, account, folders, sinceMillis, knownIds)
                 } catch (e: ProviderException.NotFound) {
                     // History older than Gmail keeps (about a week): list everything again.
-                    println("Gmail: history expired, full resync")
+                    AppLog.log("Gmail: history expired, full resync")
                     fullSync(token, account, folders, sinceMillis, knownIds)
                 }
             }
@@ -144,7 +145,7 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
             m.toRemote(m.labelIds.filter { it in synced }.toSet(), withBody = false).copy(hasAttachments = m.id in withFiles)
         }
         val existing = membership.keys.filter { it in known }
-        if (more) println("Gmail: first sync stored ${known.size + newMessages.size} of ${membership.size}, continuing")
+        if (more) AppLog.log("Gmail: first sync stored ${known.size + newMessages.size} of ${membership.size}, continuing")
         if (!more) listingsLock.withLock { listings.remove(account.id) }
         return SyncBatch(
             newMessages = newMessages,

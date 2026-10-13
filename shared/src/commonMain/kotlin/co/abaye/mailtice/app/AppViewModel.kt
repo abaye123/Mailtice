@@ -18,6 +18,8 @@ import co.abaye.mailtice.data.seedData
 import co.abaye.mailtice.dev.DemoAccounts
 import co.abaye.mailtice.dev.DemoMode
 import co.abaye.mailtice.di.Io
+import co.abaye.mailtice.diag.AppLog
+import co.abaye.mailtice.diag.DiagnosticsReport
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountColor
 import co.abaye.mailtice.domain.Capabilities
@@ -554,6 +556,8 @@ class AppViewModel(
 
             AppIntent.RefreshNow -> refreshNow()
 
+            AppIntent.ExportDiagnostics -> exportDiagnostics()
+
             is AppIntent.SetTheme -> settings { it.copy(theme = intent.mode) }
 
             is AppIntent.SetAccent -> settings { it.copy(accent = intent.accent) }
@@ -895,7 +899,7 @@ class AppViewModel(
                 // Closed the browser tab or denied consent: offer the same provider again.
                 signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId, profileKey = profileKey))
             } catch (e: Exception) {
-                println("Sign-in failed: ${e::class.simpleName}")
+                AppLog.log("Sign-in failed: ${e::class.simpleName}")
                 signInStep(AddAccountStep.SignIn(kind, SignInPhase.Failed, reconnectId, profileKey = profileKey))
             }
         }
@@ -1020,7 +1024,7 @@ class AppViewModel(
             } catch (e: ImapLoginException) {
                 setForm { it.copy(busy = false, error = e.reason) }
             } catch (e: Exception) {
-                println("IMAP add failed: ${e::class.simpleName}")
+                AppLog.log("IMAP add failed: ${e::class.simpleName}")
                 setForm { it.copy(busy = false, error = ImapLoginException.Reason.Other) }
             }
         }
@@ -1239,7 +1243,7 @@ class AppViewModel(
             } catch (e: ActionQueuedException) {
                 mutate { it.copy(message = AppMessage.ActionQueued) }
             } catch (e: Exception) {
-                println("Trash failed: ${e::class.simpleName}")
+                AppLog.log("Trash failed: ${e::class.simpleName}")
                 mutate { it.copy(message = AppMessage.ActionFailed) }
             }
         }
@@ -1354,7 +1358,7 @@ class AppViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                println("Download failed: ${e::class.simpleName}")
+                AppLog.log("Download failed: ${e::class.simpleName}")
                 mutate { it.copy(message = AppMessage.DownloadFailed) }
             } finally {
                 mutate { it.copy(working = false) }
@@ -1608,7 +1612,7 @@ class AppViewModel(
                     dropServerDraft(latestDraftFor(draft))
                     mutate { it.copy(compose = null, message = AppMessage.SendQueued) }
                 } else {
-                    println("Send failed: ${e::class.simpleName}")
+                    AppLog.log("Send failed: ${e::class.simpleName}")
                     mutate { it.copy(compose = it.compose?.copy(sending = false), message = AppMessage.SendFailed) }
                 }
             }
@@ -1756,7 +1760,7 @@ class AppViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            println("Draft save failed: ${e::class.simpleName}")
+            AppLog.log("Draft save failed: ${e::class.simpleName}")
             markDraft(draft.draftId) { it.copy(draftSave = DraftSave.Failed) }
             draft
         }
@@ -1929,7 +1933,7 @@ class AppViewModel(
             } catch (e: ActionQueuedException) {
                 mutate { it.copy(message = AppMessage.ActionQueued) }
             } catch (e: Exception) {
-                println("Mail action failed: ${e::class.simpleName}")
+                AppLog.log("Mail action failed: ${e::class.simpleName}")
                 mutate { it.copy(message = AppMessage.ActionFailed) }
             }
         }
@@ -2045,7 +2049,7 @@ class AppViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                println("Preview failed: ${e::class.simpleName}")
+                AppLog.log("Preview failed: ${e::class.simpleName}")
                 updatePreview(message, index) { it.copy(failed = true) }
             }
         }
@@ -2105,7 +2109,7 @@ class AppViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                println("Translation failed: ${e::class.simpleName}: ${e.message?.take(200)}")
+                AppLog.log("Translation failed: ${e::class.simpleName}: ${e.message?.take(200)}")
                 setTranslation(message, ReaderTranslation(target, TranslationState.Failed))
             }
         }
@@ -2164,7 +2168,7 @@ class AppViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            println("Inline images failed: ${e::class.simpleName}")
+            AppLog.log("Inline images failed: ${e::class.simpleName}")
         }
     }
 
@@ -2208,6 +2212,18 @@ class AppViewModel(
         if (top != AppKey.Inbox && top != AppKey.Reader) onIntent(AppIntent.Navigate(AppKey.Inbox))
     }
 
+    /** The diagnostics file for a bug report, saved with the downloads: see [DiagnosticsReport]. */
+    private fun exportDiagnostics() = background {
+        val report = DiagnosticsReport.build(_state.value, repo.diagnostics(), Platform.now())
+        val location = Platform.saveDownload("", "mailtice-diagnostics.txt", report.encodeToByteArray(), downloadRoot())
+        if (location == null) {
+            mutate { it.copy(message = AppMessage.DownloadFailed) }
+        } else {
+            Platform.revealDownload(location)
+            mutate { it.copy(message = AppMessage.Exported) }
+        }
+    }
+
     // ---- plumbing ---------------------------------------------------------------------------
 
     private fun background(block: suspend () -> Unit) {
@@ -2217,7 +2233,7 @@ class AppViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                println("Background task failed: ${e::class.simpleName}")
+                AppLog.log("Background task failed: ${e::class.simpleName}")
                 mutate { it.copy(message = AppMessage.ActionFailed) }
             }
         }

@@ -3,6 +3,7 @@ package co.abaye.mailtice.provider.imap
 import co.abaye.mailtice.auth.AuthManager
 import co.abaye.mailtice.auth.Credential
 import co.abaye.mailtice.auth.ReauthRequiredException
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
@@ -119,7 +120,7 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
                 try {
                     f.open(JFolder.READ_ONLY)
                 } catch (e: FolderNotFoundException) {
-                    println("IMAP: folder vanished on the server, skipping")
+                    AppLog.log("IMAP: folder vanished on the server, skipping")
                     continue
                 }
                 try {

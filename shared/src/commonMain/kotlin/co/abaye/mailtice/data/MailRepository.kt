@@ -6,6 +6,9 @@ import app.cash.sqldelight.coroutines.mapToOne
 import app.cash.sqldelight.db.SqlDriver
 import co.abaye.mailtice.db.MailDatabase
 import co.abaye.mailtice.db.Message_body
+import co.abaye.mailtice.diag.DiagnosticCounts
+import co.abaye.mailtice.diag.FolderCount
+import co.abaye.mailtice.diag.MessageCount
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountColor
 import co.abaye.mailtice.domain.AccountDigest
@@ -429,6 +432,21 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
             // Everything re-downloaded is old news.
         }
     }
+
+    /** Counts for the diagnostics file; ids and roles only, never a name, address or content. */
+    internal fun diagnostics(): DiagnosticCounts = DiagnosticCounts(
+        folders = q.diagFolderCounts().executeAsList().map { r ->
+            FolderCount(r.accountId, r.role, r.sync != 0L, r.total, r.unread.toLong())
+        },
+        messages = q.diagMessageCounts().executeAsList().map { r -> MessageCount(r.accountId, r.total, r.unread, r.withoutFolder) },
+        bodies = q.diagBodyCounts().executeAsList().associate { r -> r.accountId to r.bodies },
+        pending = q.diagPendingCounts().executeAsList().groupBy { it.accountId }.mapValues { (_, rows) ->
+            rows.associate {
+                it.kind to
+                    it.actions
+            }
+        },
+    )
 
     fun storage(): StorageUsage {
         val rows = q.storagePerAccount().executeAsList()

@@ -124,6 +124,9 @@ sealed interface AppIntent {
     data class OpenHtml(val message: MailMessage) : AppIntent
     data object RefreshNow : AppIntent
 
+    /** Saves the diagnostics file (counts and states, nothing personal) beside the downloads. */
+    data object ExportDiagnostics : AppIntent
+
     // Settings
     data class SetTheme(val mode: ThemeMode) : AppIntent
     data class SetAccent(val accent: AccentColor) : AppIntent

@@ -474,3 +474,25 @@ DELETE FROM sender_identity WHERE accountId = ?;
 insertIdentity:
 INSERT OR REPLACE INTO sender_identity(accountId, email, name, replyTo, signature, isDefault, sortOrder) VALUES (?, ?, ?, ?, ?, ?, ?);
 
+
+-- Diagnostics: counts only, by folder id and role. Never names, addresses or content.
+diagFolderCounts:
+SELECT f.accountId, f.id, f.role, f.sync, count(m.id) AS total, coalesce(sum(m.unread), 0) AS unread
+FROM folder f
+LEFT JOIN message_folder mf ON mf.accountId = f.accountId AND mf.folderId = f.id
+LEFT JOIN message m ON m.accountId = mf.accountId AND m.id = mf.messageId
+GROUP BY f.accountId, f.id;
+
+diagMessageCounts:
+SELECT m.accountId, count(*) AS total, coalesce(sum(m.unread), 0) AS unread,
+  coalesce(sum(CASE WHEN NOT EXISTS (
+    SELECT 1 FROM message_folder mf WHERE mf.accountId = m.accountId AND mf.messageId = m.id
+  ) THEN 1 ELSE 0 END), 0) AS withoutFolder
+FROM message m
+GROUP BY m.accountId;
+
+diagBodyCounts:
+SELECT accountId, count(*) AS bodies FROM message_body GROUP BY accountId;
+
+diagPendingCounts:
+SELECT accountId, kind, count(*) AS actions FROM pending_action GROUP BY accountId, kind;

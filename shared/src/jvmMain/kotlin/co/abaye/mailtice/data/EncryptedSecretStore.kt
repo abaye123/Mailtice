@@ -1,5 +1,6 @@
 package co.abaye.mailtice.data
 
+import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.platform.Platform
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -62,7 +63,7 @@ internal class EncryptedSecretStore(private val dir: File, private val vault: Ke
         val stored = try {
             vault.load()
         } catch (e: Exception) {
-            println("Secrets: the key store cannot be reached (${e::class.simpleName}); nothing is saved this run")
+            AppLog.log("Secrets: the key store cannot be reached (${e::class.simpleName}); nothing is saved this run")
             persist = false
             // A plain file not taken in yet still works; it stays until a run can seal it.
             if (legacy.isFile) map += readLegacy(legacy)
@@ -75,7 +76,7 @@ internal class EncryptedSecretStore(private val dir: File, private val vault: Ke
                 key = stored
             } else {
                 // Its key is gone: the accounts sign in again. Kept aside rather than deleted.
-                println("Secrets: the stored secrets cannot be opened; set aside, accounts will ask to sign in again")
+                AppLog.log("Secrets: the stored secrets cannot be opened; set aside, accounts will ask to sign in again")
                 runCatching { sealed.renameTo(File(dir, SECRETS_FILE + UNREADABLE_SUFFIX)) }
             }
         } else if (stored != null) {
