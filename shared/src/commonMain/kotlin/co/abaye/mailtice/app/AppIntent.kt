@@ -1,6 +1,7 @@
 package co.abaye.mailtice.app
 
 import co.abaye.mailtice.domain.AccentColor
+import co.abaye.mailtice.domain.AccountsNav
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.domain.LabelColors
@@ -181,6 +182,10 @@ sealed interface AppIntent {
 
     /** Folds or unfolds an account's folder tree in the sidebar. */
     data class ToggleAccountExpanded(val accountId: String) : AppIntent
+
+    data class SetAccountsNav(val nav: AccountsNav) : AppIntent
+
+    data class SetAccordionAccounts(val on: Boolean) : AppIntent
 
     /** Opens a standard folder of one account ("" = every account). */
     data class OpenView(val accountId: String, val view: MailView) : AppIntent

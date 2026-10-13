@@ -31,10 +31,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuOpen
+import androidx.compose.material.icons.outlined.AllInbox
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -78,6 +80,7 @@ import co.abaye.mailtice.app.icon
 import co.abaye.mailtice.app.label
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountStatus
+import co.abaye.mailtice.domain.AccountsNav
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.PaneStyle
@@ -95,6 +98,7 @@ import mailtice.shared.generated.resources.close_to_mail
 import mailtice.shared.generated.resources.compose_new
 import mailtice.shared.generated.resources.compose_new_hint
 import mailtice.shared.generated.resources.nav_accounts
+import mailtice.shared.generated.resources.nav_all_accounts
 import mailtice.shared.generated.resources.nav_manage_accounts
 import mailtice.shared.generated.resources.sidebar_collapse
 import mailtice.shared.generated.resources.sidebar_expand
@@ -117,6 +121,7 @@ fun MainShell(
 ) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         val compact = maxWidth < 720.dp
+        val wide = maxWidth >= ACCOUNT_BUTTONS_MIN_WIDTH
         CompositionLocalProvider(LocalCompactLayout provides compact) {
             if (compact) {
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
@@ -127,7 +132,7 @@ fun MainShell(
                 Column(Modifier.fillMaxSize()) {
                     if (!LocalHostHasTitleBar.current) BrandBar()
                     Row(Modifier.weight(1f).fillMaxWidth()) {
-                        Sidebar(state, destination, onIntent)
+                        Sidebar(state, destination, onIntent, wide = wide)
                         ContentArea(destination, onIntent, Modifier.weight(1f).fillMaxHeight(), content)
                     }
                 }
@@ -224,21 +229,28 @@ private fun BrandBar(modifier: Modifier = Modifier) {
 /**
  * The wide layout's sidebar: the compose button, the standard folders across every account, then
  * each account as a tree of its own - its standard folders, its labels (pinned first, hidden ones
- * left out) and a row to manage them. Clicking the account row folds its whole tree. Account management,
- * settings and about sit at the foot. It collapses to an icon rail; every icon then names itself on
- * hover.
+ * left out) and a row to manage them. Clicking the account row folds its whole tree. With account
+ * buttons ([AccountsNav]) a strip of accounts takes the tree's place, and only the folders of the
+ * one picked show beside it. Account management, settings and about sit at the foot. It collapses
+ * to an icon rail; every icon then names itself on hover.
  */
 @Composable
-private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> Unit, modifier: Modifier = Modifier) {
+private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> Unit, wide: Boolean, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val cards = LocalPaneStyle.current == PaneStyle.Cards
     val collapsed = state.data.settings.sidebarCollapsed
+    // Account buttons need room beside the folders: by default only a wide window shows them.
+    val buttons = !collapsed && state.accounts.isNotEmpty() && when (state.data.settings.accountsNav) {
+        AccountsNav.Auto -> wide
+        AccountsNav.Buttons -> true
+        AccountsNav.Tree -> false
+    }
     val width by animateDpAsState(
         when {
             collapsed -> 80.dp
             cards -> 264.dp
             else -> 240.dp
-        },
+        } + if (buttons) ACCOUNT_BUTTONS_WIDTH + ACCOUNT_BUTTONS_GAP else 0.dp,
         tween(220),
         label = "sidebar-width",
     )
@@ -257,54 +269,43 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
             onToggle = { onIntent(AppIntent.ToggleSidebar) },
             onCompose = { onIntent(AppIntent.StartCompose(ComposeMode.New)) },
         )
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            fun viewOpen(accountId: String, view: MailView) =
-                inMail && filter.accountId == accountId && filter.folderId.isEmpty() && filter.view == view
-
+        val home: @Composable () -> Unit = {
             SidebarItem(
                 label = AppKey.Home.label(),
                 selected = selected == AppKey.Home,
                 collapsed = collapsed,
                 leading = { _ -> HomeTile() },
             ) { onIntent(AppIntent.Navigate(AppKey.Home)) }
-
-            // Every account together; the standard folders are always there and cannot be hidden.
+        }
+        // Every account together; the standard folders are always there and cannot be hidden.
+        val allAccounts: @Composable () -> Unit = {
             state.viewsFor("").forEach { view ->
                 SidebarItem(
                     label = view.label(),
-                    selected = viewOpen("", view),
+                    selected = inMail && filter.accountId.isEmpty() && filter.folderId.isEmpty() && filter.view == view,
                     collapsed = collapsed,
                     count = state.viewCount(view, ""),
                     leading = { tint -> Icon(view.icon(), null, tint = tint) },
                 ) { onIntent(AppIntent.OpenView("", view)) }
             }
-            if (state.accounts.isNotEmpty()) SidebarSection(stringResource(Res.string.nav_accounts), collapsed)
-            state.accounts.forEach { account ->
-                val expanded = !collapsed && account.id !in state.data.settings.collapsedAccounts
-                AccountSidebarItem(
-                    account = account,
-                    status = state.status(account.id),
-                    error = state.syncErrors[account.id],
-                    unread = state.unread[account.id]?.toInt() ?: 0,
-                    // Folded, the account row stands for whatever of it is open.
-                    selected = inMail && filter.accountId == account.id && !expanded,
-                    collapsed = collapsed,
-                    expanded = expanded,
-                ) {
-                    // The account row folds and unfolds its tree; on the icon rail, with no tree to
-                    // show, it opens the account's inbox instead.
-                    if (collapsed) {
-                        onIntent(AppIntent.OpenView(account.id, MailView.Inbox))
+        }
+        if (buttons) {
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(ACCOUNT_BUTTONS_GAP)) {
+                AccountButtons(state, onIntent)
+                // Beside the buttons: the folders of the account picked, or of all of them together.
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    home()
+                    val account = state.account(filter.accountId)
+                    if (account == null) {
+                        allAccounts()
                     } else {
-                        onIntent(AppIntent.ToggleAccountExpanded(account.id))
-                    }
-                }
-                AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        AccountTree(state, account, inMail, onIntent)
+                        SidebarSection(account.displayName, collapsed = false)
+                        AccountTree(state, account, inMail, onIntent, indent = 0.dp)
                     }
                 }
             }
+        } else {
+            AccountsTree(state, collapsed, inMail, onIntent, home, allAccounts, Modifier.weight(1f))
         }
         HorizontalDivider(Modifier.padding(horizontal = if (collapsed) 8.dp else 16.dp, vertical = 6.dp), color = colors.outlineVariant)
         // Account management, settings and about take one row, leaving the height to the folders.
@@ -342,9 +343,126 @@ private fun Sidebar(state: AppState, selected: AppKey, onIntent: (AppIntent) -> 
     }
 }
 
+/** Every account as a tree of its own under the folders of all of them, each unfolding on a click. */
+@Composable
+private fun AccountsTree(
+    state: AppState,
+    collapsed: Boolean,
+    inMail: Boolean,
+    onIntent: (AppIntent) -> Unit,
+    home: @Composable () -> Unit,
+    allAccounts: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val filter = state.filter
+    Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        home()
+        allAccounts()
+        if (state.accounts.isNotEmpty()) SidebarSection(stringResource(Res.string.nav_accounts), collapsed)
+        state.accounts.forEach { account ->
+            val expanded = !collapsed && account.id !in state.data.settings.collapsedAccounts
+            AccountSidebarItem(
+                account = account,
+                status = state.status(account.id),
+                error = state.syncErrors[account.id],
+                unread = state.unread[account.id]?.toInt() ?: 0,
+                // Folded, the account row stands for whatever of it is open.
+                selected = inMail && filter.accountId == account.id && !expanded,
+                collapsed = collapsed,
+                expanded = expanded,
+            ) {
+                // The account row folds and unfolds its tree; on the icon rail, with no tree to
+                // show, it opens the account's inbox instead.
+                if (collapsed) {
+                    onIntent(AppIntent.OpenView(account.id, MailView.Inbox))
+                } else {
+                    onIntent(AppIntent.ToggleAccountExpanded(account.id))
+                }
+            }
+            AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    AccountTree(state, account, inMail, onIntent)
+                }
+            }
+        }
+    }
+}
+
+/** The account buttons: all accounts together, then each account, with its unread count or trouble. */
+@Composable
+private fun AccountButtons(state: AppState, onIntent: (AppIntent) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val filter = state.filter
+    Column(
+        Modifier.width(ACCOUNT_BUTTONS_WIDTH).fillMaxHeight().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AccountButton(
+            hint = stringResource(Res.string.nav_all_accounts),
+            selected = filter.accountId.isEmpty(),
+            unread = state.unreadTotal,
+            onClick = { onIntent(AppIntent.OpenView("", MailView.Inbox)) },
+        ) {
+            Box(Modifier.size(32.dp).clip(CircleShape).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.AllInbox, null, Modifier.size(18.dp), tint = colors.onPrimaryContainer)
+            }
+        }
+        state.accounts.forEach { account ->
+            val problem = when (state.status(account.id)) {
+                AccountStatus.NeedsReauth -> stringResource(Res.string.status_needs_reauth)
+                AccountStatus.Offline -> stringResource(Res.string.status_offline)
+                else -> null
+            }
+            AccountButton(
+                hint = listOfNotNull(account.displayName, account.email, problem).distinct().joinToString("\n"),
+                selected = filter.accountId == account.id,
+                unread = state.unread[account.id]?.toInt() ?: 0,
+                trouble = problem != null,
+                onClick = { onIntent(AppIntent.OpenView(account.id, MailView.Inbox)) },
+            ) { AccountAvatar(account, size = 32.dp) }
+        }
+    }
+}
+
+@Composable
+private fun AccountButton(
+    hint: String,
+    selected: Boolean,
+    unread: Int,
+    onClick: () -> Unit,
+    trouble: Boolean = false,
+    icon: @Composable () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Tooltip(hint) {
+        Box(
+            Modifier.size(ACCOUNT_BUTTONS_WIDTH).clip(RoundedCornerShape(14.dp))
+                .background(if (selected) colors.secondaryContainer else Color.Transparent)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            BadgedBox(
+                badge = {
+                    when {
+                        trouble -> Badge(containerColor = colors.error)
+                        unread > 0 -> Badge { Text(if (unread > 99) "99+" else unread.toString()) }
+                    }
+                },
+            ) { icon() }
+        }
+    }
+}
+
+private val ACCOUNT_BUTTONS_WIDTH = 44.dp
+private val ACCOUNT_BUTTONS_GAP = 8.dp
+
+/** From this window width the sidebar shows account buttons on its own ([AccountsNav.Auto]). */
+private val ACCOUNT_BUTTONS_MIN_WIDTH = 960.dp
+
 /** One account unfolded: its standard folders, its labels, and the row that manages them. */
 @Composable
-private fun AccountTree(state: AppState, account: Account, inMail: Boolean, onIntent: (AppIntent) -> Unit) {
+private fun AccountTree(state: AppState, account: Account, inMail: Boolean, onIntent: (AppIntent) -> Unit, indent: Dp = TreeIndent) {
     val filter = state.filter
     val settings = state.data.settings
     state.viewsFor(account.id).forEach { view ->
@@ -353,7 +471,7 @@ private fun AccountTree(state: AppState, account: Account, inMail: Boolean, onIn
             selected = inMail && filter.accountId == account.id && filter.folderId.isEmpty() && filter.view == view,
             collapsed = false,
             count = state.viewCount(view, account.id),
-            indent = TreeIndent,
+            indent = indent,
             leading = { tint -> Icon(view.icon(), null, tint = tint) },
         ) { onIntent(AppIntent.OpenView(account.id, view)) }
     }
@@ -368,7 +486,7 @@ private fun AccountTree(state: AppState, account: Account, inMail: Boolean, onIn
                 selected = inMail && filter.accountId == account.id && filter.folderId == folder.id,
                 collapsed = false,
                 count = (counts[folder.id] ?: 0L).toInt(),
-                indent = TreeIndent,
+                indent = indent,
                 // The label's own colour where the provider has one (Gmail), like its web client.
                 leading = { tint -> Icon(FolderIcon, null, tint = folder.labelColor() ?: tint) },
                 hoverTrailing = {
@@ -384,7 +502,7 @@ private fun AccountTree(state: AppState, account: Account, inMail: Boolean, onIn
         label = account.manageLabelsTitle(),
         selected = false,
         collapsed = false,
-        indent = TreeIndent,
+        indent = indent,
         muted = true,
         leading = { tint -> Icon(Icons.Outlined.Tune, null, tint = tint) },
     ) { onIntent(AppIntent.Navigate(AppKey.Labels(account.id))) }

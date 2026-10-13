@@ -468,6 +468,14 @@
     <string name="reader_simple_view">פשוטע אנזעהן</string>
     <string name="settings_close_reader">פארמאכן די מעלדונג ביים איבערגיין א טעקע</string>
     <string name="settings_close_reader_desc">איבערגיין צו אן אנדער טעקע, צייכן אדער חשבון פארמאכט די אפענע מעלדונג.</string>
+    <string name="settings_accounts_nav">חשבונות אין דער זייט ליסטע</string>
+    <string name="settings_accounts_nav_desc">קנעפלעך ווייזן די טעקעס פון איין חשבון אויף אמאל; א בוים ווייזט אלע חשבונות מיט זייערע צייכנס. אויטאמאטיש נוצט קנעפלעך אין א ברייטן פענסטער.</string>
+    <string name="accounts_nav_auto">אויטאמאטיש</string>
+    <string name="accounts_nav_buttons">קנעפלעך</string>
+    <string name="accounts_nav_tree">בוים</string>
+    <string name="settings_accordion">איין חשבון אפן אויף אמאל</string>
+    <string name="settings_accordion_desc">אינעם בוים, עפענען א חשבון לייגט צוזאם די אנדערע.</string>
+    <string name="nav_all_accounts">אלע חשבונות</string>
     <string name="settings_conversations">שמועס אנזיכט</string>
     <string name="settings_conversations_desc">צוזאמגרופירן ענטפערס אויף דער זעלבער מעלדונג אין איין שמועס, ווי אין Gmail.</string>
     <string name="settings_open_home">עפענען אויפן היים בלאט</string>

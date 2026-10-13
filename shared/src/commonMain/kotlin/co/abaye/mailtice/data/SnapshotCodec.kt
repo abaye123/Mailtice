@@ -1,6 +1,7 @@
 package co.abaye.mailtice.data
 
 import co.abaye.mailtice.domain.AccentColor
+import co.abaye.mailtice.domain.AccountsNav
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.BadgeAgeOptions
@@ -42,6 +43,8 @@ private const val KEY_READING_PANE = "readingPane"
 private const val KEY_HIDDEN_FOLDERS = "hiddenFolders"
 private const val KEY_PINNED_LABELS = "pinnedLabels"
 private const val KEY_COLLAPSED_ACCOUNTS = "collapsedAccounts"
+private const val KEY_ACCOUNTS_NAV = "accountsNav"
+private const val KEY_ACCORDION = "accordionAccounts"
 
 /** Separates the hidden folder keys; never part of a folder id (ids are label ids or IMAP names). */
 private const val LIST_SEPARATOR = '\u001F'
@@ -82,6 +85,8 @@ fun encodeSnapshot(data: AppData): String {
         add("$KEY_HIDDEN_FOLDERS=${s.hiddenFolders.joinToString(LIST_SEPARATOR.toString())}")
         add("$KEY_PINNED_LABELS=${s.pinnedLabels.joinToString(LIST_SEPARATOR.toString())}")
         add("$KEY_COLLAPSED_ACCOUNTS=${s.collapsedAccounts.joinToString(LIST_SEPARATOR.toString())}")
+        add("$KEY_ACCOUNTS_NAV=${s.accountsNav.name}")
+        add("$KEY_ACCORDION=${s.accordionAccounts}")
         add("$KEY_LANGUAGE=${s.uiLanguage.code}")
         add("$KEY_LANGUAGE_AUTO=${s.uiLanguageAuto}")
         add("$KEY_POLL=${s.pollSeconds}")
@@ -133,6 +138,8 @@ fun decodeSnapshot(raw: String): AppData {
         hiddenFolders = list(KEY_HIDDEN_FOLDERS)?.filterNot { it.startsWith("view:") }?.toSet() ?: defaults.hiddenFolders,
         pinnedLabels = list(KEY_PINNED_LABELS)?.toSet() ?: defaults.pinnedLabels,
         collapsedAccounts = list(KEY_COLLAPSED_ACCOUNTS)?.toSet() ?: defaults.collapsedAccounts,
+        accountsNav = map[KEY_ACCOUNTS_NAV]?.let { name -> AccountsNav.entries.firstOrNull { it.name == name } } ?: defaults.accountsNav,
+        accordionAccounts = flag(KEY_ACCORDION, defaults.accordionAccounts),
         uiLanguage = map[KEY_LANGUAGE]?.let { UiLanguage.fromCode(it) } ?: defaults.uiLanguage,
         uiLanguageAuto = flag(KEY_LANGUAGE_AUTO, defaults.uiLanguageAuto),
         smartPolling = flag(KEY_SMART_POLL, defaults.smartPolling),

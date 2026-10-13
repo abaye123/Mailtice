@@ -613,10 +613,20 @@ class AppViewModel(
 
             is AppIntent.ToggleAccountExpanded -> settings {
                 val folded = intent.accountId in it.collapsedAccounts
+                // Accordion: the one unfolded is the only one open.
+                val others = _state.value.accounts.map { a -> a.id }.filter { id -> id != intent.accountId }
                 it.copy(
-                    collapsedAccounts = if (folded) it.collapsedAccounts - intent.accountId else it.collapsedAccounts + intent.accountId,
+                    collapsedAccounts = when {
+                        !folded -> it.collapsedAccounts + intent.accountId
+                        it.accordionAccounts -> others.toSet()
+                        else -> it.collapsedAccounts - intent.accountId
+                    },
                 )
             }
+
+            is AppIntent.SetAccountsNav -> settings { it.copy(accountsNav = intent.nav) }
+
+            is AppIntent.SetAccordionAccounts -> settings { it.copy(accordionAccounts = intent.on) }
 
             is AppIntent.OpenView -> {
                 navigateToMail()

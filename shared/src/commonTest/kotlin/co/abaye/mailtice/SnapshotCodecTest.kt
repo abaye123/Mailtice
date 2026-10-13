@@ -3,6 +3,7 @@ package co.abaye.mailtice
 import co.abaye.mailtice.data.decodeSnapshot
 import co.abaye.mailtice.data.encodeSnapshot
 import co.abaye.mailtice.domain.AccentColor
+import co.abaye.mailtice.domain.AccountsNav
 import co.abaye.mailtice.domain.AppData
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.Capabilities
@@ -28,6 +29,7 @@ class SnapshotCodecTest {
                 uiLanguage = UiLanguage.English, pollSeconds = 120,
                 readingPane = ReadingPane.Off, hiddenFolders = setOf("acc-1/Label_7"),
                 pinnedLabels = setOf("acc-1/Label_3", "acc-2/Receipts"), collapsedAccounts = setOf("acc-2"),
+                accountsNav = AccountsNav.Tree, accordionAccounts = true,
             ),
         )
         assertEquals(data, decodeSnapshot(encodeSnapshot(data)))

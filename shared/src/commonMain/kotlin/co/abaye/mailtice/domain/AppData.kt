@@ -35,6 +35,12 @@ enum class PaneStyle { Cards, Lines }
 enum class ReadingPane { Split, Off }
 
 /**
+ * How the sidebar lists accounts. [Buttons]: a strip of account buttons, and beside it the folders
+ * of the one picked. [Tree]: every account unfolded with its labels. [Auto]: buttons in a wide window.
+ */
+enum class AccountsNav { Auto, Buttons, Tree }
+
+/**
  * How HTML mail is shown. [Auto]: simple mail as styled text, anything laid out (tables, images)
  * in the webview. [Simple]: always as text, the webview only on request. [Full]: always the webview.
  */
@@ -131,6 +137,9 @@ data class UserSettings(
     val pinnedLabels: Set<String> = emptySet(),
     /** Accounts whose folder tree is folded in the sidebar. */
     val collapsedAccounts: Set<String> = emptySet(),
+    val accountsNav: AccountsNav = AccountsNav.Auto,
+    /** In the [AccountsNav.Tree] sidebar, unfolding an account folds the others. */
+    val accordionAccounts: Boolean = false,
     /** The browser profile picked for the last sign-in ([co.abaye.mailtice.auth.BrowserProfile.key]), "" = default browser. */
     val browserProfile: String = "",
     val uiLanguage: UiLanguage = UiLanguage.Hebrew,

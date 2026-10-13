@@ -505,6 +505,14 @@
     <string name="reader_simple_view">תצוגה פשוטה</string>
     <string name="settings_close_reader">סגירת ההודעה במעבר תיקייה</string>
     <string name="settings_close_reader_desc">מעבר לתיקייה, תגית או חשבון אחר סוגר את ההודעה הפתוחה.</string>
+    <string name="settings_accounts_nav">החשבונות בסרגל הצד</string>
+    <string name="settings_accounts_nav_desc">כפתורים מציגים את התיקיות של חשבון אחד בכל פעם. עץ מציג את כל החשבונות עם התגיות שלהם. אוטומטי משתמש בכפתורים בחלון רחב.</string>
+    <string name="accounts_nav_auto">אוטומטי</string>
+    <string name="accounts_nav_buttons">כפתורים</string>
+    <string name="accounts_nav_tree">עץ</string>
+    <string name="settings_accordion">חשבון אחד פתוח בכל פעם</string>
+    <string name="settings_accordion_desc">בעץ, פתיחת חשבון מקפלת את האחרים.</string>
+    <string name="nav_all_accounts">כל החשבונות</string>
     <string name="settings_conversations">תצוגת שיחות</string>
     <string name="settings_conversations_desc">קיבוץ תשובות לאותה הודעה לשיחה אחת, כמו ב-Gmail.</string>
     <string name="settings_open_home">פתיחה בדף הבית</string>

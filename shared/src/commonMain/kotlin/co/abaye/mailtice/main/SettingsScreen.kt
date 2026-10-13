@@ -47,6 +47,7 @@ import co.abaye.mailtice.app.AppIntent
 import co.abaye.mailtice.app.AppKey
 import co.abaye.mailtice.app.AppState
 import co.abaye.mailtice.domain.AccentColor
+import co.abaye.mailtice.domain.AccountsNav
 import co.abaye.mailtice.domain.AppFont
 import co.abaye.mailtice.domain.BadgeAgeOptions
 import co.abaye.mailtice.domain.HtmlView
@@ -74,6 +75,9 @@ import mailtice.shared.generated.resources.accent_rose
 import mailtice.shared.generated.resources.accent_slate
 import mailtice.shared.generated.resources.accent_teal
 import mailtice.shared.generated.resources.accent_violet
+import mailtice.shared.generated.resources.accounts_nav_auto
+import mailtice.shared.generated.resources.accounts_nav_buttons
+import mailtice.shared.generated.resources.accounts_nav_tree
 import mailtice.shared.generated.resources.badge_age_all
 import mailtice.shared.generated.resources.badge_age_day
 import mailtice.shared.generated.resources.badge_age_days
@@ -112,6 +116,10 @@ import mailtice.shared.generated.resources.poll_seconds
 import mailtice.shared.generated.resources.reading_off
 import mailtice.shared.generated.resources.reading_split
 import mailtice.shared.generated.resources.settings_accent
+import mailtice.shared.generated.resources.settings_accordion
+import mailtice.shared.generated.resources.settings_accordion_desc
+import mailtice.shared.generated.resources.settings_accounts_nav
+import mailtice.shared.generated.resources.settings_accounts_nav_desc
 import mailtice.shared.generated.resources.settings_appearance
 import mailtice.shared.generated.resources.settings_badge_age
 import mailtice.shared.generated.resources.settings_badge_age_desc
@@ -225,6 +233,21 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                         ReadingPane.Off -> stringResource(Res.string.reading_off)
                     }
                 }) { onIntent(AppIntent.SetReadingPane(it)) }
+            }
+            SettingBlock(
+                stringResource(Res.string.settings_accounts_nav),
+                subtitle = stringResource(Res.string.settings_accounts_nav_desc),
+            ) {
+                ChoicePicker(AccountsNav.entries, settings.accountsNav, {
+                    when (it) {
+                        AccountsNav.Auto -> stringResource(Res.string.accounts_nav_auto)
+                        AccountsNav.Buttons -> stringResource(Res.string.accounts_nav_buttons)
+                        AccountsNav.Tree -> stringResource(Res.string.accounts_nav_tree)
+                    }
+                }) { onIntent(AppIntent.SetAccountsNav(it)) }
+            }
+            SettingRow(stringResource(Res.string.settings_accordion), subtitle = stringResource(Res.string.settings_accordion_desc)) {
+                Switch(checked = settings.accordionAccounts, onCheckedChange = { onIntent(AppIntent.SetAccordionAccounts(it)) })
             }
             SettingRow(
                 stringResource(Res.string.settings_close_reader),

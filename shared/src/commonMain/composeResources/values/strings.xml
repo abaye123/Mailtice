@@ -505,6 +505,14 @@
     <string name="reader_simple_view">Simple view</string>
     <string name="settings_close_reader">Close the message when switching folders</string>
     <string name="settings_close_reader_desc">Moving to another folder, label or account closes the open message.</string>
+    <string name="settings_accounts_nav">Accounts in the sidebar</string>
+    <string name="settings_accounts_nav_desc">Buttons show one account's folders at a time; a tree lists every account with its labels. Automatic uses buttons in a wide window.</string>
+    <string name="accounts_nav_auto">Automatic</string>
+    <string name="accounts_nav_buttons">Buttons</string>
+    <string name="accounts_nav_tree">Tree</string>
+    <string name="settings_accordion">One account open at a time</string>
+    <string name="settings_accordion_desc">In the tree, opening an account folds the others.</string>
+    <string name="nav_all_accounts">All accounts</string>
     <string name="settings_conversations">Conversation view</string>
     <string name="settings_conversations_desc">Group replies to the same message into one conversation, as Gmail does.</string>
     <string name="settings_open_home">Open on the home page</string>
