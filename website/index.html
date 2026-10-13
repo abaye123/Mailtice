@@ -333,6 +333,29 @@
   const API = `https://api.github.com/repos/${REPO}/releases/latest`;
   const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
   const LATEST_PAGE = `https://github.com/${REPO}/releases/latest`;
+  const ALL_RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=100`;
+
+  // What people download: the installers, the APK, the portable copy and the macOS zips (the
+  // macOS updater's payload, as the .exe is Windows'). Update manifests, blockmaps and signatures
+  // are fetched beside those and would count one download several times.
+  const COUNTED = /\.(exe|dmg|zip|deb|apk)$/i;
+  function countDownloads(assets) {
+    return (assets || []).filter(a => COUNTED.test(a.name)).reduce((n, a) => n + (a.download_count || 0), 0);
+  }
+  const fmtCount = (n) => n.toLocaleString("he-IL");
+
+  // Every release, page by page: the total covers all versions and all platforms.
+  async function totalDownloads() {
+    let total = 0;
+    for (let page = 1; page <= 10; page++) {
+      const res = await fetch(`${ALL_RELEASES_API}&page=${page}`, { headers: { Accept: "application/vnd.github+json" } });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const releases = await res.json();
+      for (const r of releases) if (!r.draft) total += countDownloads(r.assets);
+      if (releases.length < 100) break;
+    }
+    return total;
+  }
 
   const $ = (id) => document.getElementById(id);
 
@@ -452,8 +475,12 @@
       $("versionBadge").innerHTML = tag ? `גרסה ${tag}` : "הגרסה האחרונה";
       const parts = [];
       if (data.published_at) parts.push("שוחררה ב־" + fmtDate(data.published_at));
-      if (items.length) parts.push(`${items.length} הורדות`);
+      parts.push(`${fmtCount(countDownloads(data.assets))} הורדות לגרסה זו`);
       $("releaseMeta").textContent = parts.join(" · ");
+      // A second request, so the page does not wait on it; without it the line simply stays shorter.
+      totalDownloads()
+        .then(total => { $("releaseMeta").textContent = [...parts, `${fmtCount(total)} הורדות בסך הכל`].join(" · "); })
+        .catch(err => console.error(err));
 
       // Pick for the visitor's own system, and fall back to Windows when the user agent says
       // nothing useful - it is by far the most likely desktop, and the second button covers
