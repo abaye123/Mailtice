@@ -4,6 +4,9 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 
+/** The newest release's page, where a portable copy gets a new version. */
+internal const val RELEASES_URL = "https://github.com/abaye123/Mailtice/releases/latest"
+
 /** Where the self-update stands, for the settings. */
 @Immutable
 sealed interface UpdateStatus {
@@ -21,6 +24,9 @@ sealed interface UpdateStatus {
 
     /** Downloaded and waiting: it installs on quit, or at once with a restart. */
     data class Ready(val version: String) : UpdateStatus
+
+    /** A portable copy is not installed, so it is told of [version] and downloads it from [RELEASES_URL]. */
+    data class Manual(val version: String) : UpdateStatus
 
     data object Failed : UpdateStatus
 }

@@ -1,5 +1,6 @@
 package co.abaye.mailtice.data
 
+import co.abaye.mailtice.platform.PortableMode
 import com.sun.jna.platform.win32.Crypt32Util
 import com.sun.jna.platform.win32.WinCrypt
 import java.io.File
@@ -30,6 +31,9 @@ internal fun defaultKeyVault(dir: File): KeyVault {
     val os = System.getProperty("os.name").orEmpty().lowercase()
     val keyFile = File(dir, KEY_FILE)
     return when {
+        // A portable copy moves between computers, where DPAPI would not open its key.
+        PortableMode.enabled -> PortableSecrets.vault
+
         os.contains("win") -> DpapiKeyVault(keyFile)
 
         os.contains("mac") -> KeychainKeyVault()

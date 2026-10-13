@@ -48,10 +48,12 @@ import co.abaye.mailtice.main.DesktopUpdate
 import co.abaye.mailtice.main.LocalAppUpdates
 import co.abaye.mailtice.main.LocalHostHasTitleBar
 import co.abaye.mailtice.main.LocalWindowDrag
+import co.abaye.mailtice.main.PortableLockScreen
 import co.abaye.mailtice.main.SavedWindow
 import co.abaye.mailtice.main.UpdateButton
 import co.abaye.mailtice.main.UpdateRestartDialog
 import co.abaye.mailtice.main.WindowMemory
+import co.abaye.mailtice.main.portableLockNeeded
 import co.abaye.mailtice.main.rememberDesktopUpdate
 import co.abaye.mailtice.theme.rememberAppColorScheme
 import dev.nucleusframework.application.SingleInstanceRestoreEffect
@@ -87,18 +89,62 @@ import mailtice.shared.generated.resources.tray_tooltip
 import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import java.util.Locale
 
 private val CHROME_HEIGHT = 44.dp
+
+/** Languages written right to left, for the lock window, which opens before the app has its settings. */
+private val RtlLanguages = setOf("he", "iw", "yi", "ji")
 
 fun main(args: Array<String>) {
     // Before anything reads the app directory: demo mode swaps it for a throwaway one.
     enableDemoModeFromEnvironment()
     // Demo mode has its own data directory, so it may run beside the installed app.
     nucleusApplication(args, enableSingleInstance = !DemoMode.enabled) {
+        val systemDark = isSystemInDarkTheme()
+        // A portable copy settles its secrets before anything else: the app, and every sync with
+        // it, must not start while they are locked, or each account would look signed out.
+        var unlocked by remember { mutableStateOf(!portableLockNeeded()) }
+        if (!unlocked) {
+            val lockColors = rememberAppColorScheme(AccentColor.Flag, systemDark)
+            val lockDirection = if (Locale.getDefault().language in RtlLanguages) LayoutDirection.Rtl else LayoutDirection.Ltr
+            MaterialTheme(colorScheme = lockColors) {
+                MaterialDecoratedWindow(
+                    onCloseRequest = { exitApplication() },
+                    state = rememberWindowState(position = WindowPosition(Alignment.Center), width = 460.dp, height = 640.dp),
+                    title = stringResource(Res.string.app_name),
+                    icon = if (Platform.Current == Platform.Windows) painterResource(Res.drawable.app_icon) else null,
+                ) {
+                    val lockScope = this
+                    WindowBackground(lockColors.surface)
+                    WindowAppearance(if (systemDark) WindowAppearanceMode.Dark else WindowAppearanceMode.Light)
+                    WindowScaffold(
+                        controlButtonsDirection = if (lockDirection ==
+                            LayoutDirection.Rtl
+                        ) {
+                            ControlButtonsDirection.Rtl
+                        } else {
+                            ControlButtonsDirection.Ltr
+                        },
+                        titleBar = {
+                            Box(Modifier.fillMaxWidth().height(CHROME_HEIGHT).windowDragArea()) {
+                                if (Platform.Current != Platform.MacOS) {
+                                    with(lockScope) { WindowControls(Modifier.align(Alignment.CenterEnd).fillMaxHeight()) }
+                                }
+                            }
+                        },
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides lockDirection) {
+                            PortableLockScreen(onReady = { unlocked = true })
+                        }
+                    }
+                }
+            }
+            return@nucleusApplication
+        }
         // Launched by the OS at login -> start hidden in the tray. Asked inside the application
         // loop: AutoLaunch only answers reliably once it is running.
         val startHidden = remember { runCatching { AutoLaunch.wasStartedAtLogin(args) }.getOrDefault(false) }
-        val systemDark = isSystemInDarkTheme()
         var dark by remember { mutableStateOf(systemDark) }
         var rtl by remember { mutableStateOf(true) }
         var accent by remember { mutableStateOf(AccentColor.Flag) }

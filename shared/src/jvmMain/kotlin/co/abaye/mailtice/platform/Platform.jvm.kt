@@ -33,8 +33,16 @@ internal actual object Platform {
     actual val appVersion: String
         get() = NucleusApp.version.orEmpty()
 
-    /** Per-OS user data location: %APPDATA% on Windows, ~/Library on macOS, XDG on Linux. */
+    /**
+     * Per-OS user data location: %APPDATA% on Windows, ~/Library on macOS, XDG on Linux. A portable
+     * copy keeps it in the data folder beside the executable instead ([PortableMode]).
+     */
     actual fun appDir(): String {
+        PortableMode.dataDir?.let { data ->
+            val dir = if (DemoMode.enabled) joinPath(data.path, DEMO_DIR_NAME) else data.path
+            mkdir(dir)
+            return dir
+        }
         val home = System.getProperty("user.home").orEmpty()
         val os = System.getProperty("os.name").orEmpty().lowercase()
         val base = when {
@@ -93,6 +101,7 @@ internal actual object Platform {
     }
 
     actual val isDesktop: Boolean = true
+    actual val isPortable: Boolean get() = PortableMode.enabled
 
     /**
      * Writes the body to a temp file and opens it in the default browser. The CSP blocks every

@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import co.abaye.mailtice.platform.PortableMode
 import dev.nucleusframework.nativehttp.NativeHttpClient
 import dev.nucleusframework.updater.NucleusUpdater
 import dev.nucleusframework.updater.UpdateInfo
@@ -68,15 +69,18 @@ class DesktopUpdate internal constructor(
     // The window's composition scope: a check started from the settings ends with the window.
     @StructuredScope private val scope: CoroutineScope,
 ) : AppUpdates {
+    /** A portable copy checks for new versions, but installs none: it only says where to get them. */
+    private val portable = PortableMode.enabled
+
     /** False when the app runs from source or an unpackaged build: there is no installer to replace. */
-    private val supported = runCatching { updater.isUpdateSupported() }.getOrDefault(false)
+    private val supported = !portable && runCatching { updater.isUpdateSupported() }.getOrDefault(false)
     private val running = Mutex()
     private var file by mutableStateOf<File?>(null)
     private var fileVersion: String? = null
 
     override val currentVersion: String = runCatching { updater.currentVersion }.getOrDefault("")
 
-    override var status: UpdateStatus by mutableStateOf(if (supported) UpdateStatus.Idle else UpdateStatus.Unsupported)
+    override var status: UpdateStatus by mutableStateOf(if (supported || portable) UpdateStatus.Idle else UpdateStatus.Unsupported)
         private set
 
     val ready: Boolean get() = file != null
@@ -106,13 +110,13 @@ class DesktopUpdate internal constructor(
 
     /** One check (and download, when there is something new); skipped while another is running. */
     internal suspend fun check() {
-        if (!supported || !running.tryLock()) return
+        if ((!supported && !portable) || !running.tryLock()) return
         try {
             status = UpdateStatus.Checking
             // A failed check is not worth a message of its own: the settings show it, and the next round tries again.
             val result = runCatching { updater.checkForUpdates() }.getOrNull()
             status = when (result) {
-                is UpdateResult.Available -> download(result.info)
+                is UpdateResult.Available -> if (portable) UpdateStatus.Manual(result.info.version) else download(result.info)
                 UpdateResult.NotAvailable -> UpdateStatus.UpToDate(System.currentTimeMillis())
                 else -> fileVersion?.let { UpdateStatus.Ready(it) } ?: UpdateStatus.Failed
             }

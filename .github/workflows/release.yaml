@@ -24,10 +24,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The bare app folder is zipped below as the portable copy.
           - name: Windows x64
             os: windows-latest
             arch: amd64
-            tasks: :desktopApp:packageGraalvmNsis
+            tasks: :desktopApp:packageGraalvmNsis :desktopApp:createGraalvmNativeDistributable
           - name: Linux x64
             os: ubuntu-latest
             arch: amd64
@@ -130,6 +131,20 @@ jobs:
         # -PnativeMarch property, so passing one only reads as protection that is not there.
         run: ./gradlew ${{ matrix.tasks }} --no-daemon --stacktrace
 
+      # The portable copy (USB sticks, computer labs): the same native app folder, zipped with the
+      # marker file that makes it keep its data in a "data" folder beside it. Compress-Archive
+      # drops empty folders, so "data" is not shipped; the app makes it on first run.
+      - name: Package portable copy
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "$env:RELEASE_VERSION".TrimStart('v')
+          $app = "desktopApp/build/compose/binaries/main/graalvm-app/Mailtice"
+          Set-Content -Path "$app/Mailtice.portable" -Encoding utf8 -Value "This file makes Mailtice portable: it keeps its data in the data folder beside it."
+          $out = "desktopApp/build/compose/binaries/main/graalvm-portable"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Compress-Archive -Path $app -DestinationPath "$out/mailtice-$version-win-x64-portable.zip"
+
       # native-image and electron-builder both write their real error to a file on the runner and
       # Gradle only prints the path, so a failure is otherwise undiagnosable from the CI output.
       - name: Show packaging logs on failure
@@ -165,6 +180,16 @@ jobs:
             desktopApp/build/compose/binaries/**/graalvm-dmg/*.blockmap
             desktopApp/build/compose/binaries/**/graalvm-zip/*.zip
             desktopApp/build/compose/binaries/**/graalvm-zip/*.blockmap
+          if-no-files-found: error
+
+      # Its own artifact, outside the release-assets-* names: generate-update-yml reads those, and
+      # must never take the portable zip for the Windows installer.
+      - name: Collect portable copy
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v5
+        with:
+          name: portable-${{ runner.os }}-${{ matrix.arch }}
+          path: desktopApp/build/compose/binaries/main/graalvm-portable/*.zip
           if-no-files-found: error
 
   android:
@@ -321,7 +346,8 @@ jobs:
           # Deliberately narrower than what the jobs uploaded:
           #   .aab      is a Play upload format; downloading one gets you a file you cannot
           #             install, so it stays a workflow artifact and never reaches the release.
-          #   .zip      is macOS only and rides along for the updater, which cannot consume a .dmg.
+          #   .zip      is the macOS updater payload (the updater cannot consume a .dmg), and the
+          #             Windows portable copy.
           #   .yml      is the update manifest generated just above.
           #   .blockmap lets an update download only the changed blocks of an installer. The
           #             updater falls back to the whole file if it is missing, so this is a size

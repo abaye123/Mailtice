@@ -185,6 +185,8 @@ import mailtice.shared.generated.resources.theme_dark
 import mailtice.shared.generated.resources.theme_light
 import mailtice.shared.generated.resources.theme_system
 import mailtice.shared.generated.resources.update_check_now
+import mailtice.shared.generated.resources.update_download_page
+import mailtice.shared.generated.resources.update_portable_available
 import mailtice.shared.generated.resources.update_restart_now
 import mailtice.shared.generated.resources.update_status_checking
 import mailtice.shared.generated.resources.update_status_downloading
@@ -361,12 +363,16 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
                         badgeAgeLabel(it)
                     }) { onIntent(AppIntent.SetBadgeMaxAge(it)) }
                 }
-                SettingRow(
-                    stringResource(Res.string.settings_launch_at_login),
-                    subtitle = stringResource(Res.string.settings_launch_at_login_desc),
-                ) {
-                    Switch(checked = settings.launchAtLogin, onCheckedChange = { onIntent(AppIntent.SetLaunchAtLogin(it)) })
+                // A login item is written to the computer, which a portable copy leaves alone.
+                if (!Platform.isPortable) {
+                    SettingRow(
+                        stringResource(Res.string.settings_launch_at_login),
+                        subtitle = stringResource(Res.string.settings_launch_at_login_desc),
+                    ) {
+                        Switch(checked = settings.launchAtLogin, onCheckedChange = { onIntent(AppIntent.SetLaunchAtLogin(it)) })
+                    }
                 }
+                PortablePasswordSetting()
             }
 
             if (Platform.canPickFolder) {
@@ -436,12 +442,15 @@ private fun UpdatesSection(updates: AppUpdates) {
         is UpdateStatus.UpToDate -> stringResource(Res.string.update_status_latest, relativeTime(status.checkedAt, Platform.now()))
         is UpdateStatus.Downloading -> stringResource(Res.string.update_status_downloading, status.version, status.percent)
         is UpdateStatus.Ready -> stringResource(Res.string.update_status_ready, status.version)
+        is UpdateStatus.Manual -> stringResource(Res.string.update_portable_available, status.version)
         UpdateStatus.Failed -> stringResource(Res.string.update_status_failed)
     }
     val version = updates.currentVersion.ifBlank { "-" }
     SettingRow(stringResource(Res.string.settings_version, version), subtitle = subtitle.ifBlank { null }) {
         if (status is UpdateStatus.Ready) {
             Button(onClick = updates::restartNow) { Text(stringResource(Res.string.update_restart_now)) }
+        } else if (status is UpdateStatus.Manual) {
+            Button(onClick = { Platform.openUrl(RELEASES_URL) }) { Text(stringResource(Res.string.update_download_page)) }
         } else {
             val busy = status == UpdateStatus.Checking || status is UpdateStatus.Downloading
             OutlinedButton(onClick = updates::checkNow, enabled = !busy && status != UpdateStatus.Unsupported) {

@@ -65,6 +65,7 @@ internal actual object Platform {
     actual fun systemLanguage(): String = android.content.res.Resources.getSystem().configuration.locales[0].language
 
     actual val isDesktop: Boolean = false
+    actual val isPortable: Boolean = false
 
     // Phase 2: an in-app WebView. Until then the reader shows the text version on Android.
     actual fun openHtml(html: String) = Unit

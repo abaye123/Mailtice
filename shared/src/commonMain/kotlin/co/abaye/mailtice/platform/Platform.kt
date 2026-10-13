@@ -28,6 +28,12 @@ internal expect object Platform {
     /** Desktop: window, tray, split-pane reader. False on Android. */
     val isDesktop: Boolean
 
+    /**
+     * A portable copy (Windows): its data sits beside the executable, so it leaves nothing on the
+     * computer it runs on - no login item, no installer to update.
+     */
+    val isPortable: Boolean
+
     /** Shows an HTML mail body in the default browser (desktop). No-op where unsupported. */
     fun openHtml(html: String)
 

@@ -261,6 +261,7 @@
 
       <p class="sub">
         <a href="https://github.com/abaye123/Mailtice/releases" target="_blank" rel="noopener">גרסאות קודמות</a>
+        <span id="portableItem" hidden> · <a id="portableLink" href="#">גרסה ניידת לווינדוס (zip)</a></span>
       </p>
       <p class="req">ווינדוס 10 ומעלה · מק־OS על Apple Silicon או Intel · לינוקס מבוסס דביאן · אנדרואיד 8 ומעלה</p>
     </section>
@@ -363,6 +364,11 @@
                            : /x64|x86_64|amd64|intel/i.test(name) ? "x64" : "";
     for (const a of assets) {
       const n = a.name;
+      // The Windows portable copy is a zip too, but one a visitor may want: it gets a link of its own.
+      if (/portable.*\.zip$/i.test(n)) {
+        out.push({ os: "windows", arch: archOf(n), name: n, url: a.browser_download_url, size: a.size, portable: true });
+        continue;
+      }
       // Update index, Play bundle, and the macOS updater payload the install script consumes.
       // A visitor here wants the .dmg; the .zip would only be a second macOS button that
       // installs nothing on its own.
@@ -454,11 +460,18 @@
       // everyone the guess is wrong about.
       const arch = detectArch();
       const pickFor = (os) => {
-        const forOs = items.filter(i => i.os === os);
+        const forOs = items.filter(i => i.os === os && !i.portable);
         return forOs.find(i => i.arch === arch) || forOs.find(i => !i.arch) || forOs[0] || null;
       };
       const detected = detectOs();
       const preferred = (detected && pickFor(detected)) || pickFor("windows");
+
+      const portable = items.find(i => i.portable);
+      if (portable) {
+        $("portableLink").href = portable.url;
+        $("portableLink").title = [portable.name, fmtSize(portable.size)].filter(Boolean).join(" · ");
+        $("portableItem").hidden = false;
+      }
 
       const btn = $("downloadBtn");
       if (preferred) {
