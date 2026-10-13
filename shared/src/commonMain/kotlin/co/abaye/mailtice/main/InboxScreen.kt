@@ -28,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
@@ -143,6 +144,7 @@ import mailtice.shared.generated.resources.older_load
 import mailtice.shared.generated.resources.older_loading
 import mailtice.shared.generated.resources.older_none
 import mailtice.shared.generated.resources.older_searching
+import mailtice.shared.generated.resources.reader_reply
 import mailtice.shared.generated.resources.search_options
 import mailtice.shared.generated.resources.selection_all
 import mailtice.shared.generated.resources.selection_check
@@ -885,6 +887,13 @@ private fun RowActions(
     val caps = account?.capabilities ?: return
     val message = thread.latest
     Row(modifier) {
+        if (caps.send) {
+            // Opens the message too, so the reply is written under it, as from the reader.
+            TooltipIconButton(Icons.AutoMirrored.Outlined.Reply, stringResource(Res.string.reader_reply), {
+                onIntent(AppIntent.OpenMail(message))
+                onIntent(AppIntent.StartCompose(ComposeMode.Reply, message))
+            })
+        }
         if (caps.markRead) {
             // A conversation reads as a whole; marking it unread marks its newest message, as in Gmail.
             if (thread.unread) {
