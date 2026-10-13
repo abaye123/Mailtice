@@ -251,10 +251,11 @@ private fun AccountCard(
                         )
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        // Big and bold: the card is found by its name at a glance.
                         Text(
                             account.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
