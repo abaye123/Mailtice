@@ -175,6 +175,11 @@ fun main(args: Array<String>) {
             windowState.isMinimized = false
             raises++
         }
+        // Back from the tray counts as opening the app again; a notification's raise does not.
+        val reopen = {
+            if (!visible) vm?.onIntent(AppIntent.Reopen)
+            show()
+        }
 
         val state = vm?.state?.collectAsState()?.value
         val closeToTray = state?.data?.settings?.closeToTray ?: true
@@ -182,7 +187,7 @@ fun main(args: Array<String>) {
         val paneStyle = state?.data?.settings?.paneStyle ?: PaneStyle.Cards
 
         // A second launch (or a click on a summary notification) brings the hidden window back.
-        SingleInstanceRestoreEffect { show() }
+        SingleInstanceRestoreEffect { reopen() }
         LaunchedEffect(vm) { vm?.raiseWindow?.collect { show() } }
         val badgeText = stringResource(Res.string.tray_tooltip, unread)
         // Off the UI thread: the badges go through native calls. Windows waits for the window's handle
@@ -199,9 +204,9 @@ fun main(args: Array<String>) {
         Tray(
             icon = trayIcon,
             tooltip = stringResource(Res.string.tray_tooltip, unread),
-            primaryAction = { show() },
+            primaryAction = { reopen() },
         ) {
-            Item(openLabel) { show() }
+            Item(openLabel) { reopen() }
             Item(refreshLabel) { vm?.onIntent(AppIntent.RefreshNow) }
             Divider()
             Item(quitLabel) { quit() }

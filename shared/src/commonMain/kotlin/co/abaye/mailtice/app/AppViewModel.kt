@@ -556,6 +556,11 @@ class AppViewModel(
 
             AppIntent.RefreshNow -> refreshNow()
 
+            AppIntent.Reopen -> if (_state.value.data.settings.openHomeAtStart) {
+                mutate { it.copy(reader = null) }
+                navigate(AppKey.Home)
+            }
+
             AppIntent.ExportDiagnostics -> exportDiagnostics()
 
             is AppIntent.SetTheme -> settings { it.copy(theme = intent.mode) }
@@ -1127,9 +1132,11 @@ class AppViewModel(
 
     /**
      * Opens [message] - in conversation view, its whole conversation, with the first unread message
-     * open (the newest when all are read) and the conversation marked read, as Gmail does.
+     * open (the newest when all are read) and the conversation marked read, as Gmail does. [stored]
+     * is the conversation as read from the database, for a message the current list may not show;
+     * with it, [message] itself is the one open (a notification was about it).
      */
-    private fun openMail(message: MailMessage) {
+    private fun openMail(message: MailMessage, stored: List<MailMessage> = emptyList()) {
         if (isDraft(message)) {
             openDraft(message)
             return
@@ -1140,9 +1147,10 @@ class AppViewModel(
             return
         }
         val key = conversationKey(message)
-        val thread = (s.visibleMessages.filter { conversationKey(it) == key } + s.threadMembers[key].orEmpty())
+        val thread = (s.visibleMessages.filter { conversationKey(it) == key } + s.threadMembers[key].orEmpty() + stored)
             .distinctBy { it.key }.sortedBy { it.receivedAt }.ifEmpty { listOf(message) }
-        val focus = thread.firstOrNull { it.unread } ?: thread.last()
+        val focus = thread.firstOrNull { it.key == message.key }.takeIf { stored.isNotEmpty() }
+            ?: thread.firstOrNull { it.unread } ?: thread.last()
         showMessage(focus, thread, markRead = thread)
     }
 
@@ -1898,9 +1906,14 @@ class AppViewModel(
     private fun onNotificationAction(action: NotificationAction) {
         when (action) {
             is NotificationAction.Open -> scope.launch {
-                withContext(io) { repo.message(action.accountId, action.messageId) }?.let { message ->
+                // The new message's conversation may not be in the list yet: read it from the database.
+                val conversations = _state.value.conversationView
+                val found = withContext(io) {
+                    repo.message(action.accountId, action.messageId)?.let { it to if (conversations) repo.threadOf(it) else emptyList() }
+                }
+                found?.let { (message, thread) ->
                     navigate(AppKey.Inbox)
-                    openMail(message)
+                    openMail(message, thread)
                 }
                 _raiseWindow.tryEmit(Unit)
             }

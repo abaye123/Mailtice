@@ -124,6 +124,9 @@ sealed interface AppIntent {
     data class OpenHtml(val message: MailMessage) : AppIntent
     data object RefreshNow : AppIntent
 
+    /** The window comes back from the tray: a fresh start, so the home screen when the setting asks for it. */
+    data object Reopen : AppIntent
+
     /** Saves the diagnostics file (counts and states, nothing personal) beside the downloads. */
     data object ExportDiagnostics : AppIntent
 
