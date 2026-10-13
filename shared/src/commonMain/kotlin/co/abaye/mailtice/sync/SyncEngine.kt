@@ -320,10 +320,23 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (forgetIfGone(e, message)) return
             queueIfOffline(e, message, if (read) PendingKind.Read else PendingKind.Unread)
             repo.setUnread(message.accountId, message.id, message.unread)
             throw e
         }
+    }
+
+    /**
+     * The server no longer has the message (deleted for good elsewhere, or its trash emptied): the
+     * stored copy is stale, and putting it back would leave a row that no action can ever touch,
+     * since an incremental sync never mentions it again. So it goes. True when that happened.
+     */
+    private fun forgetIfGone(e: Exception, message: MailMessage): Boolean {
+        if (e !is ProviderException.NotFound) return false
+        println("Sync: message no longer on the server, removed locally")
+        repo.deleteMessage(message.accountId, message.id)
+        return true
     }
 
     /** Queues [kind] and throws [ActionQueuedException] when [e] is a lost connection in offline mode. */
@@ -346,6 +359,7 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (forgetIfGone(e, message)) return
             queueIfOffline(e, message, PendingKind.Archive)
             repo.link(account.id, message.id, inbox.id)
             throw e
@@ -372,6 +386,10 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
             trashedHere.update { it - key }
             throw e
         } catch (e: Exception) {
+            if (forgetIfGone(e, message)) {
+                trashedHere.update { it + (key to TrashMark(tick(), Platform.now())) }
+                return
+            }
             try {
                 queueIfOffline(e, message, PendingKind.Trash)
             } catch (queued: ActionQueuedException) {
