@@ -436,20 +436,21 @@ private fun AccountButton(
 ) {
     val colors = MaterialTheme.colorScheme
     Tooltip(hint) {
-        Box(
-            Modifier.size(ACCOUNT_BUTTONS_WIDTH).clip(RoundedCornerShape(14.dp))
-                .background(if (selected) colors.secondaryContainer else Color.Transparent)
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            BadgedBox(
-                badge = {
-                    when {
-                        trouble -> Badge(containerColor = colors.error)
-                        unread > 0 -> Badge { Text(if (unread > 99) "99+" else unread.toString()) }
-                    }
-                },
-            ) { icon() }
+        // Only the highlight is clipped to the rounded shape: the badge sits in the button's own
+        // corner, inside its bounds, where neither that clip nor the scrolling strip cuts it off.
+        Box(Modifier.size(ACCOUNT_BUTTONS_WIDTH), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.matchParentSize().clip(RoundedCornerShape(14.dp))
+                    .background(if (selected) colors.secondaryContainer else Color.Transparent)
+                    .clickable(onClick = onClick),
+            )
+            icon()
+            Box(Modifier.align(Alignment.TopEnd)) {
+                when {
+                    trouble -> Badge(containerColor = colors.error)
+                    unread > 0 -> Badge { Text(if (unread > 99) "99+" else unread.toString()) }
+                }
+            }
         }
     }
 }
