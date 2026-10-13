@@ -74,19 +74,24 @@ internal fun String.urlEncodedPath(keep: String = ""): String = buildString {
 
 private const val HEX = "0123456789ABCDEF"
 
+/** What a page of ours navigates to when it asks to be closed (Escape in the player). */
+internal const val CLOSE_URL = "mailtice:close"
+
 /**
  * A local file in the webview: a PDF in the engine's own viewer, or the player page around an
  * audio or video file. No mail content runs here, but links still leave for the browser.
+ * [onClose] answers the page asking to go: the webview keeps keys to itself, Escape included.
  */
 @Composable
-internal fun FileBody(url: String, modifier: Modifier = Modifier) {
+internal fun FileBody(url: String, modifier: Modifier = Modifier, onClose: () -> Unit = {}) {
     if (!holdsWebViewSlot()) {
         Box(modifier)
         return
     }
     val state = rememberWebViewState(url)
     remember(state) { configure(state) }
-    WebView(state, modifier, rememberWebViewNavigator(requestInterceptor = remember { externalLinks {} }))
+    val close by rememberUpdatedState(onClose)
+    WebView(state, modifier, rememberWebViewNavigator(requestInterceptor = remember { externalLinks(onClose = { close() }) {} }))
 }
 
 private fun configure(state: WebViewState, javaScript: Boolean = true) {
@@ -99,10 +104,17 @@ private fun configure(state: WebViewState, javaScript: Boolean = true) {
     }
 }
 
-/** Lets the page itself (about:, data:, file:) load, and hands http(s) and mailto links to [open]. */
-private fun externalLinks(open: (String) -> Unit) = object : RequestInterceptor {
+/**
+ * Lets the page itself (about:, data:, file:) load, and hands http(s) and mailto links to [open].
+ * [CLOSE_URL] goes to [onClose] instead of anywhere.
+ */
+private fun externalLinks(onClose: () -> Unit = {}, open: (String) -> Unit) = object : RequestInterceptor {
     override fun onInterceptUrlRequest(request: WebRequest, navigator: WebViewNavigator): WebRequestInterceptResult {
         val url = request.url
+        if (url.startsWith(CLOSE_URL)) {
+            onClose()
+            return WebRequestInterceptResult.Reject
+        }
         val external = listOf("http://", "https://", "mailto:").any { url.startsWith(it, ignoreCase = true) }
         if (!external) return WebRequestInterceptResult.Allow
         open(url)

@@ -206,10 +206,7 @@ private fun PreviewContent(preview: AttachmentPreview, onIntent: (AppIntent) -> 
 
             PreviewKind.Pdf, PreviewKind.Audio, PreviewKind.Video ->
                 if (preview.pageUrl.isNotEmpty()) {
-                    FileBody(
-                        preview.pageUrl,
-                        swallow.fillMaxSize(),
-                    )
+                    FileBody(preview.pageUrl, swallow.fillMaxSize(), onClose = { onIntent(AppIntent.ClosePreview) })
                 } else {
                     CircularProgressIndicator(color = Color.White)
                 }
@@ -267,7 +264,11 @@ fun previewPage(kind: PreviewKind, fileName: String): String? = when (kind) {
     else -> null
 }
 
-/** A page that centres [player] on a [background] filling the window. */
+/**
+ * A page that centres [player] on a [background] filling the window. Escape asks the app to close
+ * the viewer: with the player focused, the key never reaches the app's own handler.
+ */
 private fun playerPage(background: String, player: String): String =
     "<!DOCTYPE html><html><body style=\"margin:0;height:100vh;display:flex;align-items:center;" +
-        "justify-content:center;background:$background\">$player</body></html>"
+        "justify-content:center;background:$background\">$player" +
+        "<script>addEventListener('keydown',function(e){if(e.key==='Escape')location.href='$CLOSE_URL'})</script></body></html>"
