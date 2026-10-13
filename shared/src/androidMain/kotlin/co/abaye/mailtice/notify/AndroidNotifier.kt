@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import co.abaye.mailtice.di.AppGraph
 import co.abaye.mailtice.di.AppGraphHolder
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.MailMessage
@@ -68,6 +69,16 @@ class AndroidNotifier(private val context: Context) : Notifier {
             )
             builder.addAction(0, texts.markRead, markRead)
         }
+        if (account.capabilities.trash) {
+            val trash = PendingIntent.getBroadcast(
+                context,
+                id,
+                Intent(context, TrashReceiver::class.java)
+                    .putExtra(EXTRA_ACCOUNT, account.id).putExtra(EXTRA_MESSAGE, message.id),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            builder.addAction(0, texts.delete, trash)
+        }
         notify(id, builder)
     }
 
@@ -120,20 +131,32 @@ private val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 /** "Mark as read" from the notification, without opening the app. */
 class MarkReadReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val accountId = intent.getStringExtra(EXTRA_ACCOUNT) ?: return
-        val messageId = intent.getStringExtra(EXTRA_MESSAGE) ?: return
-        NotificationManagerCompat.from(context).cancel((accountId + messageId).hashCode())
-        val pending = goAsync()
-        receiverScope.launch {
-            try {
-                val graph = AppGraphHolder.graph
-                graph.repository.message(accountId, messageId)?.let { graph.sync.setRead(it, read = true) }
-            } catch (e: Exception) {
-                println("MarkRead from notification failed: ${e::class.simpleName}")
-            } finally {
-                pending.finish()
-            }
+    override fun onReceive(context: Context, intent: Intent) = onMessage(context, intent, "MarkRead") { graph, message ->
+        graph.sync.setRead(message, read = true)
+    }
+}
+
+/** "Delete" from the notification, without opening the app: to the trash, as everywhere else. */
+class TrashReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) = onMessage(context, intent, "Trash") { graph, message ->
+        graph.sync.trash(message)
+    }
+}
+
+/** Dismisses the message's notification and runs [action] on the stored message, past the receiver's return. */
+private fun BroadcastReceiver.onMessage(context: Context, intent: Intent, name: String, action: suspend (AppGraph, MailMessage) -> Unit) {
+    val accountId = intent.getStringExtra(EXTRA_ACCOUNT) ?: return
+    val messageId = intent.getStringExtra(EXTRA_MESSAGE) ?: return
+    NotificationManagerCompat.from(context).cancel((accountId + messageId).hashCode())
+    val pending = goAsync()
+    receiverScope.launch {
+        try {
+            val graph = AppGraphHolder.graph
+            graph.repository.message(accountId, messageId)?.let { action(graph, it) }
+        } catch (e: Exception) {
+            println("$name from notification failed: ${e::class.simpleName}")
+        } finally {
+            pending.finish()
         }
     }
 }

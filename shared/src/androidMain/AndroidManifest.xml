@@ -29,6 +29,9 @@
         <receiver
             android:name="co.abaye.mailtice.notify.MarkReadReceiver"
             android:exported="false" />
+        <receiver
+            android:name="co.abaye.mailtice.notify.TrashReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

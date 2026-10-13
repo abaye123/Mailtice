@@ -33,6 +33,7 @@
 
     <string name="notif_open">פתח</string>
     <string name="notif_mark_read">סמן כנקרא</string>
+    <string name="notif_delete">מחק</string>
     <string name="notif_summary_title">%1$d מיילים חדשים</string>
     <string name="notif_summary_body">בחשבון %1$s</string>
 

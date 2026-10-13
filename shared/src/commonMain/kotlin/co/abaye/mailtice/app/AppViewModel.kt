@@ -1895,6 +1895,10 @@ class AppViewModel(
                 withContext(io) { repo.message(action.accountId, action.messageId) }?.let { serverAction { sync.setRead(it, read = true) } }
             }
 
+            is NotificationAction.Trash -> scope.launch {
+                withContext(io) { repo.message(action.accountId, action.messageId) }?.let(::trash)
+            }
+
             is NotificationAction.OpenAccount -> {
                 navigate(AppKey.Inbox)
                 onIntent(AppIntent.SetFilterAccount(action.accountId))

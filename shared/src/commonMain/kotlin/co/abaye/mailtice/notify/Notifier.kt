@@ -7,12 +7,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
 /** Localised labels, resolved by the caller in the user's interface language. */
-data class NotificationTexts(val open: String, val markRead: String, val summaryTitle: String, val summaryBody: String)
+data class NotificationTexts(val open: String, val markRead: String, val delete: String, val summaryTitle: String, val summaryBody: String)
 
 /** What the user did with a notification. Desktop posts these from callbacks, Android from intents. */
 sealed interface NotificationAction {
     data class Open(val accountId: String, val messageId: String) : NotificationAction
     data class MarkRead(val accountId: String, val messageId: String) : NotificationAction
+
+    /** Moves the message to the trash, as "delete" does everywhere in the app. */
+    data class Trash(val accountId: String, val messageId: String) : NotificationAction
     data class OpenAccount(val accountId: String) : NotificationAction
 }
 

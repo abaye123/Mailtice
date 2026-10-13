@@ -4,6 +4,7 @@ import co.abaye.mailtice.domain.UserSettings
 import co.abaye.mailtice.platform.localizedString
 import co.abaye.mailtice.sync.NewMail
 import mailtice.shared.generated.resources.Res
+import mailtice.shared.generated.resources.notif_delete
 import mailtice.shared.generated.resources.notif_mark_read
 import mailtice.shared.generated.resources.notif_open
 import mailtice.shared.generated.resources.notif_summary_body
@@ -32,6 +33,7 @@ class MailNotifications(private val notifier: Notifier) {
             val texts = NotificationTexts(
                 open = localizedString(language, Res.string.notif_open),
                 markRead = localizedString(language, Res.string.notif_mark_read),
+                delete = localizedString(language, Res.string.notif_delete),
                 summaryTitle = localizedString(language, Res.string.notif_summary_title, count),
                 summaryBody = localizedString(language, Res.string.notif_summary_body, newMail.account.displayName),
             )

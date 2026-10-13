@@ -23,6 +23,9 @@ class NucleusNotifier : Notifier {
             if (account.capabilities.markRead) {
                 button(texts.markRead) { NotificationActions.post(NotificationAction.MarkRead(account.id, message.id)) }
             }
+            if (account.capabilities.trash) {
+                button(texts.delete) { NotificationActions.post(NotificationAction.Trash(account.id, message.id)) }
+            }
         }
     }
 

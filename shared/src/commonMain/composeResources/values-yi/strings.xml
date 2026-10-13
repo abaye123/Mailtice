@@ -28,6 +28,7 @@
     <string name="status_needs_reauth">די איינלאגירונג איז אויסגעגאנגען</string>
     <string name="notif_open">עפן</string>
     <string name="notif_mark_read">צייכן אלס געלייענט</string>
+    <string name="notif_delete">אויסמעקן</string>
     <string name="notif_summary_title">%1$d נייע אימעילס</string>
     <string name="notif_summary_body">אין חשבון %1$s</string>
     <string name="settings_appearance">אויסזען</string>
