@@ -89,6 +89,7 @@ import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.HtmlView
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.domain.VerificationCode
 import co.abaye.mailtice.main.html.RichHtmlBody
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.translate.LocalTranslationOffer
@@ -398,6 +399,8 @@ private fun ReaderHeader(
             }
         }
         if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+        val code = remember(message.key, body) { VerificationCode.find(message.subject, body?.text?.ifBlank { null } ?: message.snippet) }
+        if (code != null) CodeBar(code) { onIntent(AppIntent.CopyCode(code)) }
         if (body != null) TranslateBar(reader, onIntent)
     }
 }

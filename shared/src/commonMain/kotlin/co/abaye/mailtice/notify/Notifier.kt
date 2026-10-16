@@ -35,7 +35,8 @@ object NotificationActions {
 interface Notifier {
     val available: Boolean
 
-    fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts)
+    /** [copy]: the message carries a one-time code, offered as a button that copies it. */
+    fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts, copy: CopyCode? = null)
 
     fun showSummary(account: Account, count: Int, texts: NotificationTexts)
 
@@ -46,11 +47,14 @@ interface Notifier {
     fun dismiss(accountId: String, messageId: String?) = Unit
 }
 
+/** A one-time code a notification offers to copy, with its button's label ("Copy 482913"). */
+data class CopyCode(val code: String, val label: String)
+
 /** A notification still showing, as [Notifier.shown] lists it. */
 data class ShownNotification(val accountId: String, val messageId: String?)
 
 object NoNotifier : Notifier {
     override val available: Boolean = false
-    override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts) = Unit
+    override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts, copy: CopyCode?) = Unit
     override fun showSummary(account: Account, count: Int, texts: NotificationTexts) = Unit
 }

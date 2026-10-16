@@ -1,9 +1,14 @@
 package co.abaye.mailtice.platform
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.PersistableBundle
 import androidx.activity.ComponentActivity
 import java.io.File
 import java.lang.ref.WeakReference
@@ -122,6 +127,14 @@ internal actual object Platform {
 
     /** The system Downloads app shows new files at the top; nothing to open per file here. */
     actual fun revealDownload(location: String) = Unit
+
+    actual fun copyToClipboard(text: String, sensitive: Boolean) {
+        val clip = ClipData.newPlainText("Mailtice", text)
+        if (sensitive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
+        }
+        runCatching { ctx().getSystemService(ClipboardManager::class.java).setPrimaryClip(clip) }
+    }
 
     actual fun openUrl(url: String) {
         runCatching {

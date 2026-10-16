@@ -213,6 +213,9 @@ sealed interface AppIntent {
 
     data class OpenUrl(val url: String) : AppIntent
 
+    /** A one-time code found in a message, to the clipboard. */
+    data class CopyCode(val code: String) : AppIntent
+
     data object ResetApp : AppIntent
     data object ConfirmDialog : AppIntent
     data object DismissDialog : AppIntent

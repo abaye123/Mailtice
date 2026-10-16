@@ -749,6 +749,11 @@ class AppViewModel(
 
             is AppIntent.OpenUrl -> Platform.openUrl(intent.url)
 
+            is AppIntent.CopyCode -> {
+                Platform.copyToClipboard(intent.code, sensitive = true)
+                mutate { it.copy(message = AppMessage.CodeCopied) }
+            }
+
             AppIntent.ResetApp -> mutate { it.copy(dialog = AppDialog.ConfirmReset) }
 
             AppIntent.ConfirmDialog -> confirmDialog()

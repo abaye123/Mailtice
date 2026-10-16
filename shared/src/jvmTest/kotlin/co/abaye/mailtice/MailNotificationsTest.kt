@@ -4,6 +4,7 @@ import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.ProviderKind
 import co.abaye.mailtice.domain.UserSettings
+import co.abaye.mailtice.notify.CopyCode
 import co.abaye.mailtice.notify.MailNotifications
 import co.abaye.mailtice.notify.NotificationTexts
 import co.abaye.mailtice.notify.Notifier
@@ -19,8 +20,8 @@ class MailNotificationsTest {
         val shown = mutableListOf<String>()
         override val available = true
 
-        override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts) {
-            shown += "message:${account.id}:${message.id}"
+        override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts, copy: CopyCode?) {
+            shown += "message:${account.id}:${message.id}" + (copy?.let { ":${it.code}" } ?: "")
         }
 
         override fun showSummary(account: Account, count: Int, texts: NotificationTexts) {
@@ -39,9 +40,9 @@ class MailNotificationsTest {
 
     private fun account(id: String) = Account(id, ProviderKind.Gmail, "$id@example.com")
 
-    private fun round(accountId: String, vararg ids: String) = NewMail(
+    private fun round(accountId: String, vararg ids: String, subject: String = "") = NewMail(
         account(accountId),
-        ids.map { MailMessage(accountId, it, it, 0, "", "", "", "", "", 0, true, false, false, 0) },
+        ids.map { MailMessage(accountId, it, it, 0, "", "", "", subject, "", 0, true, false, false, 0) },
     )
 
     private fun announce(vararg rounds: NewMail): List<String> {
@@ -74,6 +75,11 @@ class MailNotificationsTest {
     fun aQuietAccountIsLeftOut() {
         val quiet = NewMail(account("q").copy(notify = false), round("q", "9").messages)
         assertEquals(listOf("message:a:1"), announce(round("a", "1"), quiet))
+    }
+
+    @Test
+    fun aOneTimeCodeComesWithItsCopyButton() {
+        assertEquals(listOf("message:a:1:482913"), announce(round("a", "1", subject = "Your verification code is 482913")))
     }
 
     // Read on another device, deleted, or the account's summary once its inbox is read.

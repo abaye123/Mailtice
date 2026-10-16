@@ -22,6 +22,9 @@ internal expect object Platform {
     fun systemLanguage(): String
     fun openUrl(url: String)
 
+    /** Puts [text] on the system clipboard; [sensitive] keeps it out of clipboard previews (Android 13+). */
+    fun copyToClipboard(text: String, sensitive: Boolean = false)
+
     /** Registers or removes the app from the OS login items. Returns false when the OS refused. */
     fun setLaunchAtLogin(enabled: Boolean): Boolean
 

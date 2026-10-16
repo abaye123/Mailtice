@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import co.abaye.mailtice.di.AppGraph
@@ -17,17 +18,24 @@ import co.abaye.mailtice.di.AppGraphHolder
 import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.platform.androidContext
+import co.abaye.mailtice.platform.bindAndroidContext
+import co.abaye.mailtice.platform.localizedString
 import io.github.santimattius.structured.annotations.StructuredScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import mailtice.shared.generated.resources.Res
+import mailtice.shared.generated.resources.message_code_copied
 
 private const val CHANNEL_ID = "mail"
 internal const val EXTRA_ACTION = "mailtice.action"
 internal const val EXTRA_ACCOUNT = "mailtice.account"
 internal const val EXTRA_MESSAGE = "mailtice.message"
+internal const val EXTRA_CODE = "mailtice.code"
 internal const val ACTION_OPEN = "open"
 internal const val ACTION_OPEN_ACCOUNT = "openAccount"
 
@@ -49,7 +57,7 @@ class AndroidNotifier(private val context: Context) : Notifier {
         }
     }
 
-    override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts) {
+    override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts, copy: CopyCode?) {
         ensureChannel(texts.open)
         val id = messageNotificationId(account.id, message.id)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -62,6 +70,16 @@ class AndroidNotifier(private val context: Context) : Notifier {
             .setContentIntent(openIntent(id, ACTION_OPEN, account.id, message.id))
             .setGroup(account.id)
             .addExtras(whose(account.id, message.id))
+        // The code first: it is what the user came for, and copying it needs no app.
+        if (copy != null) {
+            val copyCode = PendingIntent.getBroadcast(
+                context,
+                id,
+                Intent(context, CopyCodeReceiver::class.java).putExtra(EXTRA_CODE, copy.code),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            builder.addAction(0, copy.label, copyCode)
+        }
         if (account.capabilities.markRead) {
             val markRead = PendingIntent.getBroadcast(
                 context,
@@ -158,6 +176,29 @@ private val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 class MarkReadReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = onMessage(context, intent, "MarkRead") { graph, message ->
         graph.sync.setRead(message, read = true)
+    }
+}
+
+/** "Copy 482913" from the notification: the one-time code to the clipboard, without opening the app. */
+class CopyCodeReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val code = intent.getStringExtra(EXTRA_CODE) ?: return
+        bindAndroidContext(context.applicationContext)
+        Platform.copyToClipboard(code, sensitive = true)
+        // Android 13 and later confirm a copy on their own.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
+        val pending = goAsync()
+        receiverScope.launch {
+            try {
+                val language = AppGraphHolder.graph.store.load().settings.uiLanguage.code
+                val text = localizedString(language, Res.string.message_code_copied)
+                withContext(Dispatchers.Main) { Toast.makeText(context.applicationContext, text, Toast.LENGTH_SHORT).show() }
+            } catch (e: Exception) {
+                AppLog.log("CopyCode from notification: no confirmation - ${e::class.simpleName}")
+            } finally {
+                pending.finish()
+            }
+        }
     }
 }
 

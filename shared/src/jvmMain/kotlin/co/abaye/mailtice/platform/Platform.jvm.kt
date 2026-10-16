@@ -1,6 +1,7 @@
 package co.abaye.mailtice.platform
 
 import co.abaye.mailtice.dev.DemoMode
+import co.abaye.mailtice.diag.AppLog
 import dev.nucleusframework.autolaunch.AutoLaunch
 import dev.nucleusframework.autolaunch.AutoLaunchResult
 import dev.nucleusframework.core.runtime.NucleusApp
@@ -12,6 +13,8 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openDirectoryPicker
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import java.awt.Desktop
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
 import java.io.File
 import java.net.URI
 import java.util.Locale
@@ -84,6 +87,11 @@ internal actual object Platform {
     private val bootLanguage: String = Locale.getDefault().language
 
     actual fun systemLanguage(): String = bootLanguage
+
+    actual fun copyToClipboard(text: String, sensitive: Boolean) {
+        runCatching { Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null) }
+            .onFailure { AppLog.log("Clipboard: copy failed - ${it::class.simpleName}") }
+    }
 
     actual fun openUrl(url: String) {
         runCatching {

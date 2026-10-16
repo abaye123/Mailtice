@@ -109,6 +109,7 @@ import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.MailThread
 import co.abaye.mailtice.domain.MailView
 import co.abaye.mailtice.domain.ReadingPane
+import co.abaye.mailtice.domain.VerificationCode
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.platform.ResizeHorizontalIcon
 import co.abaye.mailtice.ui.EmptyIllustration
@@ -810,6 +811,8 @@ private fun MailRow(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        val code = remember(message.subject, message.snippet) { VerificationCode.find(message.subject, message.snippet) }
+                        if (code != null) CodeChip(code) { onIntent(AppIntent.CopyCode(code)) }
                         LabelChips(labels, max = 2)
                     }
                     if (spec.snippetLines > 0) {

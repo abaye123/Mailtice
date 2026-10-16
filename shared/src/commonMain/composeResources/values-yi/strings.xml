@@ -31,6 +31,7 @@
     <string name="notif_delete">אויסמעקן</string>
     <string name="notif_summary_title">%1$d נייע אימעילס</string>
     <string name="notif_summary_body">אין חשבון %1$s</string>
+    <string name="notif_copy_code">קאפיר %1$s</string>
     <string name="settings_appearance">אויסזען</string>
     <string name="settings_theme">טעמע</string>
     <string name="theme_system">לויט דער סיסטעם</string>
@@ -228,6 +229,7 @@
     <string name="message_no_attachments">קיין צוגעלייגטע פיילס צו אראפלאדן.</string>
     <string name="message_download_failed">דאס אראפלאדן איז דורכגעפאלן. קוק איבער די פארבינדונג און פרוביר נאכאמאל.</string>
     <string name="message_exported">עקספארטירט צום פאלדער Downloads/Mailtice</string>
+    <string name="message_code_copied">דער קאד איז קאפירט</string>
     <string name="export_from">פון</string>
     <string name="export_to">צו</string>
     <string name="export_date">דאטום</string>
@@ -389,6 +391,8 @@
     <string name="reader_hide_quoted">באהאלטן דעם ציטירטן טעקסט</string>
     <string name="reader_images_hidden">די בילדער פונעם אינטערנעט זענען באהאלטן</string>
     <string name="reader_show_images">ווייזן די בילדער</string>
+    <string name="code_label">באשטעטיגונג קאד</string>
+    <string name="code_copy">קאפירן דעם קאד</string>
     <string name="settings_remote_images">לאדן בילדער פונעם אינטערנעט</string>
     <string name="settings_remote_images_desc">ווען אויסגעלאשן, פרעגט יעדע מעסעדזש פריער. שיקער קענען וויסן לויט די בילדער אז די מעסעדזש איז געעפנט געווארן.</string>
     <string name="preview_close">פארמאכן</string>

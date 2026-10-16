@@ -2,9 +2,11 @@ package co.abaye.mailtice.notify
 
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.UserSettings
+import co.abaye.mailtice.domain.VerificationCode
 import co.abaye.mailtice.platform.localizedString
 import co.abaye.mailtice.sync.NewMail
 import mailtice.shared.generated.resources.Res
+import mailtice.shared.generated.resources.notif_copy_code
 import mailtice.shared.generated.resources.notif_delete
 import mailtice.shared.generated.resources.notif_mark_read
 import mailtice.shared.generated.resources.notif_open
@@ -41,7 +43,12 @@ class MailNotifications(private val notifier: Notifier) {
             if (total > INDIVIDUAL_MAX) {
                 notifier.showSummary(newMail.account, count, texts)
             } else {
-                newMail.messages.forEach { notifier.showMessage(newMail.account, it, texts) }
+                newMail.messages.forEach { message ->
+                    val copy = VerificationCode.find(message.subject, message.snippet)?.let { code ->
+                        CopyCode(code, localizedString(language, Res.string.notif_copy_code, code))
+                    }
+                    notifier.showMessage(newMail.account, message, texts, copy)
+                }
             }
         }
     }

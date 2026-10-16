@@ -36,6 +36,7 @@
     <string name="notif_delete">Delete</string>
     <string name="notif_summary_title">%1$d new messages</string>
     <string name="notif_summary_body">In %1$s</string>
+    <string name="notif_copy_code">Copy %1$s</string>
 
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
@@ -249,6 +250,7 @@
     <string name="message_no_attachments">There are no attachments to download.</string>
     <string name="message_download_failed">The download failed. Check the connection and try again.</string>
     <string name="message_exported">Exported to Downloads/Mailtice</string>
+    <string name="message_code_copied">Code copied</string>
     <string name="export_from">From</string>
     <string name="export_to">To</string>
     <string name="export_date">Date</string>
@@ -426,6 +428,8 @@
     <string name="reader_hide_quoted">Hide quoted text</string>
     <string name="reader_images_hidden">Images from the internet are hidden</string>
     <string name="reader_show_images">Show images</string>
+    <string name="code_label">Verification code</string>
+    <string name="code_copy">Copy code</string>
     <string name="settings_remote_images">Load images from the internet</string>
     <string name="settings_remote_images_desc">Off, each message asks first. Senders can use remote images to see that a message was opened.</string>
     <string name="preview_close">Close</string>

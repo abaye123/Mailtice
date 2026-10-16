@@ -8,6 +8,7 @@ import mailtice.shared.generated.resources.message_action_failed
 import mailtice.shared.generated.resources.message_action_queued
 import mailtice.shared.generated.resources.message_attachments_too_large
 import mailtice.shared.generated.resources.message_cache_cleared
+import mailtice.shared.generated.resources.message_code_copied
 import mailtice.shared.generated.resources.message_db_compacted
 import mailtice.shared.generated.resources.message_download_failed
 import mailtice.shared.generated.resources.message_downloading
@@ -66,6 +67,7 @@ enum class AppMessage {
     AttachmentsTooLarge,
     DraftSaved,
     DraftDiscarded,
+    CodeCopied,
 }
 
 @Composable
@@ -98,4 +100,5 @@ fun AppMessage.text(): String = when (this) {
     AppMessage.AttachmentsTooLarge -> stringResource(Res.string.message_attachments_too_large)
     AppMessage.DraftSaved -> stringResource(Res.string.message_draft_saved)
     AppMessage.DraftDiscarded -> stringResource(Res.string.message_draft_discarded)
+    AppMessage.CodeCopied -> stringResource(Res.string.message_code_copied)
 }

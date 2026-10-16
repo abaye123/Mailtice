@@ -139,6 +139,14 @@ private val personalMail = listOf(
         unread = true,
     ),
     DemoMail(
+        "בנק הדמו",
+        "no-reply@bank.example.com",
+        "קוד אימות לכניסה",
+        "קוד האימות שלך הוא 482913. הקוד תקף ל-10 דקות. אם לא ביקשת להתחבר, אפשר להתעלם מההודעה.",
+        minutesAgo = 25 * MINUTE,
+        unread = true,
+    ),
+    DemoMail(
         "בנק הדמו", "no-reply@bank.example.com", "תדפיס חודשי - ספטמבר",
         "התדפיס החודשי שלך מוכן לצפייה. היתרה בחשבון עודכנה ליום האחרון של החודש. מסמך מצורף.",
         minutesAgo = 47 * MINUTE, unread = true, html = true,
@@ -460,6 +468,14 @@ private val genericMail = listOf(
 
 /** Mail that "arrives" during the session, one piece every few sync rounds. */
 internal val incomingMail = listOf(
+    DemoMail(
+        "CodeHub",
+        "noreply@codehub.example.com",
+        "Your CodeHub sign-in code",
+        "Use this one-time code to sign in: 730154. It expires in 10 minutes.",
+        minutesAgo = 0,
+        unread = true,
+    ),
     DemoMail("דנה ישראלי", "dana.i@example.com", "הגעתי, מחכה בכניסה", "אני ליד הקופות, תגיד כשאתה פה.", minutesAgo = 0, unread = true),
     DemoMail(
         "Build bot",

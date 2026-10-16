@@ -3,6 +3,7 @@ package co.abaye.mailtice.notify
 import co.abaye.mailtice.diag.AppLog
 import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.MailMessage
+import co.abaye.mailtice.platform.Platform
 import dev.nucleusframework.notification.common.NotificationManager
 import dev.nucleusframework.notification.common.NotificationResult
 import dev.nucleusframework.notification.common.notification
@@ -14,12 +15,14 @@ import dev.nucleusframework.notification.common.notification
 class NucleusNotifier : Notifier {
     override val available: Boolean by lazy { runCatching { NotificationManager.isAvailable() }.getOrDefault(false) }
 
-    override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts) {
+    override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts, copy: CopyCode?) {
         send(
             title = "${message.sender} · ${account.displayName}",
             body = message.subject.ifBlank { message.snippet },
             onClick = { NotificationActions.post(NotificationAction.Open(account.id, message.id)) },
         ) {
+            // The code first: it is what the user came for, and copying it needs no window.
+            if (copy != null) button(copy.label) { Platform.copyToClipboard(copy.code, sensitive = true) }
             button(texts.open) { NotificationActions.post(NotificationAction.Open(account.id, message.id)) }
             if (account.capabilities.markRead) {
                 button(texts.markRead) { NotificationActions.post(NotificationAction.MarkRead(account.id, message.id)) }
