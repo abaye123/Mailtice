@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.ui.GitHubMark
@@ -57,14 +56,6 @@ private const val DEVELOPER_SITE = "https://abaye.co"
 private const val REPO_LABEL = "abaye123/Mailtice"
 private const val REPO_URL = "https://github.com/abaye123/Mailtice"
 private const val ISSUES_URL = "https://github.com/abaye123/Mailtice/issues/new"
-
-// TEMPORARY: the app icon is Icons8's "Gmail Logo" until Mailtice has its own. Icons8's free licence
-// requires this credit; delete it (and ICON_CREDIT_* below) together with the icon files.
-private const val ICON_CREDIT_TEXT = "Gmail Logo icon by Icons8"
-private val ICON_CREDIT_LINKS = listOf(
-    "Gmail Logo" to "https://icons8.com/icon/td499GRWwrWC/gmail-logo",
-    "Icons8" to "https://icons8.com",
-)
 
 /** A library the app is built on, named with what it does here. Names, authors and licences stay as published. */
 private class KeyLibrary(val name: String, val purpose: StringResource, val author: String, val license: String, val url: String)
@@ -159,12 +150,6 @@ private fun AboutHeader() {
             }
         }
 
-        // Attribution wording is fixed by the licence, so it is not translated.
-        LinkedText(
-            text = ICON_CREDIT_TEXT,
-            links = ICON_CREDIT_LINKS,
-            style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Ltr),
-        )
         SectionHeader(stringResource(Res.string.about_licenses))
     }
 }

@@ -104,7 +104,3 @@ secrets for Android and the optional `LINUX_GPG_*` secrets for the Linux package
 
 Code structure and conventions: `AGENTS.MD`.
 
-## Credits
-
-Temporary app icon (to be removed once Mailtice has its own icon):
-<a target="_blank" href="https://icons8.com/icon/td499GRWwrWC/gmail-logo">Gmail Logo</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
