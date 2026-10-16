@@ -430,6 +430,8 @@
     <string name="reader_show_images">הצגת התמונות</string>
     <string name="code_label">קוד אימות</string>
     <string name="code_copy">העתקת הקוד</string>
+    <string name="reader_dynamic">זהו מייל דינאמי. החלקים האינטראקטיביים שלו עובדים רק ב-Gmail.</string>
+    <string name="reader_open_gmail">פתח ב-Gmail</string>
     <string name="settings_remote_images">טעינת תמונות מהאינטרנט</string>
     <string name="settings_remote_images_desc">כשכבוי, כל הודעה שואלת קודם. שולחים יכולים לדעת לפי התמונות שההודעה נפתחה.</string>
     <string name="preview_close">סגירה</string>

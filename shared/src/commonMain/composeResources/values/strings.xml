@@ -430,6 +430,8 @@
     <string name="reader_show_images">Show images</string>
     <string name="code_label">Verification code</string>
     <string name="code_copy">Copy code</string>
+    <string name="reader_dynamic">This is a dynamic email. Its interactive parts work only in Gmail.</string>
+    <string name="reader_open_gmail">Open in Gmail</string>
     <string name="settings_remote_images">Load images from the internet</string>
     <string name="settings_remote_images_desc">Off, each message asks first. Senders can use remote images to see that a message was opened.</string>
     <string name="preview_close">Close</string>

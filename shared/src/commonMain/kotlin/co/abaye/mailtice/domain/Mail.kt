@@ -205,7 +205,16 @@ data class Attachment(
 )
 
 @Immutable
-data class MailBody(val text: String, val html: String, val attachments: List<Attachment>)
+data class MailBody(
+    val text: String,
+    val html: String,
+    val attachments: List<Attachment>,
+    /**
+     * The message also carries a dynamic (AMP) version, which only Gmail runs; [html] is the static
+     * version the sender included for every other client.
+     */
+    val dynamic: Boolean = false,
+)
 
 enum class AccountStatus {
     Idle,

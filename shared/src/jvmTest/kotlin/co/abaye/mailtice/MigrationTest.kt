@@ -23,6 +23,18 @@ class MigrationTest {
             """.trimIndent(),
             0,
         )
+        // The body table as version 1 created it, with a stored body.
+        driver.execute(
+            null,
+            """
+            CREATE TABLE message_body (
+              accountId TEXT NOT NULL, messageId TEXT NOT NULL, textBody TEXT NOT NULL DEFAULT '',
+              htmlBody TEXT NOT NULL DEFAULT '', attachments TEXT NOT NULL DEFAULT '', PRIMARY KEY (accountId, messageId)
+            )
+            """.trimIndent(),
+            0,
+        )
+        driver.execute(null, "INSERT INTO message_body(accountId, messageId, textBody) VALUES ('a', 'm1', 'hello')", 0)
         driver.execute(null, "INSERT INTO folder(accountId, id, name, role, sync, notify) VALUES ('a', 'INBOX', 'Inbox', 'Inbox', 1, 1)", 0)
         driver.execute(null, "INSERT INTO folder(accountId, id, name, role, sync, notify) VALUES ('a', 'SPAM', 'Spam', 'Spam', 0, 0)", 0)
 
@@ -40,7 +52,7 @@ class MigrationTest {
         ).value
         // Everything syncs now; notifications untouched; no colour until the next folder refresh.
         assertEquals(listOf("INBOX:1:1:", "SPAM:1:0:"), rows)
-        assertEquals(5L, MailDatabase.Schema.version)
+        assertEquals(6L, MailDatabase.Schema.version)
         // 2 -> 3 added the scheduled-send queue.
         val tables = driver.executeQuery(
             null,
@@ -49,5 +61,15 @@ class MigrationTest {
             0,
         ).value
         assertEquals(true, tables)
+        // 5 -> 6: stored bodies stay, marked static.
+        val body = driver.executeQuery(
+            null,
+            "SELECT textBody, amp FROM message_body",
+            { cursor ->
+                app.cash.sqldelight.db.QueryResult.Value(if (cursor.next().value) "${cursor.getString(0)}:${cursor.getLong(1)}" else "")
+            },
+            0,
+        ).value
+        assertEquals("hello:0", body)
     }
 }

@@ -100,6 +100,7 @@ CREATE TABLE message_body (
   textBody TEXT NOT NULL DEFAULT '',
   htmlBody TEXT NOT NULL DEFAULT '',
   attachments TEXT NOT NULL DEFAULT '', -- "name|size" per line
+  amp INTEGER NOT NULL DEFAULT 0,        -- 1: the message also has an AMP part, which only Gmail runs
   PRIMARY KEY (accountId, messageId),
   FOREIGN KEY (accountId, messageId) REFERENCES message(accountId, id) ON DELETE CASCADE
 );
@@ -250,7 +251,7 @@ folderIdsOfMessage:
 SELECT folderId FROM message_folder WHERE accountId = ? AND messageId = ?;
 
 upsertBody:
-INSERT OR REPLACE INTO message_body(accountId, messageId, textBody, htmlBody, attachments) VALUES ?;
+INSERT OR REPLACE INTO message_body(accountId, messageId, textBody, htmlBody, attachments, amp) VALUES ?;
 
 selectBody:
 SELECT * FROM message_body WHERE accountId = ? AND messageId = ?;

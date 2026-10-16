@@ -297,7 +297,12 @@ class DemoMailProvider(private val clock: () -> Long = { Platform.now() }) : Mai
             hasAttachments = mail.attachments.isNotEmpty(),
             sizeBytes = mail.text.length * 2L + mail.attachments.sumOf { it.size },
             folderIds = folderIds,
-            body = MailBody(text = mail.text, html = if (mail.html) htmlFor(mail) else "", attachments = mail.attachments),
+            body = MailBody(
+                text = mail.text,
+                html = if (mail.html) htmlFor(mail) else "",
+                attachments = mail.attachments,
+                dynamic = mail.dynamic,
+            ),
         )
     }
 

@@ -269,11 +269,13 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
         folderIds.flatMap { q.messageIdsInFolder(accountId, it).executeAsList() }.toSet()
 
     fun body(accountId: String, messageId: String): MailBody? = q.selectBody(accountId, messageId).executeAsOneOrNull()?.let {
-        MailBody(it.textBody, it.htmlBody, decodeAttachments(it.attachments))
+        MailBody(it.textBody, it.htmlBody, decodeAttachments(it.attachments), dynamic = it.amp != 0L)
     }
 
     fun saveBody(accountId: String, messageId: String, body: MailBody) {
-        q.upsertBody(Message_body(accountId, messageId, body.text, body.html, encodeAttachments(body.attachments)))
+        q.upsertBody(
+            Message_body(accountId, messageId, body.text, body.html, encodeAttachments(body.attachments), if (body.dynamic) 1L else 0L),
+        )
     }
 
     /**
@@ -375,7 +377,16 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
                 q.setFlags(if (m.unread) 1 else 0, if (m.flagged) 1 else 0, accountId, m.id)
                 m.folderIds.forEach { folderId -> q.linkFolder(accountId, m.id, folderId) }
                 m.body?.let { body ->
-                    q.upsertBody(Message_body(accountId, m.id, body.text, body.html, encodeAttachments(body.attachments)))
+                    q.upsertBody(
+                        Message_body(
+                            accountId,
+                            m.id,
+                            body.text,
+                            body.html,
+                            encodeAttachments(body.attachments),
+                            if (body.dynamic) 1L else 0L,
+                        ),
+                    )
                 }
             }
             batch.flagChanges.forEach { q.setFlags(if (it.unread) 1 else 0, if (it.flagged) 1 else 0, accountId, it.messageId) }

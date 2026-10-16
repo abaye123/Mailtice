@@ -10,6 +10,9 @@ import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.search.MailSearch
 
+/** The part a dynamic (AMP) mail runs from, next to its static HTML; only Gmail renders it. */
+internal const val AMP_MIME_TYPE = "text/x-amp-html"
+
 /** [color] is the label's "#rrggbb" background where the provider has one (Gmail), "" otherwise. */
 data class RemoteFolder(val id: String, val name: String, val role: FolderRole, val color: String = "")
 

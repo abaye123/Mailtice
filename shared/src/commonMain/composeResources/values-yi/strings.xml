@@ -393,6 +393,8 @@
     <string name="reader_show_images">ווייזן די בילדער</string>
     <string name="code_label">באשטעטיגונג קאד</string>
     <string name="code_copy">קאפירן דעם קאד</string>
+    <string name="reader_dynamic">דאס איז א דינאמישער אימעיל. זיינע אינטעראקטיווע טיילן ארבעטן נאר אין Gmail.</string>
+    <string name="reader_open_gmail">עפן אין Gmail</string>
     <string name="settings_remote_images">לאדן בילדער פונעם אינטערנעט</string>
     <string name="settings_remote_images_desc">ווען אויסגעלאשן, פרעגט יעדע מעסעדזש פריער. שיקער קענען וויסן לויט די בילדער אז די מעסעדזש איז געעפנט געווארן.</string>
     <string name="preview_close">פארמאכן</string>

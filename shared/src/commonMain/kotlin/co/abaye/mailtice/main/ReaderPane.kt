@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.ReplyAll
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Delete
@@ -110,6 +111,7 @@ import mailtice.shared.generated.resources.reader_close
 import mailtice.shared.generated.resources.reader_download_all
 import mailtice.shared.generated.resources.reader_download_one
 import mailtice.shared.generated.resources.reader_download_thread
+import mailtice.shared.generated.resources.reader_dynamic
 import mailtice.shared.generated.resources.reader_export_html
 import mailtice.shared.generated.resources.reader_export_mail
 import mailtice.shared.generated.resources.reader_forward
@@ -117,6 +119,7 @@ import mailtice.shared.generated.resources.reader_full_view
 import mailtice.shared.generated.resources.reader_hide_quoted
 import mailtice.shared.generated.resources.reader_images_hidden
 import mailtice.shared.generated.resources.reader_more
+import mailtice.shared.generated.resources.reader_open_gmail
 import mailtice.shared.generated.resources.reader_open_html
 import mailtice.shared.generated.resources.reader_open_web
 import mailtice.shared.generated.resources.reader_preview_one
@@ -401,6 +404,8 @@ private fun ReaderHeader(
         if (!cards) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
         val code = remember(message.key, body) { VerificationCode.find(message.subject, body?.text?.ifBlank { null } ?: message.snippet) }
         if (code != null) CodeBar(code) { onIntent(AppIntent.CopyCode(code)) }
+        // Only Gmail runs the dynamic version; the static one is what shows here.
+        if (body?.dynamic == true && account?.capabilities?.openInWeb == true) DynamicBar { onIntent(AppIntent.OpenInWeb(message)) }
         if (body != null) TranslateBar(reader, onIntent)
     }
 }
@@ -558,6 +563,26 @@ private fun ImagesBar(onShow: () -> Unit) {
             color = colors.onSurfaceVariant,
         )
         TextButton(onClick = onShow) { Text(stringResource(Res.string.reader_show_images)) }
+    }
+}
+
+/** A dynamic (AMP) mail: say that its live parts are Gmail's, and open it there. */
+@Composable
+private fun DynamicBar(onOpen: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().background(colors.surfaceContainerHigh, RoundedCornerShape(12.dp)).padding(start = 14.dp, end = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Outlined.Bolt, null, Modifier.size(20.dp), tint = colors.primary)
+        Text(
+            stringResource(Res.string.reader_dynamic),
+            Modifier.weight(1f).padding(vertical = 10.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurfaceVariant,
+        )
+        TextButton(onClick = onOpen) { Text(stringResource(Res.string.reader_open_gmail)) }
     }
 }
 

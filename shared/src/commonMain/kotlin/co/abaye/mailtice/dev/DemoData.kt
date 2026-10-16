@@ -37,6 +37,8 @@ internal data class DemoMail(
     val folders: List<String> = listOf(DemoFolders.INBOX),
     /** Messages with the same key form one Gmail conversation; IMAP accounts thread by subject anyway. */
     val thread: String = "",
+    /** Also carries an AMP part, as Drive's share requests do (Gmail accounts offer to open it there). */
+    val dynamic: Boolean = false,
 )
 
 private const val KITCHEN_THREAD = "kitchen"
@@ -137,6 +139,16 @@ private val personalMail = listOf(
         "היי נועה! חשבנו לעשות ארוחת שישי השבוע, תגידי אם אתם מגיעים ואם להביא משהו. יהיו גם סבא וסבתא.",
         minutesAgo = 12 * MINUTE,
         unread = true,
+    ),
+    DemoMail(
+        "רונית שמש (Drive)",
+        "drive-shares-noreply@example.com",
+        "בקשת גישה: תקציב 2027.xlsx",
+        "רונית שמש מבקשת גישה לעריכה של הקובץ תקציב 2027.xlsx. אפשר לאשר או לדחות את הבקשה ב-Drive.",
+        minutesAgo = 3 * HOUR,
+        unread = true,
+        html = true,
+        dynamic = true,
     ),
     DemoMail(
         "בנק הדמו",

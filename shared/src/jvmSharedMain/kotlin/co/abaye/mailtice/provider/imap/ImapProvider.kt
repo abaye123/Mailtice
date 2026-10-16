@@ -15,6 +15,7 @@ import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.ProviderKind
+import co.abaye.mailtice.provider.AMP_MIME_TYPE
 import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.FlagChange
 import co.abaye.mailtice.provider.FolderState
@@ -709,10 +710,11 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
 
     private fun contentIdOf(part: Part): String = (part as? MimePart)?.contentID?.trim()?.removePrefix("<")?.removeSuffix(">").orEmpty()
 
-    /** First text/plain, first text/html, and every file part as an attachment (not downloaded). */
+    /** First text/plain, first text/html, every file part as an attachment (not downloaded), and whether there is an AMP part. */
     private fun parseBody(message: Part): MailBody {
         var text: String? = null
         var html: String? = null
+        var dynamic = false
         val attachments = mutableListOf<Attachment>()
         fun walk(part: Part) {
             val fileName = part.fileName?.let { runCatching { MimeUtility.decodeText(it) }.getOrDefault(it) }
@@ -729,6 +731,8 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
 
                 part.isMimeType("text/html") && html == null -> html = part.content as? String
 
+                part.isMimeType(AMP_MIME_TYPE) -> dynamic = true
+
                 part.isMimeType("multipart/*") -> {
                     val mp = part.content as Multipart
                     for (i in 0 until mp.count) walk(mp.getBodyPart(i))
@@ -739,7 +743,7 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
         }
         walk(message)
         val htmlBody = html.orEmpty()
-        return MailBody(text = text ?: HtmlText.toText(htmlBody), html = htmlBody, attachments = attachments)
+        return MailBody(text = text ?: HtmlText.toText(htmlBody), html = htmlBody, attachments = attachments, dynamic = dynamic)
     }
 
     private suspend fun <T> io(block: () -> T): T = withContext(Dispatchers.IO) { block() }

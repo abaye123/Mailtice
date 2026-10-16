@@ -13,6 +13,7 @@ import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.SenderIdentity
 import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.provider.AMP_MIME_TYPE
 import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.FlagChange
 import co.abaye.mailtice.provider.FolderLinkChange
@@ -496,11 +497,12 @@ internal fun MessagePart.fileName(): String = filename.ifEmpty {
         mimeType.substringAfter('/').substringBefore(';').ifEmpty { "png" }
 }
 
-/** Walks the MIME tree Gmail returns: first text/plain, first text/html, and every file part. */
+/** Walks the MIME tree Gmail returns: first text/plain, first text/html, every file part, and whether there is an AMP part. */
 @OptIn(ExperimentalEncodingApi::class)
 internal fun GmailMessage.body(): MailBody {
     var text: String? = null
     var html: String? = null
+    var dynamic = false
     val attachments = mutableListOf<Attachment>()
     fun charsetOf(part: MessagePart): String = part.headers
         .firstOrNull { it.name.equals("Content-Type", ignoreCase = true) }?.value
@@ -512,10 +514,11 @@ internal fun GmailMessage.body(): MailBody {
             part.isFilePart() -> attachments += Attachment(part.fileName(), part.body?.size ?: 0, part.contentId(), part.mimeType)
             part.mimeType == "text/plain" && text == null && data != null -> text = decodeText(base64Url.decode(data), charsetOf(part))
             part.mimeType == "text/html" && html == null && data != null -> html = decodeText(base64Url.decode(data), charsetOf(part))
+            part.mimeType == AMP_MIME_TYPE -> dynamic = true
         }
         part.parts.forEach(::walk)
     }
     payload?.let(::walk)
     val htmlBody = html.orEmpty()
-    return MailBody(text = text ?: HtmlText.toText(htmlBody), html = htmlBody, attachments = attachments)
+    return MailBody(text = text ?: HtmlText.toText(htmlBody), html = htmlBody, attachments = attachments, dynamic = dynamic)
 }
