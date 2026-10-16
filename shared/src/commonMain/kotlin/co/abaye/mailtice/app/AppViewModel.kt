@@ -224,6 +224,10 @@ class AppViewModel(
             repo.unreadCounts.collect { counts ->
                 mutate { it.copy(unread = counts) }
                 refreshDigests()
+                // Read here, elsewhere or deleted: its notification has nothing left to tell.
+                withContext(io) {
+                    notifications.withdrawSeen({ account, id -> repo.message(account, id)?.unread == true }, { counts[it] ?: 0L })
+                }
             }
         }
         // The badge's window slides with the clock, so the count is read again every hour as well.
@@ -1169,6 +1173,7 @@ class AppViewModel(
         val translated = translations[translationKey(message, _state.value.data.settings.uiLanguage.code)]
         val opened = Reader(message, ready, translation = translated.takeIf { ready != null }, thread = thread, bodies = bodies)
         mutate { it.copy(reader = opened) }
+        notifications.dismiss(thread.ifEmpty { listOf(message) })
         if (!Platform.isDesktop) navigate(AppKey.Reader)
         if (thread.size > 1 && bodies.isEmpty()) {
             scope.launch {

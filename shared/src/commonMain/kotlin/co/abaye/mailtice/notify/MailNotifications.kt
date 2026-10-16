@@ -1,5 +1,6 @@
 package co.abaye.mailtice.notify
 
+import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.domain.UserSettings
 import co.abaye.mailtice.platform.localizedString
 import co.abaye.mailtice.sync.NewMail
@@ -42,6 +43,22 @@ class MailNotifications(private val notifier: Notifier) {
             } else {
                 newMail.messages.forEach { notifier.showMessage(newMail.account, it, texts) }
             }
+        }
+    }
+
+    /** The open messages were seen: their notifications go, as Gmail does on opening a message. */
+    fun dismiss(messages: List<MailMessage>) {
+        messages.forEach { notifier.dismiss(it.accountId, it.id) }
+    }
+
+    /**
+     * Takes back what no longer needs the user: a message that was read (here, in another app or
+     * on another device) or deleted, and an account's summary once nothing in it is unread.
+     */
+    fun withdrawSeen(isUnread: (accountId: String, messageId: String) -> Boolean, unreadIn: (accountId: String) -> Long) {
+        notifier.shown().forEach { shown ->
+            val stale = shown.messageId?.let { !isUnread(shown.accountId, it) } ?: (unreadIn(shown.accountId) == 0L)
+            if (stale) notifier.dismiss(shown.accountId, shown.messageId)
         }
     }
 }

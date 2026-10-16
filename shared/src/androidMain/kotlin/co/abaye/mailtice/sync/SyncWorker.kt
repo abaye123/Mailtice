@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import co.abaye.mailtice.di.AppGraphHolder
 import co.abaye.mailtice.platform.bindAndroidContext
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeUnit
 
@@ -26,6 +27,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val settings = graph.store.load().settings
         withTimeoutOrNull(WORK_BUDGET_MS) {
             graph.notifications.announce(graph.sync.syncAllOnce(), settings)
+            // Mail read on another device since: its notification goes, as in Gmail.
+            val repo = graph.repository
+            val counts = repo.unreadCounts.first()
+            graph.notifications.withdrawSeen({ account, id -> repo.message(account, id)?.unread == true }, { counts[it] ?: 0L })
         }
         return Result.success()
     }

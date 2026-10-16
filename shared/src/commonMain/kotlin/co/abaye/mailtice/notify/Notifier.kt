@@ -38,7 +38,16 @@ interface Notifier {
     fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts)
 
     fun showSummary(account: Account, count: Int, texts: NotificationTexts)
+
+    /** What is still on screen: one per message notification, and one with a null message id per summary. */
+    fun shown(): List<ShownNotification> = emptyList()
+
+    /** Takes a message's notification (or, with a null [messageId], an account's summary) off the screen. */
+    fun dismiss(accountId: String, messageId: String?) = Unit
 }
+
+/** A notification still showing, as [Notifier.shown] lists it. */
+data class ShownNotification(val accountId: String, val messageId: String?)
 
 object NoNotifier : Notifier {
     override val available: Boolean = false

@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import co.abaye.mailtice.di.AppGraph
@@ -50,7 +51,7 @@ class AndroidNotifier(private val context: Context) : Notifier {
 
     override fun showMessage(account: Account, message: MailMessage, texts: NotificationTexts) {
         ensureChannel(texts.open)
-        val id = (account.id + message.id).hashCode()
+        val id = messageNotificationId(account.id, message.id)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_email)
             .setContentTitle(message.sender)
@@ -60,6 +61,7 @@ class AndroidNotifier(private val context: Context) : Notifier {
             .setAutoCancel(true)
             .setContentIntent(openIntent(id, ACTION_OPEN, account.id, message.id))
             .setGroup(account.id)
+            .addExtras(whose(account.id, message.id))
         if (account.capabilities.markRead) {
             val markRead = PendingIntent.getBroadcast(
                 context,
@@ -85,7 +87,7 @@ class AndroidNotifier(private val context: Context) : Notifier {
 
     override fun showSummary(account: Account, count: Int, texts: NotificationTexts) {
         ensureChannel(texts.open)
-        val id = account.id.hashCode()
+        val id = summaryNotificationId(account.id)
         notify(
             id,
             NotificationCompat.Builder(context, CHANNEL_ID)
@@ -93,9 +95,27 @@ class AndroidNotifier(private val context: Context) : Notifier {
                 .setContentTitle(texts.summaryTitle)
                 .setContentText(texts.summaryBody)
                 .setNumber(count)
+                .addExtras(whose(account.id, null))
                 .setAutoCancel(true)
                 .setContentIntent(openIntent(id, ACTION_OPEN_ACCOUNT, account.id, null)),
         )
+    }
+
+    override fun shown(): List<ShownNotification> = runCatching {
+        context.getSystemService(NotificationManager::class.java).activeNotifications.mapNotNull { active ->
+            val extras = active.notification.extras
+            extras.getString(EXTRA_ACCOUNT)?.let { ShownNotification(it, extras.getString(EXTRA_MESSAGE)) }
+        }
+    }.getOrDefault(emptyList())
+
+    override fun dismiss(accountId: String, messageId: String?) {
+        manager.cancel(if (messageId == null) summaryNotificationId(accountId) else messageNotificationId(accountId, messageId))
+    }
+
+    /** Which account and message a notification is about, read back by [shown]. */
+    private fun whose(accountId: String, messageId: String?) = Bundle().apply {
+        putString(EXTRA_ACCOUNT, accountId)
+        if (messageId != null) putString(EXTRA_MESSAGE, messageId)
     }
 
     private fun openIntent(requestCode: Int, action: String, accountId: String, messageId: String?): PendingIntent {
@@ -112,6 +132,10 @@ class AndroidNotifier(private val context: Context) : Notifier {
         if (available) manager.notify(id, builder.build())
     }
 }
+
+private fun messageNotificationId(accountId: String, messageId: String) = (accountId + messageId).hashCode()
+
+private fun summaryNotificationId(accountId: String) = accountId.hashCode()
 
 /** Called by AppActivity with the intent that opened it; turns a notification tap into an action. */
 fun handleNotificationIntent(intent: Intent?) {
@@ -148,7 +172,7 @@ class TrashReceiver : BroadcastReceiver() {
 private fun BroadcastReceiver.onMessage(context: Context, intent: Intent, name: String, action: suspend (AppGraph, MailMessage) -> Unit) {
     val accountId = intent.getStringExtra(EXTRA_ACCOUNT) ?: return
     val messageId = intent.getStringExtra(EXTRA_MESSAGE) ?: return
-    NotificationManagerCompat.from(context).cancel((accountId + messageId).hashCode())
+    NotificationManagerCompat.from(context).cancel(messageNotificationId(accountId, messageId))
     val pending = goAsync()
     receiverScope.launch {
         try {

@@ -7,6 +7,7 @@ import co.abaye.mailtice.domain.UserSettings
 import co.abaye.mailtice.notify.MailNotifications
 import co.abaye.mailtice.notify.NotificationTexts
 import co.abaye.mailtice.notify.Notifier
+import co.abaye.mailtice.notify.ShownNotification
 import co.abaye.mailtice.sync.NewMail
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -24,6 +25,15 @@ class MailNotificationsTest {
 
         override fun showSummary(account: Account, count: Int, texts: NotificationTexts) {
             shown += "summary:${account.id}:$count"
+        }
+
+        val onScreen = mutableListOf<ShownNotification>()
+        val dismissed = mutableListOf<String>()
+
+        override fun shown() = onScreen.toList()
+
+        override fun dismiss(accountId: String, messageId: String?) {
+            dismissed += "$accountId:${messageId ?: "summary"}"
         }
     }
 
@@ -64,5 +74,28 @@ class MailNotificationsTest {
     fun aQuietAccountIsLeftOut() {
         val quiet = NewMail(account("q").copy(notify = false), round("q", "9").messages)
         assertEquals(listOf("message:a:1"), announce(round("a", "1"), quiet))
+    }
+
+    // Read on another device, deleted, or the account's summary once its inbox is read.
+    @Test
+    fun whatNoLongerNeedsTheUserIsWithdrawn() {
+        val recorder = Recorder()
+        recorder.onScreen += listOf(
+            ShownNotification("a", "unread"),
+            ShownNotification("a", "read"),
+            ShownNotification("a", "gone"),
+            ShownNotification("b", null),
+            ShownNotification("c", null),
+        )
+        val unread = mapOf("a:unread" to true, "a:read" to false)
+        MailNotifications(recorder).withdrawSeen({ account, id -> unread["$account:$id"] == true }, { if (it == "c") 2L else 0L })
+        assertEquals(listOf("a:read", "a:gone", "b:summary"), recorder.dismissed)
+    }
+
+    @Test
+    fun openingAConversationDismissesItsMessages() {
+        val recorder = Recorder()
+        MailNotifications(recorder).dismiss(round("a", "1", "2").messages)
+        assertEquals(listOf("a:1", "a:2"), recorder.dismissed)
     }
 }
