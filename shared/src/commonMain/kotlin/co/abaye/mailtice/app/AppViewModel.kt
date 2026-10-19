@@ -79,6 +79,7 @@ import dev.zacsweers.metro.AssistedInject
 import io.github.santimattius.structured.annotations.StructuredScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +103,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -130,6 +132,10 @@ private const val REFRESH_MIN_MS = 900L
 private const val REFRESH_MAX_MS = 60_000L
 private const val BADGE_WINDOW_TICK_MS = 60 * 60 * 1000L
 private const val SEARCH_DEBOUNCE_MS = 200L
+
+/** A failed read of the message list is tried again after this long, times the attempt (capped). */
+private const val LIST_RETRY_MS = 1_000L
+private const val LIST_RETRY_MAX_MS = 30_000L
 
 /** New mail is held this long after the last round that brought some, so rounds landing together are announced together. */
 private const val ANNOUNCE_GATHER_MS = 2_000L
@@ -172,7 +178,11 @@ class AppViewModel(
     private val job = SupervisorJob()
 
     @StructuredScope
-    private val scope = CoroutineScope(job + dispatcher)
+    private val scope = CoroutineScope(
+        job + dispatcher +
+            // A watcher that dies leaves its part of the screen frozen: at least the diagnostics file should say so.
+            CoroutineExceptionHandler { _, e -> AppLog.log("View model task failed: ${e::class.simpleName}") },
+    )
 
     private val _state = MutableStateFlow(restore())
     val state: StateFlow<AppState> = _state.asStateFlow()
@@ -292,6 +302,13 @@ class AppViewModel(
                         // Conversation view: each row's whole stored conversation, read with the rows.
                         list to if (conversations) withContext(io) { repo.conversationsOf(list) } else emptyMap()
                     }
+                }
+                // One failed read (a busy database, say) must not end the list for good: every later
+                // filter change would go unanswered until a restart. Read again instead.
+                .retryWhen { e, attempt ->
+                    AppLog.log("Message list read failed: ${e::class.simpleName}")
+                    delay(minOf(LIST_RETRY_MS * (attempt + 1), LIST_RETRY_MAX_MS))
+                    true
                 }
                 .collect { (list, members) ->
                     mutate { s ->
