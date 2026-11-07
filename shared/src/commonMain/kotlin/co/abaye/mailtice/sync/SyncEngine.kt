@@ -546,6 +546,40 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         return false
     }
 
+    /**
+     * Downloads what an export of [account]'s mail from [since] on needs and the device lacks: the
+     * bodies, and the attachments up to [attachmentLimit] bytes (0 = none, [Long.MAX_VALUE] = all).
+     * Best effort: a message the server refuses is skipped, and losing the connection stops here
+     * with whatever came so far. [progress] counts the messages looked at.
+     */
+    suspend fun prepareExport(account: Account, since: Long, attachmentLimit: Long, progress: (Int) -> Unit) {
+        if (account.fileOnly) return
+        lock(account.id).withLock {
+            val provider = providers.forAccount(account)
+            repo.messageIdsSince(account.id, since).forEachIndexed { i, id ->
+                progress(i + 1)
+                val message = repo.message(account.id, id) ?: return@forEachIndexed
+                try {
+                    val body = repo.body(account.id, id) ?: provider.fetchBody(account, message).also { repo.saveBody(account.id, id, it) }
+                    if (attachmentLimit <= 0 || !message.hasAttachments) return@forEachIndexed
+                    if (Platform.readBytes(doneMarker(account.id, id)) != null) return@forEachIndexed
+                    val wanted = body.attachments.withIndex().filter { it.value.size <= attachmentLimit }.map { it.index }.toSet()
+                    if (wanted.isNotEmpty()) {
+                        provider.fetchAttachments(account, message, wanted).forEach { f ->
+                            Platform.writeBytes(attachmentPath(account.id, id, f.index), f.bytes)
+                        }
+                    }
+                    Platform.writeBytes(doneMarker(account.id, id), ByteArray(0))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (isNetworkError(e)) return@withLock
+                    AppLog.log("Export: a message was skipped: ${describe(e)}")
+                }
+            }
+        }
+    }
+
     private fun attachmentPath(accountId: String, messageId: String, index: Int) = OfflineFiles.attachment(accountId, messageId, index)
 
     private fun doneMarker(accountId: String, messageId: String) = OfflineFiles.done(accountId, messageId)

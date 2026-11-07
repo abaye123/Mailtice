@@ -598,4 +598,11 @@
     <string name="transfer_import_password_title">הקובץ מוגן בסיסמה</string>
     <string name="transfer_import_password">סיסמה</string>
     <string name="transfer_wrong_password">הסיסמה שגויה. נסה שוב.</string>
+    <string name="transfer_period">תקופה</string>
+    <string name="transfer_period_month">החודש האחרון</string>
+    <string name="transfer_period_3_months">3 החודשים האחרונים</string>
+    <string name="transfer_period_year">השנה האחרונה</string>
+    <string name="transfer_period_all">כל מה ששמור במכשיר</string>
+    <string name="transfer_period_hint">מיילים מהתקופה שחסרים כאן יורדים קודם, עם קבצים מצורפים עד מגבלת הגודל של מצב לא מקוון. מיילים ישנים יותר ממה שהחשבון שומר לא נשמרים, ולכן לא ייכנסו לקובץ.</string>
+    <string name="transfer_preparing">מוריד מיילים לקובץ... %1$d הודעות</string>
 </resources>

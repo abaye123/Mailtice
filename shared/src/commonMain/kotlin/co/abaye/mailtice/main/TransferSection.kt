@@ -6,23 +6,30 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -59,6 +66,13 @@ import mailtice.shared.generated.resources.transfer_password_mismatch
 import mailtice.shared.generated.resources.transfer_password_repeat
 import mailtice.shared.generated.resources.transfer_password_title
 import mailtice.shared.generated.resources.transfer_password_warning
+import mailtice.shared.generated.resources.transfer_period
+import mailtice.shared.generated.resources.transfer_period_3_months
+import mailtice.shared.generated.resources.transfer_period_all
+import mailtice.shared.generated.resources.transfer_period_hint
+import mailtice.shared.generated.resources.transfer_period_month
+import mailtice.shared.generated.resources.transfer_period_year
+import mailtice.shared.generated.resources.transfer_preparing
 import mailtice.shared.generated.resources.transfer_show
 import mailtice.shared.generated.resources.transfer_skipped
 import mailtice.shared.generated.resources.transfer_title
@@ -98,9 +112,9 @@ internal fun TransferSection(status: TransferStatus, onIntent: (AppIntent) -> Un
         }
     }
     if (exporting) {
-        ExportPasswordDialog(onDismiss = { exporting = false }) { password ->
+        ExportDialog(onDismiss = { exporting = false }) { password, days ->
             exporting = false
-            onIntent(AppIntent.ExportMail(password))
+            onIntent(AppIntent.ExportMail(password, days))
         }
     }
 }
@@ -119,17 +133,42 @@ private fun PasswordInput(value: String, label: String, onChange: (String) -> Un
     )
 }
 
-/** An empty password exports a plain file; the warning stays on screen until there is one. */
+/** The periods an export offers, in days; 0 = everything stored. */
+private val ExportPeriods = listOf(30, 90, 365, 0)
+
+/**
+ * The period, then the password. An empty password exports a plain file; the warning stays on
+ * screen whatever is typed, since a password cannot be recovered either.
+ */
 @Composable
-private fun ExportPasswordDialog(onDismiss: () -> Unit, onExport: (String?) -> Unit) {
+private fun ExportDialog(onDismiss: () -> Unit, onExport: (String?, Int) -> Unit) {
+    var days by remember { mutableIntStateOf(90) }
     var password by remember { mutableStateOf("") }
     var repeat by remember { mutableStateOf("") }
     val mismatch = password != repeat
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.transfer_password_title)) },
+        title = { Text(stringResource(Res.string.transfer_export)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(Res.string.transfer_period), style = MaterialTheme.typography.titleSmall)
+                Column(Modifier.selectableGroup()) {
+                    ExportPeriods.forEach { option ->
+                        Row(
+                            Modifier.fillMaxWidth().selectable(option == days, role = Role.RadioButton) { days = option },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = option == days, onClick = null)
+                            Text(periodLabel(option), Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp))
+                        }
+                    }
+                }
+                Text(
+                    stringResource(Res.string.transfer_period_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(stringResource(Res.string.transfer_password_title), style = MaterialTheme.typography.titleSmall)
                 Text(stringResource(Res.string.transfer_password_warning), style = MaterialTheme.typography.bodySmall)
                 PasswordInput(password, stringResource(Res.string.transfer_password)) { password = it }
                 PasswordInput(repeat, stringResource(Res.string.transfer_password_repeat)) { repeat = it }
@@ -143,13 +182,23 @@ private fun ExportPasswordDialog(onDismiss: () -> Unit, onExport: (String?) -> U
             }
         },
         confirmButton = {
-            TextButton(onClick = { onExport(password.ifEmpty { null }) }, enabled = !mismatch) {
+            TextButton(onClick = { onExport(password.ifEmpty { null }, days) }, enabled = !mismatch) {
                 Text(stringResource(Res.string.transfer_export_button))
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.dialog_cancel)) } },
     )
 }
+
+@Composable
+private fun periodLabel(days: Int): String = stringResource(
+    when (days) {
+        30 -> Res.string.transfer_period_month
+        90 -> Res.string.transfer_period_3_months
+        365 -> Res.string.transfer_period_year
+        else -> Res.string.transfer_period_all
+    },
+)
 
 @Composable
 private fun ImportPasswordDialog(wrong: Boolean, onIntent: (AppIntent) -> Unit) {
@@ -184,7 +233,11 @@ private fun transferText(status: TransferStatus): String = when (status) {
     TransferStatus.Idle, is TransferStatus.NeedsPassword -> ""
 
     is TransferStatus.Running -> stringResource(
-        if (status.importing) Res.string.transfer_importing else Res.string.transfer_exporting,
+        when {
+            status.importing -> Res.string.transfer_importing
+            status.preparing -> Res.string.transfer_preparing
+            else -> Res.string.transfer_exporting
+        },
         status.messages,
     )
 

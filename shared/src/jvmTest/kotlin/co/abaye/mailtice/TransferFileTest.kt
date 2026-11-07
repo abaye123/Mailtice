@@ -177,6 +177,19 @@ class TransferFileTest {
     }
 
     @Test
+    fun aPeriodLeavesOlderMailOut() {
+        val out = ByteArrayOutputStream()
+        zipSink(out, null).use { sink ->
+            MailExporter(stocked(), paths, sizeOf = { File(it).length() }).write(sink, listOf(gmail), "test", 0, since = 1_500)
+        }
+        val target = repo()
+        assertEquals(1, import(target, out.toByteArray()).messages)
+        val copy = target.accountsNow().single()
+        assertNotNull(target.message(copy.id, "m2"))
+        assertNull(target.message(copy.id, "m1"))
+    }
+
+    @Test
     fun aPasswordProtectsTheFile() {
         val plain = export(stocked(), listOf(gmail))
         val sealed = export(stocked(), listOf(gmail), password = "correct horse")

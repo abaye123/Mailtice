@@ -558,4 +558,11 @@
     <string name="transfer_import_password_title">די טעקע האט א פאסווארט</string>
     <string name="transfer_import_password">פאסווארט</string>
     <string name="transfer_wrong_password">א פאלשע פאסווארט. פרובירט נאכאמאל.</string>
+    <string name="transfer_period">צייט</string>
+    <string name="transfer_period_month">דער לעצטער חודש</string>
+    <string name="transfer_period_3_months">די לעצטע 3 חדשים</string>
+    <string name="transfer_period_year">דאס לעצטע יאר</string>
+    <string name="transfer_period_all">אלץ וואס איז אפגעהיטן אויף דעם מכשיר</string>
+    <string name="transfer_period_hint">בריוו פון דער צייט וואס פעלן דא ווערן קודם אראפגעלאדן, מיט צוגעלייגטע טעקעס ביז דער גרייס גרענעץ פונעם אפליין מאדע. בריוו עלטער ווי דער חשבון היט אפ ווערן נישט אפגעהיטן, און זענען נישט אין דער טעקע.</string>
+    <string name="transfer_preparing">לאדט אראפ בריוו פאר דער טעקע... %1$d בריוו</string>
 </resources>

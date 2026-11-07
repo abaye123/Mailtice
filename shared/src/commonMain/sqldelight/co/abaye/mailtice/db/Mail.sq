@@ -204,12 +204,16 @@ SELECT m.*, (
   WHERE mf2.accountId = m.accountId AND mf2.messageId = m.id
 ) AS folderIds
 FROM message m
-WHERE m.accountId = :accountId
+WHERE m.accountId = :accountId AND m.receivedAt >= :since
   AND (m.receivedAt < :receivedAt OR (m.receivedAt = :receivedAt AND m.id < :id))
 ORDER BY m.receivedAt DESC, m.id DESC LIMIT :limit;
 
 countAccountMessages:
-SELECT count(*) FROM message WHERE accountId = ?;
+SELECT count(*) FROM message WHERE accountId = ? AND receivedAt >= ?;
+
+-- What an export from a date on needs ready: the account's messages since then, newest first.
+messageIdsSince:
+SELECT id FROM message WHERE accountId = ? AND receivedAt >= ? ORDER BY receivedAt DESC;
 
 -- A Gmail conversation, oldest first, with each message's folders.
 selectThread:

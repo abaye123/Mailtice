@@ -352,7 +352,7 @@ class AppViewModel(
 
             AppIntent.ChooseGmailAppPassword -> openGmailAppPasswordForm()
 
-            is AppIntent.ExportMail -> exportMail(intent.password)
+            is AppIntent.ExportMail -> exportMail(intent.password, intent.days)
 
             is AppIntent.ImportMail -> importMail(intent.title)
 
@@ -1111,19 +1111,37 @@ class AppViewModel(
      * shown in the file manager, to carry to a computer without internet.
      */
     @OptIn(ExperimentalTime::class)
-    private fun exportMail(password: String?) {
+    private fun exportMail(password: String?, days: Int) {
         if (_state.value.transfer is TransferStatus.Running) return
         val accounts = _state.value.accounts
-        mutate { it.copy(transfer = TransferStatus.Running(importing = false, messages = 0)) }
+        val now = Platform.now()
+        val since = if (days > 0) now - days * MailRepository.DAY_MS else 0L
+        val limit = when (val mb = _state.value.data.settings.offlineAttachmentsMb) {
+            -1 -> Long.MAX_VALUE
+            else -> mb.coerceAtLeast(0) * 1024L * 1024L
+        }
+        mutate { it.copy(transfer = TransferStatus.Running(importing = false, messages = 0, preparing = true)) }
         scope.launch {
             val result = withContext(io) {
                 runCatching {
-                    val now = Platform.now()
+                    // What the period needs and this device does not hold yet comes from the server first.
+                    var looked = 0
+                    accounts.forEach { account ->
+                        val before = looked
+                        sync.prepareExport(account, since, limit) { n ->
+                            looked = before + n
+                            if (looked % 20 == 0) {
+                                mutate { s ->
+                                    s.copy(transfer = TransferStatus.Running(importing = false, messages = looked, preparing = true))
+                                }
+                            }
+                        }
+                    }
                     val date = Instant.fromEpochMilliseconds(now).toLocalDateTime(TimeZone.currentSystemDefault()).date
                     var summary = TransferSummary(0, 0, 0)
                     val generator = "Mailtice ${Platform.appVersion.ifBlank { "dev" }} (${Platform.osLabel})"
                     val location = TransferFiles.export(downloadRoot(), "mailtice-$date.${TransferFormat.EXTENSION}", password) { sink ->
-                        summary = MailExporter(repo).write(sink, accounts, generator, now) { done ->
+                        summary = MailExporter(repo).write(sink, accounts, generator, now, since) { done ->
                             mutate { s -> s.copy(transfer = TransferStatus.Running(importing = false, messages = done)) }
                         }
                     }

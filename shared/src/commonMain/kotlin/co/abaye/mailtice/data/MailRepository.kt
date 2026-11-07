@@ -482,11 +482,23 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
 
     // ---- transfer file ----------------------------------------------------------------------
 
-    fun messageCount(accountId: String): Long = q.countAccountMessages(accountId).executeAsOne()
+    /** [accountId]'s stored messages received at [since] or later. */
+    fun messageCount(accountId: String, since: Long = 0): Long = q.countAccountMessages(accountId, since).executeAsOne()
 
-    /** The page of [accountId]'s messages after [after], newest first, with their folders: what an export writes. */
-    fun messagePage(accountId: String, after: MailMessage?, limit: Long): List<MailMessage> =
-        q.selectAccountPage(accountId, after?.receivedAt ?: Long.MAX_VALUE, after?.id.orEmpty(), limit, ::mapInboxMessage).executeAsList()
+    fun messageIdsSince(accountId: String, since: Long): List<String> = q.messageIdsSince(accountId, since).executeAsList()
+
+    /**
+     * The page of [accountId]'s messages received at [since] or later that comes after [after],
+     * newest first, with their folders: what an export writes.
+     */
+    fun messagePage(accountId: String, since: Long, after: MailMessage?, limit: Long): List<MailMessage> = q.selectAccountPage(
+        accountId,
+        since,
+        after?.receivedAt ?: Long.MAX_VALUE,
+        after?.id.orEmpty(),
+        limit,
+        ::mapInboxMessage,
+    ).executeAsList()
 
     /** Adds folders the account does not have yet: synced, without notifications. */
     fun addFolders(accountId: String, folders: List<RemoteFolder>) {

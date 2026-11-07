@@ -35,9 +35,17 @@ internal class MailExporter(
     private val paths: OfflinePaths = OfflineFiles,
     private val sizeOf: (String) -> Long = ::fileSize,
 ) {
-    fun write(sink: ArchiveSink, accounts: List<Account>, generator: String, now: Long, progress: (Int) -> Unit = {}): TransferSummary {
+    /** Messages received before [since] stay out (0 = everything stored). */
+    fun write(
+        sink: ArchiveSink,
+        accounts: List<Account>,
+        generator: String,
+        now: Long,
+        since: Long = 0,
+        progress: (Int) -> Unit = {},
+    ): TransferSummary {
         val keys = accounts.mapIndexed { i, _ -> "a${i + 1}" }
-        sink.put(TransferFormat.MANIFEST, encode(TransferManifest(createdAt = now, generator = generator, accounts = keys)))
+        sink.put(TransferFormat.MANIFEST, encode(TransferManifest(createdAt = now, generator = generator, accounts = keys, since = since)))
         var messages = 0
         var files = 0
         accounts.forEachIndexed { i, account ->
@@ -53,7 +61,7 @@ internal class MailExporter(
                 imapPort = account.imap?.port ?: 0,
                 imapSecurity = account.imap?.security?.name.orEmpty(),
                 username = account.username,
-                messages = repo.messageCount(account.id).toInt(),
+                messages = repo.messageCount(account.id, since).toInt(),
             )
             sink.put(TransferFormat.accountEntry(key), encode(info))
             var n = 0
@@ -79,7 +87,7 @@ internal class MailExporter(
                 progress(messages)
             }
             while (true) {
-                val page = repo.messagePage(account.id, last, TransferFormat.CHUNK.toLong())
+                val page = repo.messagePage(account.id, since, last, TransferFormat.CHUNK.toLong())
                 if (page.isEmpty()) break
                 page.forEach { m ->
                     val body = repo.body(account.id, m.id)

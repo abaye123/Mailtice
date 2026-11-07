@@ -130,8 +130,11 @@ sealed interface AppIntent {
     /** The window comes back from the tray: a fresh start, so the home screen when the setting asks for it. */
     data object Reopen : AppIntent
 
-    /** Writes every account's stored mail into one transfer file, encrypted when there is a [password]. */
-    data class ExportMail(val password: String?) : AppIntent
+    /**
+     * Writes every account's mail of the last [days] days (0 = all stored) into one transfer file,
+     * encrypted when there is a [password].
+     */
+    data class ExportMail(val password: String?, val days: Int) : AppIntent
 
     /** Asks for a transfer file ([title] heads the dialog) and reads it in. */
     data class ImportMail(val title: String) : AppIntent

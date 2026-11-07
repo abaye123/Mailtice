@@ -595,4 +595,11 @@
     <string name="transfer_import_password_title">This file has a password</string>
     <string name="transfer_import_password">Password</string>
     <string name="transfer_wrong_password">Wrong password. Try again.</string>
+    <string name="transfer_period">Period</string>
+    <string name="transfer_period_month">The last month</string>
+    <string name="transfer_period_3_months">The last 3 months</string>
+    <string name="transfer_period_year">The last year</string>
+    <string name="transfer_period_all">Everything stored on this device</string>
+    <string name="transfer_period_hint">Mail of the period that is missing here is downloaded first, with attachments up to offline mode\'s size limit. Mail older than an account keeps is not stored, so it is not in the file.</string>
+    <string name="transfer_preparing">Downloading mail for the file... %1$d messages</string>
 </resources>

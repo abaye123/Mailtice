@@ -75,8 +75,8 @@ data class ImapForm(
 sealed interface TransferStatus {
     data object Idle : TransferStatus
 
-    /** [messages] done so far. */
-    data class Running(val importing: Boolean, val messages: Int) : TransferStatus
+    /** [messages] done so far; [preparing] while an export downloads what the device lacks. */
+    data class Running(val importing: Boolean, val messages: Int, val preparing: Boolean = false) : TransferStatus
 
     /** The file at [path] is encrypted; [wrong] after a password that did not open it. */
     data class NeedsPassword(val path: String, val wrong: Boolean = false) : TransferStatus

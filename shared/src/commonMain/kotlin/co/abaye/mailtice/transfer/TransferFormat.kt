@@ -52,6 +52,8 @@ internal data class TransferManifest(
     /** "Mailtice 1.7.0 (Windows)": shown nowhere, kept for bug reports. */
     val generator: String = "",
     val accounts: List<String> = emptyList(),
+    /** The oldest date exported, in epoch milliseconds; 0 = everything the device stored. */
+    val since: Long = 0,
 )
 
 @Serializable
