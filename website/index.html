@@ -262,6 +262,7 @@
       <p class="sub">
         <a href="https://github.com/abaye123/Mailtice/releases" target="_blank" rel="noopener">גרסאות קודמות</a>
         <span id="portableItem" hidden> · <a id="portableLink" href="#">גרסה ניידת לווינדוס (zip)</a></span>
+        <span id="extensionItem" hidden> · <a id="extensionLink" href="#" title="ייצוא Gmail לקובץ עבור מחשב ללא אינטרנט">תוסף דפדפן לייצוא Gmail</a></span>
       </p>
       <p class="req">ווינדוס 10 ומעלה · מק־OS על Apple Silicon או Intel · לינוקס מבוסס דביאן · אנדרואיד 8 ומעלה</p>
     </section>
@@ -385,6 +386,11 @@
     for (const a of assets) {
       const n = a.name;
       // The Windows portable copy is a zip too, but one a visitor may want: it gets a link of its own.
+      // The browser extension (Gmail to a file for a computer without internet): a link of its own too.
+      if (/^mailtice-extension.*\.zip$/i.test(n)) {
+        out.push({ os: "browser", arch: "", name: n, url: a.browser_download_url, size: a.size, extension: true });
+        continue;
+      }
       if (/portable.*\.zip$/i.test(n)) {
         out.push({ os: "windows", arch: archOf(n), name: n, url: a.browser_download_url, size: a.size, portable: true });
         continue;
@@ -495,6 +501,11 @@
         $("portableLink").href = portable.url;
         $("portableLink").title = [portable.name, fmtSize(portable.size)].filter(Boolean).join(" · ");
         $("portableItem").hidden = false;
+      }
+      const extension = items.find(i => i.extension);
+      if (extension) {
+        $("extensionLink").href = extension.url;
+        $("extensionItem").hidden = false;
       }
 
       const btn = $("downloadBtn");

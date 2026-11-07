@@ -1,0 +1,165 @@
+{
+  "extName": {
+    "message": "Mailtice - export Gmail for offline"
+  },
+  "extDescription": {
+    "message": "Exports a Gmail mailbox to a .mailtice file that Mailtice imports on a computer without internet."
+  },
+  "popupOpen": {
+    "message": "Open the exporter"
+  },
+  "popupText": {
+    "message": "Export Gmail to a file for Mailtice on a computer without internet."
+  },
+  "title": {
+    "message": "Export Gmail to Mailtice"
+  },
+  "lead": {
+    "message": "Saves a Gmail mailbox, with its labels and attachments, in one .mailtice file. Carry it to the computer without internet and choose Settings > Computer without internet > Import in Mailtice."
+  },
+  "stepAccount": {
+    "message": "Account"
+  },
+  "signIn": {
+    "message": "Sign in with Google"
+  },
+  "signedInAs": {
+    "message": "Signed in as $EMAIL$",
+    "placeholders": {
+      "email": {
+        "content": "$1"
+      }
+    }
+  },
+  "switchAccount": {
+    "message": "Another account"
+  },
+  "stepWhat": {
+    "message": "What to export"
+  },
+  "range": {
+    "message": "Mail from"
+  },
+  "rangeAll": {
+    "message": "All mail"
+  },
+  "range30": {
+    "message": "Last 30 days"
+  },
+  "range90": {
+    "message": "Last 3 months"
+  },
+  "range365": {
+    "message": "Last year"
+  },
+  "attachments": {
+    "message": "Attachments"
+  },
+  "attNone": {
+    "message": "Without attachments"
+  },
+  "att10": {
+    "message": "Up to 10 MB each"
+  },
+  "att25": {
+    "message": "Up to 25 MB each"
+  },
+  "attAll": {
+    "message": "All of them"
+  },
+  "spamTrash": {
+    "message": "Include spam and trash"
+  },
+  "start": {
+    "message": "Export"
+  },
+  "cancel": {
+    "message": "Stop"
+  },
+  "listing": {
+    "message": "Finding messages... $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "progress": {
+    "message": "$DONE$ of $TOTAL$ messages, $FILES$ attachments",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      },
+      "files": {
+        "content": "$3"
+      }
+    }
+  },
+  "done": {
+    "message": "Done: $COUNT$ messages from $EMAIL$ saved as $NAME$.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "email": {
+        "content": "$2"
+      },
+      "name": {
+        "content": "$3"
+      }
+    }
+  },
+  "cancelled": {
+    "message": "The export was stopped. The partial file was not kept."
+  },
+  "failed": {
+    "message": "The export failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "authFailed": {
+    "message": "Google sign-in did not complete. Check the setup below and try again."
+  },
+  "noClient": {
+    "message": "No Google client is set up yet. Open the setup below."
+  },
+  "keepOpen": {
+    "message": "Keep this tab open until the export finishes."
+  },
+  "setup": {
+    "message": "Setup"
+  },
+  "setupText": {
+    "message": "The extension signs in with a Google OAuth client of type Web application, with the Gmail API enabled and the gmail.readonly scope. Add this address to the client's Authorized redirect URIs:"
+  },
+  "clientId": {
+    "message": "OAuth client ID"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "saved": {
+    "message": "Saved"
+  },
+  "copy": {
+    "message": "Copy"
+  },
+  "privacy": {
+    "message": "Read only: nothing in the mailbox is changed, and the mail goes nowhere but the file on this computer."
+  },
+  "range7": {
+    "message": "Last week"
+  },
+  "range60": {
+    "message": "Last two months"
+  },
+  "range180": {
+    "message": "Last six months"
+  }
+}

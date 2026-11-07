@@ -6,6 +6,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # A branch can be checked by hand before it has a pull request.
+  workflow_dispatch:
 
 # A new push to the same branch makes the previous run pointless.
 concurrency:
@@ -63,6 +65,37 @@ jobs:
             **/build/reports/detekt/**
           if-no-files-found: ignore
 
+
+  extension:
+    name: Browser extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      # The exporter against a fake Gmail; the file it writes is read back the way the app reads it.
+      - name: Test the exporter
+        run: |
+          node extension/test/batch.test.mjs
+          node extension/test/export.test.mjs "$RUNNER_TEMP/export-test.zip"
+      - name: Read it as the app does
+        run: |
+          mkdir -p "$RUNNER_TEMP/java"
+          cat > "$RUNNER_TEMP/java/Read.java" <<'JAVA'
+          import java.io.*; import java.util.zip.*;
+          public class Read { public static void main(String[] a) throws Exception {
+            try (ZipInputStream z = new ZipInputStream(new BufferedInputStream(new FileInputStream(a[0])))) {
+              ZipEntry e; int n = 0; String first = null;
+              while ((e = z.getNextEntry()) != null) { if (first == null) first = e.getName(); z.readAllBytes(); n++; }
+              if (!"manifest.json".equals(first) || n < 3) throw new IllegalStateException("bad archive: " + first + ", " + n);
+              System.out.println("read " + n + " entries");
+            } } }
+          JAVA
+          java "$RUNNER_TEMP/java/Read.java" "$RUNNER_TEMP/export-test.zip"
+      - name: Pack
+        run: bash extension/build.sh
 
   android:
     name: Android release build

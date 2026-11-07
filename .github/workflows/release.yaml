@@ -4,7 +4,19 @@ on:
   push:
     tags:
       - "v*"
+  # By hand (Actions -> Release -> Run workflow). With a version it also publishes: the run makes
+  # the tag and the release itself, so nothing has to be pushed. Without one it only builds.
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish, e.g. 1.7.0 (empty: build only, publish nothing)"
+        required: false
+        default: ""
+      platforms:
+        description: "What to build"
+        type: choice
+        options: [all, windows-and-extension]
+        default: all
 
 permissions:
   contents: write
@@ -14,8 +26,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The desktop platforms, as JSON, so a manual run can build Windows alone.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      all: ${{ steps.plan.outputs.all }}
+      windows: ${{ steps.plan.outputs.windows }}
+    steps:
+      - id: plan
+        shell: bash
+        run: |
+          echo 'all=[{"name": "Windows x64", "os": "windows-latest", "arch": "amd64", "tasks": ":desktopApp:packageGraalvmNsis :desktopApp:createGraalvmNativeDistributable"}, {"name": "Linux x64", "os": "ubuntu-latest", "arch": "amd64", "tasks": ":desktopApp:packageGraalvmDeb"}, {"name": "Linux ARM64", "os": "ubuntu-24.04-arm", "arch": "arm64", "tasks": ":desktopApp:packageGraalvmDeb"}, {"name": "macOS ARM64", "os": "macos-latest", "arch": "arm64", "tasks": ":desktopApp:packageGraalvmDmg :desktopApp:packageGraalvmZip"}, {"name": "macOS Intel", "os": "macos-15-intel", "arch": "amd64", "tasks": ":desktopApp:packageGraalvmDmg :desktopApp:packageGraalvmZip"}]' >> "$GITHUB_OUTPUT"
+          echo 'windows=[{"name": "Windows x64", "os": "windows-latest", "arch": "amd64", "tasks": ":desktopApp:packageGraalvmNsis :desktopApp:createGraalvmNativeDistributable"}]' >> "$GITHUB_OUTPUT"
+
   desktop:
     name: Desktop (GraalVM) - ${{ matrix.name }}
+    needs: plan
     runs-on: ${{ matrix.os }}
     # A native image takes far longer to build than a jpackage runtime image.
     timeout-minutes: 90
@@ -23,30 +49,8 @@ jobs:
       # One broken platform should not deny you the installers that did build.
       fail-fast: false
       matrix:
-        include:
-          # The bare app folder is zipped below as the portable copy.
-          - name: Windows x64
-            os: windows-latest
-            arch: amd64
-            tasks: :desktopApp:packageGraalvmNsis :desktopApp:createGraalvmNativeDistributable
-          - name: Linux x64
-            os: ubuntu-latest
-            arch: amd64
-            tasks: :desktopApp:packageGraalvmDeb
-          - name: Linux ARM64
-            os: ubuntu-24.04-arm
-            arch: arm64
-            tasks: :desktopApp:packageGraalvmDeb
-          # Zip is the silent macOS updater payload; the .dmg stays the first-install image.
-          - name: macOS ARM64
-            os: macos-latest
-            arch: arm64
-            tasks: :desktopApp:packageGraalvmDmg :desktopApp:packageGraalvmZip
-          - name: macOS Intel
-            os: macos-15-intel
-            arch: amd64
-            tasks: :desktopApp:packageGraalvmDmg :desktopApp:packageGraalvmZip
-
+        # "windows-and-extension" keeps the first entry only.
+        include: ${{ fromJSON(inputs.platforms == 'windows-and-extension' && needs.plan.outputs.windows || needs.plan.outputs.all) }}
     env:
       RELEASE_VERSION: ${{ github.ref_name }}
       # OAuth clients are generated into the shared module at build time; a missing one only
@@ -76,8 +80,15 @@ jobs:
       - name: Resolve version for manual runs
         if: github.event_name == 'workflow_dispatch'
         shell: bash
-        # No tag yet (a test build before the first release): leave it empty, the build uses its default.
-        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_ENV"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        # The version asked for; else the newest tag; else empty and the build uses its default.
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "RELEASE_VERSION=v${INPUT_VERSION#v}" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_ENV"
+          fi
 
       # JDK 25 for Gradle, Node for the electron-builder packaging step, and the native-image
       # prerequisites (MSVC/Xcode plus the toolchain cache). The GraalVM JDK itself is downloaded
@@ -194,6 +205,7 @@ jobs:
 
   android:
     name: Android
+    if: ${{ inputs.platforms != 'windows-and-extension' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -227,8 +239,15 @@ jobs:
       - name: Resolve version for manual runs
         if: github.event_name == 'workflow_dispatch'
         shell: bash
-        # No tag yet (a test build before the first release): leave it empty, the build uses its default.
-        run: echo "RELEASE_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_ENV"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        # The version asked for; else the newest tag; else empty and the build uses its default.
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "RELEASE_VERSION=v${INPUT_VERSION#v}" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_ENV"
+          fi
 
       # The JVM that runs Gradle, not the bytecode target: the modules still compile to 17, but
       # the Metro compiler plugin refuses to load on anything below 21.
@@ -293,11 +312,60 @@ jobs:
           path: out/*
           if-no-files-found: error
 
+  extension:
+    name: Browser extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RELEASE_VERSION: ${{ github.ref_name }}
+      # The same Web client Android signs in with; its Authorized redirect URIs must list
+      # https://pkhenaholjpdalldmcndfgkfdpabkjan.chromiumapp.org/ (extension/README.md).
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        # The version asked for; else the newest tag; else empty and the build uses its default.
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "RELEASE_VERSION=v${INPUT_VERSION#v}" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Test the exporter
+        run: |
+          node extension/test/batch.test.mjs
+          node extension/test/export.test.mjs "$RUNNER_TEMP/export-test.zip"
+
+      - name: Pack
+        run: bash extension/build.sh "$RELEASE_VERSION"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: extension
+          path: extension/dist/*.zip
+          if-no-files-found: error
+
   publish:
     name: Publish release
-    needs: [desktop, android]
-    # Publish whatever succeeded rather than losing a whole release to one dead runner.
-    if: ${{ !cancelled() && github.event_name == 'push' }}
+    needs: [desktop, android, extension]
+    # Publish whatever succeeded rather than losing a whole release to one dead runner. A manual
+    # run publishes too when it is started on a tag (Actions -> Release -> Run workflow -> the tag),
+    # for a tag pushed while Actions was off.
+    if: ${{ !cancelled() && (startsWith(github.ref, 'refs/tags/v') || inputs.version != '') }}
+    env:
+      INPUT_VERSION: ${{ inputs.version }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -314,7 +382,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
+          tag="${INPUT_VERSION:+v${INPUT_VERSION#v}}"
+          tag="${tag:-${GITHUB_REF_NAME}}"
           version="${tag#v}"
           case "$version" in
             *-alpha*) channel=alpha ;;
@@ -347,7 +416,7 @@ jobs:
           #   .aab      is a Play upload format; downloading one gets you a file you cannot
           #             install, so it stays a workflow artifact and never reaches the release.
           #   .zip      is the macOS updater payload (the updater cannot consume a .dmg), and the
-          #             Windows portable copy.
+          #             Windows portable copy, and the browser extension.
           #   .yml      is the update manifest generated just above.
           #   .blockmap lets an update download only the changed blocks of an installer. The
           #             updater falls back to the whole file if it is missing, so this is a size
@@ -369,13 +438,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
+          tag="${INPUT_VERSION:+v${INPUT_VERSION#v}}"
+          tag="${tag:-${GITHUB_REF_NAME}}"
           # A tag carrying -alpha or -beta publishes as a prerelease.
           flags=()
           case "$tag" in
             *-alpha*|*-beta*|*-rc*) flags+=(--prerelease) ;;
           esac
+          # --target makes the tag on this commit when a manual run asked for a new version.
           gh release create "$tag" release/* \
+            --target "$GITHUB_SHA" \
             --title "Mailtice ${tag#v}" \
             --generate-notes \
             "${flags[@]}"

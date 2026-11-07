@@ -1,0 +1,165 @@
+{
+  "extName": {
+    "message": "Mailtice - ייצוא Gmail לעבודה לא מקוונת"
+  },
+  "extDescription": {
+    "message": "מייצא תיבת Gmail לקובץ ‎.mailtice ש-Mailtice מייבא במחשב ללא אינטרנט."
+  },
+  "popupOpen": {
+    "message": "פתיחת חלון הייצוא"
+  },
+  "popupText": {
+    "message": "ייצוא Gmail לקובץ עבור Mailtice במחשב ללא אינטרנט."
+  },
+  "title": {
+    "message": "ייצוא Gmail ל-Mailtice"
+  },
+  "lead": {
+    "message": "שומר תיבת Gmail, עם התוויות והקבצים המצורפים, בקובץ ‎.mailtice אחד. מעבירים אותו למחשב ללא אינטרנט, וב-Mailtice בוחרים הגדרות > מחשב ללא אינטרנט > ייבוא."
+  },
+  "stepAccount": {
+    "message": "חשבון"
+  },
+  "signIn": {
+    "message": "התחברות עם Google"
+  },
+  "signedInAs": {
+    "message": "מחובר כ-$EMAIL$",
+    "placeholders": {
+      "email": {
+        "content": "$1"
+      }
+    }
+  },
+  "switchAccount": {
+    "message": "חשבון אחר"
+  },
+  "stepWhat": {
+    "message": "מה לייצא"
+  },
+  "range": {
+    "message": "מיילים מ"
+  },
+  "rangeAll": {
+    "message": "כל המיילים"
+  },
+  "range30": {
+    "message": "30 הימים האחרונים"
+  },
+  "range90": {
+    "message": "3 החודשים האחרונים"
+  },
+  "range365": {
+    "message": "השנה האחרונה"
+  },
+  "attachments": {
+    "message": "קבצים מצורפים"
+  },
+  "attNone": {
+    "message": "בלי קבצים מצורפים"
+  },
+  "att10": {
+    "message": "עד 10 MB כל אחד"
+  },
+  "att25": {
+    "message": "עד 25 MB כל אחד"
+  },
+  "attAll": {
+    "message": "כולם"
+  },
+  "spamTrash": {
+    "message": "כולל ספאם ואשפה"
+  },
+  "start": {
+    "message": "ייצוא"
+  },
+  "cancel": {
+    "message": "עצירה"
+  },
+  "listing": {
+    "message": "מחפש הודעות... $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "progress": {
+    "message": "$DONE$ מתוך $TOTAL$ הודעות, $FILES$ קבצים מצורפים",
+    "placeholders": {
+      "done": {
+        "content": "$1"
+      },
+      "total": {
+        "content": "$2"
+      },
+      "files": {
+        "content": "$3"
+      }
+    }
+  },
+  "done": {
+    "message": "הסתיים: $COUNT$ הודעות מ-$EMAIL$ נשמרו בשם $NAME$.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "email": {
+        "content": "$2"
+      },
+      "name": {
+        "content": "$3"
+      }
+    }
+  },
+  "cancelled": {
+    "message": "הייצוא נעצר. הקובץ החלקי לא נשמר."
+  },
+  "failed": {
+    "message": "הייצוא נכשל: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "authFailed": {
+    "message": "ההתחברות ל-Google לא הושלמה. כדאי לבדוק את ההגדרה למטה ולנסות שוב."
+  },
+  "noClient": {
+    "message": "עדיין לא הוגדר לקוח Google. יש לפתוח את ההגדרה למטה."
+  },
+  "keepOpen": {
+    "message": "יש להשאיר את הלשונית פתוחה עד שהייצוא יסתיים."
+  },
+  "setup": {
+    "message": "הגדרה"
+  },
+  "setupText": {
+    "message": "התוסף מתחבר באמצעות לקוח OAuth של Google מסוג Web application, עם Gmail API מופעל וההרשאה gmail.readonly. יש להוסיף את הכתובת הזו ל-Authorized redirect URIs של הלקוח:"
+  },
+  "clientId": {
+    "message": "מזהה לקוח OAuth"
+  },
+  "save": {
+    "message": "שמירה"
+  },
+  "saved": {
+    "message": "נשמר"
+  },
+  "copy": {
+    "message": "העתקה"
+  },
+  "privacy": {
+    "message": "קריאה בלבד: שום דבר בתיבה לא משתנה, והמיילים לא נשלחים לשום מקום מלבד הקובץ במחשב הזה."
+  },
+  "range7": {
+    "message": "השבוע האחרון"
+  },
+  "range60": {
+    "message": "החודשיים האחרונים"
+  },
+  "range180": {
+    "message": "חצי השנה האחרונה"
+  }
+}

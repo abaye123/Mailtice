@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.CircularProgressIndicator
@@ -100,6 +101,7 @@ import mailtice.shared.generated.resources.rel_days
 import mailtice.shared.generated.resources.rel_hours
 import mailtice.shared.generated.resources.rel_minutes
 import mailtice.shared.generated.resources.rel_now
+import mailtice.shared.generated.resources.status_from_file
 import mailtice.shared.generated.resources.status_needs_reauth
 import mailtice.shared.generated.resources.status_offline
 import mailtice.shared.generated.resources.status_ok
@@ -446,6 +448,7 @@ private fun StatusPill(status: AccountStatus) {
         AccountStatus.Syncing, AccountStatus.Idle -> Icons.Outlined.Sync to stringResource(Res.string.status_syncing)
         AccountStatus.Offline -> Icons.Outlined.CloudOff to stringResource(Res.string.status_offline)
         AccountStatus.NeedsReauth -> Icons.Outlined.ErrorOutline to stringResource(Res.string.status_needs_reauth)
+        AccountStatus.FromFile -> Icons.Outlined.FileOpen to stringResource(Res.string.status_from_file)
     }
     Row(
         Modifier.background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 5.dp),

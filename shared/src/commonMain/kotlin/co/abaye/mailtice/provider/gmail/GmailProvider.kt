@@ -63,9 +63,7 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
     override suspend fun capabilities(account: Account): Capabilities = Capabilities.Gmail
 
     override suspend fun listFolders(account: Account): List<RemoteFolder> = withToken(account) { token ->
-        api.labels(token)
-            .filter { it.id !in HIDDEN_LABELS }
-            .map { RemoteFolder(it.id, friendlyName(it), roleOf(it.id), it.color?.backgroundColor.orEmpty()) }
+        api.labels(token).mapNotNull(::gmailFolder)
     }
 
     /** Only addresses Gmail lets the account send from: its own, and aliases it has verified. */
@@ -421,51 +419,67 @@ class GmailProvider(private val api: GmailApi, private val auth: AuthManager) : 
         }
     }
 
-    private fun GmailMessage.toRemote(folderIds: Set<String>, withBody: Boolean = true): RemoteMessage {
-        val body = body()
-        val (name, address) = splitAddress(header("From"))
-        return RemoteMessage(
-            id = id,
-            threadId = threadId.ifEmpty { id },
-            uid = 0,
-            fromName = name,
-            fromAddress = address,
-            toLine = header("To"),
-            subject = header("Subject"),
-            snippet = HtmlText.decodeEntities(snippet),
-            receivedAt = internalDate.toLongOrNull() ?: 0L,
-            unread = LABEL_UNREAD in labelIds,
-            flagged = LABEL_STARRED in labelIds,
-            hasAttachments = body.attachments.isNotEmpty(),
-            sizeBytes = sizeEstimate,
-            folderIds = folderIds,
-            body = body.takeIf { withBody },
-        )
-    }
+    private fun GmailMessage.toRemote(folderIds: Set<String>, withBody: Boolean = true): RemoteMessage =
+        toRemoteMessage(folderIds, withBody)
+}
 
-    private fun friendlyName(label: GmailLabel): String = when (label.id) {
-        "INBOX" -> "Inbox"
+/**
+ * A Gmail label as a folder; null for the labels that are states, not places. Shared by the sync
+ * and by the transfer file import, which reads the labels the browser extension wrote as they are.
+ */
+internal fun gmailFolder(label: GmailLabel): RemoteFolder? = if (label.id in
+    HIDDEN_LABELS
+) {
+    null
+} else {
+    RemoteFolder(label.id, friendlyName(label), gmailRole(label.id), label.color?.backgroundColor.orEmpty())
+}
 
-        "SENT" -> "Sent"
+/** A message in Gmail's full or metadata format as the app stores it; also used for transfer files. */
+internal fun GmailMessage.toRemoteMessage(folderIds: Set<String>, withBody: Boolean = true): RemoteMessage {
+    val body = body()
+    val (name, address) = splitAddress(header("From"))
+    return RemoteMessage(
+        id = id,
+        threadId = threadId.ifEmpty { id },
+        uid = 0,
+        fromName = name,
+        fromAddress = address,
+        toLine = header("To"),
+        subject = header("Subject"),
+        snippet = HtmlText.decodeEntities(snippet),
+        receivedAt = internalDate.toLongOrNull() ?: 0L,
+        unread = LABEL_UNREAD in labelIds,
+        flagged = LABEL_STARRED in labelIds,
+        hasAttachments = body.attachments.isNotEmpty(),
+        sizeBytes = sizeEstimate,
+        folderIds = folderIds,
+        body = body.takeIf { withBody },
+    )
+}
 
-        "DRAFT" -> "Drafts"
+private fun friendlyName(label: GmailLabel): String = when (label.id) {
+    "INBOX" -> "Inbox"
 
-        "TRASH" -> "Trash"
+    "SENT" -> "Sent"
 
-        "SPAM" -> "Spam"
+    "DRAFT" -> "Drafts"
 
-        else -> label.name.removePrefix("CATEGORY_").lowercase().replaceFirstChar { it.uppercase() }
-            .takeIf { label.type == "system" } ?: label.name
-    }
+    "TRASH" -> "Trash"
 
-    private fun roleOf(id: String): FolderRole = when (id) {
-        "INBOX" -> FolderRole.Inbox
-        "SENT" -> FolderRole.Sent
-        "DRAFT" -> FolderRole.Drafts
-        "TRASH" -> FolderRole.Trash
-        "SPAM" -> FolderRole.Spam
-        else -> FolderRole.Other
-    }
+    "SPAM" -> "Spam"
+
+    else -> label.name.removePrefix("CATEGORY_").lowercase().replaceFirstChar { it.uppercase() }
+        .takeIf { label.type == "system" } ?: label.name
+}
+
+private fun gmailRole(id: String): FolderRole = when (id) {
+    "INBOX" -> FolderRole.Inbox
+    "SENT" -> FolderRole.Sent
+    "DRAFT" -> FolderRole.Drafts
+    "TRASH" -> FolderRole.Trash
+    "SPAM" -> FolderRole.Spam
+    else -> FolderRole.Other
 }
 
 /** "Dana Cohen <dana@x.com>" -> ("Dana Cohen", "dana@x.com"). */

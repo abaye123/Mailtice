@@ -526,4 +526,36 @@
         <item quantity="one">נעכטן</item>
         <item quantity="other">מיט %1$d טעג צוריק</item>
     </plurals>
+    <string name="status_from_file">פון א טעקע</string>
+    <string name="accounts_connect">פארבינדן</string>
+    <string name="transfer_title">קאמפיוטער אן אינטערנעט</string>
+    <string name="transfer_export">עקספארטירן די בריוו אין א טעקע</string>
+    <string name="transfer_export_desc">די בריוו פון אלע חשבונות וואס זענען דא אפגעהיטן, אין איין ‎.mailtice טעקע צו טראגן צו א קאמפיוטער אן אינטערנעט. ווען דער אפליין מאדע איז אן, איז דאס די גאנצע בריווקאסטן מיט די צוגעלייגטע טעקעס.</string>
+    <string name="transfer_export_button">עקספארטירן</string>
+    <string name="transfer_import">אימפארטירן בריוו פון א טעקע</string>
+    <string name="transfer_import_desc">א ‎.mailtice טעקע פון Mailtice אויף אן אנדער קאמפיוטער אדער פון דעם Mailtice בלעטערער צוגאב. א חשבון וואס איז דא נישט איינגעלאגירט ווערט צוגעלייגט ווי א קאפיע צו לייענען.</string>
+    <string name="transfer_import_button">אימפארטירן</string>
+    <string name="transfer_import_title">קלייבט א Mailtice טעקע</string>
+    <string name="transfer_extension">קיין Mailtice אויפן קאמפיוטער מיט אינטערנעט? דער Mailtice בלעטערער צוגאב עקספארטירט Gmail אין דער זעלבער טעקע.</string>
+    <string name="transfer_extension_button">אראפנעמען דעם צוגאב</string>
+    <string name="transfer_exporting">עקספארטירט... %1$d בריוו</string>
+    <string name="transfer_importing">אימפארטירט... %1$d בריוו</string>
+    <string name="transfer_exported">עקספארטירט %1$d בריוו פון %2$d חשבונות</string>
+    <string name="transfer_imported">אימפארטירט %1$d בריוו אין %2$d חשבונות</string>
+    <string name="transfer_export_failed">דאס עקספארטירן איז דורכגעפאלן. קוקט אז עס איז דא פלאץ אויפן דיסק און פרובירט נאכאמאל.</string>
+    <string name="transfer_import_failed">מען האט נישט געקענט לייענען די טעקע.</string>
+    <string name="transfer_not_a_file">דאס איז נישט קיין Mailtice איבערפירונג טעקע.</string>
+    <string name="transfer_too_new">די טעקע קומט פון א נייערע Mailtice. דערהיינטיקט Mailtice כדי זי צו אימפארטירן.</string>
+    <string name="transfer_show">ווייזן די טעקע</string>
+    <string name="transfer_dismiss">פארמאכן</string>
+    <string name="oauth_keys_title">איינלאגירונג שליסלען (OAuth)</string>
+    <string name="oauth_keys_desc">פאר א קאפיע פון Mailtice וואס איז געבויט געווארן אן זיי: די OAuth קליענטן פון Google און Microsoft דורך וועלכע מען לאגירט איין. ביי Google דארף מען א קליענט פון טיפ Desktop app מיט Gmail API אנגעצונדן. לאזט ליידיק צו ניצן די איינגעבויטע. חשבונות וואס זענען צוגעלייגט געווארן מיט אנדערע שליסלען וועלן דארפן נאכאמאל איינלאגירן נאך א טויש.</string>
+    <string name="oauth_keys_google_id">Google קליענט ID</string>
+    <string name="oauth_keys_google_secret">Google קליענט סוד</string>
+    <string name="oauth_keys_microsoft_id">Microsoft קליענט ID</string>
+    <string name="oauth_keys_save">אפהיטן</string>
+    <string name="oauth_keys_help">ווי אזוי זיי צו שאפן</string>
+    <string name="message_oauth_keys_saved">די איינלאגירונג שליסלען זענען אפגעהיטן</string>
+    <string name="add_gmail_app_password_hint">שרייבט אריין אייער Gmail אדרעס און אן אפליקאציע פאסווארט - נישט אייער געווענליכע פאסווארט. אן אפליקאציע פאסווארט פאדערט צוויי-שריטיקע באשטעטיגונג אויפן Google חשבון; שאפט איינע אויף Google'ס בלאט און לייגט דא אריין די 16 אותיות.</string>
+    <string name="add_gmail_app_password_open">שאפן אן אפליקאציע פאסווארט</string>
 </resources>

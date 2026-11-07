@@ -102,6 +102,11 @@ data class Account(
     val username: String = email,
     /** Gmail historyId. */
     val syncCursor: String = "",
+    /**
+     * Imported from a transfer file and never signed in here (a computer without internet): read
+     * only, never synced, until the user connects it.
+     */
+    val fileOnly: Boolean = false,
 ) {
     val displayName: String get() = label.ifBlank { email }
 }
@@ -226,6 +231,9 @@ enum class AccountStatus {
 
     /** Credentials rejected. Only signing in again (or a new password) fixes it. */
     NeedsReauth,
+
+    /** Imported from a transfer file, not signed in here: mail to read, nothing to sync. */
+    FromFile,
 }
 
 /** Retention choices offered in the UI. 0 = everything. */

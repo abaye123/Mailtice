@@ -27,6 +27,10 @@ Website and downloads: <https://mailtice.abaye.co>
   right after you send, in case a reply comes.
 - **Offline mode** - keeps the whole mailbox and every body (and attachments up to a chosen size) on the
   device; mail sent and actions taken without a connection are queued and go out as soon as one appears.
+- **Computer without internet** - exports every account's stored mail (with attachments) to one
+  `.mailtice` file, and imports it on a computer that never connects; an account not signed in there
+  arrives as a read-only copy. The [browser extension](extension/README.md) writes the same file
+  straight from Gmail, for a connected computer without Mailtice.
 - **Search** - Gmail-style operators (`from:`, `subject:`, `has:attachment`, `newer_than:`...) with a
   search options panel, and older mail fetched from the server beyond what is kept locally.
 - **Also** - the Hebrew date next to the civil one, a choice of fonts (Rubik, Heebo, Noto Sans), list

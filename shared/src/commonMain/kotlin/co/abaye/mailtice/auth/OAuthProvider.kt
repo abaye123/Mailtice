@@ -5,7 +5,8 @@ import io.ktor.http.encodeURLParameter
 
 /**
  * Everything that differs between the OAuth providers. Client ids come from the generated
- * [OAuthSecrets]; a provider with no client id is not configured and is not offered in the UI.
+ * [OAuthSecrets], or from [OAuthOverrides] when the user entered one in Settings; a provider with
+ * no client id is not configured and is not offered in the UI.
  */
 enum class OAuthProvider(
     val kind: ProviderKind,
@@ -51,16 +52,21 @@ enum class OAuthProvider(
 
     val clientId: String
         get() = when (this) {
-            Google -> OAuthSecrets.GOOGLE_CLIENT_ID
-            Microsoft -> OAuthSecrets.MICROSOFT_CLIENT_ID
+            Google -> OAuthOverrides.keys.googleClientId.ifBlank { OAuthSecrets.GOOGLE_CLIENT_ID }
+            Microsoft -> OAuthOverrides.keys.microsoftClientId.ifBlank { OAuthSecrets.MICROSOFT_CLIENT_ID }
             Yahoo -> OAuthSecrets.YAHOO_CLIENT_ID
         }
 
     /** Microsoft is a public client with no secret. Google "Desktop" secrets are not secret by design. */
     val clientSecret: String?
         get() = when (this) {
-            Google -> OAuthSecrets.GOOGLE_CLIENT_SECRET
+            // A client entered in Settings comes with its own secret; never mix it with the built-in one.
+            Google -> OAuthOverrides.keys.let { keys ->
+                if (keys.googleClientId.isNotBlank()) keys.googleClientSecret else OAuthSecrets.GOOGLE_CLIENT_SECRET
+            }
+
             Microsoft -> null
+
             Yahoo -> OAuthSecrets.YAHOO_CLIENT_SECRET
         }?.takeIf { it.isNotBlank() }
 

@@ -14,7 +14,8 @@ CREATE TABLE account (
   username TEXT,
   syncCursor TEXT NOT NULL DEFAULT '', -- Gmail historyId; unused for IMAP (per folder)
   sortOrder INTEGER NOT NULL DEFAULT 0,
-  createdAt INTEGER NOT NULL
+  createdAt INTEGER NOT NULL,
+  fileOnly INTEGER NOT NULL DEFAULT 0  -- 1: imported from a transfer file, not signed in here
 );
 
 CREATE TABLE folder (
@@ -120,8 +121,11 @@ UPDATE account SET sortOrder = ? WHERE id = ?;
 -- message of the account with it.
 insertAccount:
 INSERT INTO account(id, kind, email, label, color, notify, retentionDays, capabilities,
-  imapHost, imapPort, imapSecurity, username, syncCursor, sortOrder, createdAt)
+  imapHost, imapPort, imapSecurity, username, syncCursor, sortOrder, createdAt, fileOnly)
 VALUES ?;
+
+setAccountFileOnly:
+UPDATE account SET fileOnly = ? WHERE id = ?;
 
 updateAccountServer:
 UPDATE account SET imapHost = ?, imapPort = ?, imapSecurity = ?, username = ? WHERE id = ?;
@@ -189,6 +193,20 @@ UPDATE message SET notifiedAt = ? WHERE accountId = ? AND id = ?;
 
 deleteMessage:
 DELETE FROM message WHERE accountId = ? AND id = ?;
+
+clearMessageLinks:
+DELETE FROM message_folder WHERE accountId = ? AND messageId = ?;
+
+-- Transfer file export: an account's messages, newest first, a page at a time.
+selectAccountPage:
+SELECT m.*, (
+  SELECT group_concat(mf2.folderId, char(31)) FROM message_folder mf2
+  WHERE mf2.accountId = m.accountId AND mf2.messageId = m.id
+) AS folderIds
+FROM message m WHERE m.accountId = ? ORDER BY m.receivedAt DESC, m.id LIMIT ? OFFSET ?;
+
+countAccountMessages:
+SELECT count(*) FROM message WHERE accountId = ?;
 
 -- A Gmail conversation, oldest first, with each message's folders.
 selectThread:

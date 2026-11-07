@@ -408,6 +408,15 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
             StorageSection(state, onIntent)
 
             HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            TransferSection(state.transfer, onIntent)
+
+            // Sign-in on desktop goes through these clients; Android signs in through Play services.
+            if (Platform.isDesktop) {
+                HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                OAuthKeysSection(state.oauthKeys, onIntent)
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
             SectionHeader(stringResource(Res.string.settings_data))
             SettingRow(stringResource(Res.string.settings_diagnostics), subtitle = stringResource(Res.string.settings_diagnostics_desc)) {
                 OutlinedButton(onClick = { onIntent(AppIntent.ExportDiagnostics) }) {

@@ -28,6 +28,9 @@ class ImapAutoConfig(private val http: HttpClient) {
 
     companion object {
         val KNOWN: Map<String, ImapServer> = mapOf(
+            // Gmail over IMAP takes an app password; used where the build has no Google sign-in.
+            "gmail.com" to ImapServer("imap.gmail.com"),
+            "googlemail.com" to ImapServer("imap.gmail.com"),
             "outlook.com" to ImapServer("outlook.office365.com"),
             "hotmail.com" to ImapServer("outlook.office365.com"),
             "live.com" to ImapServer("outlook.office365.com"),

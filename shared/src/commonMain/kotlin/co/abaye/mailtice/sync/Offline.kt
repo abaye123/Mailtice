@@ -1,5 +1,8 @@
 package co.abaye.mailtice.sync
 
+import co.abaye.mailtice.platform.Platform
+import co.abaye.mailtice.platform.joinPath
+import co.abaye.mailtice.platform.safeFileName
 import co.abaye.mailtice.provider.ProviderException
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.timeout
@@ -44,4 +47,18 @@ class NetworkProbe(private val http: HttpClient) {
         http.get("https://www.gstatic.com/generate_204") { timeout { requestTimeoutMillis = 5_000 } }
         true
     }.getOrDefault(false)
+}
+
+/**
+ * Where offline mode keeps downloaded attachments: one folder per message, a file per attachment
+ * named by its index, and a "done" marker once every file within the size limit is there. The
+ * transfer file reads and writes the same places.
+ */
+internal object OfflineFiles {
+    private fun dir(accountId: String, messageId: String): String =
+        joinPath(joinPath(joinPath(Platform.appDir(), "offline"), safeFileName(accountId, "account")), safeFileName(messageId, "message"))
+
+    fun attachment(accountId: String, messageId: String, index: Int): String = joinPath(dir(accountId, messageId), index.toString())
+
+    fun done(accountId: String, messageId: String): String = joinPath(dir(accountId, messageId), "done")
 }

@@ -57,6 +57,7 @@ import co.abaye.mailtice.app.SignInPhase
 import co.abaye.mailtice.auth.BrowserProfile
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ProviderKind
+import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.ImapLoginException
 import co.abaye.mailtice.ui.EmptyIllustration
 import co.abaye.mailtice.ui.Illustration
@@ -64,6 +65,8 @@ import co.abaye.mailtice.ui.TooltipIconButton
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.accounts_add
 import mailtice.shared.generated.resources.add_choose_provider
+import mailtice.shared.generated.resources.add_gmail_app_password_hint
+import mailtice.shared.generated.resources.add_gmail_app_password_open
 import mailtice.shared.generated.resources.add_imap_detect
 import mailtice.shared.generated.resources.add_imap_email
 import mailtice.shared.generated.resources.add_imap_error_credentials
@@ -82,6 +85,7 @@ import mailtice.shared.generated.resources.browser_body
 import mailtice.shared.generated.resources.browser_default
 import mailtice.shared.generated.resources.browser_title
 import mailtice.shared.generated.resources.dialog_cancel
+import mailtice.shared.generated.resources.provider_gmail
 import mailtice.shared.generated.resources.provider_imap
 import mailtice.shared.generated.resources.signin_back
 import mailtice.shared.generated.resources.signin_browser_body
@@ -400,16 +404,34 @@ private fun SignInScreen(step: AddAccountStep.SignIn, onIntent: (AppIntent) -> U
     }
 }
 
+/** Google's page for app passwords (needs 2-Step Verification on the account). */
+private const val GMAIL_APP_PASSWORDS_URL = "https://myaccount.google.com/apppasswords"
+
 @Composable
 private fun ImapFormDialog(form: ImapForm, onIntent: (AppIntent) -> Unit, close: () -> Unit) {
     val update = { f: ImapForm -> onIntent(AppIntent.UpdateImapForm(f)) }
     val fixed = form.reconnectId != null
     AlertDialog(
         onDismissRequest = close,
-        title = { Text(stringResource(if (fixed) Res.string.add_imap_reconnect_title else Res.string.provider_imap)) },
+        title = {
+            Text(
+                when {
+                    fixed -> stringResource(Res.string.add_imap_reconnect_title)
+                    form.gmail -> stringResource(Res.string.provider_gmail)
+                    else -> stringResource(Res.string.provider_imap)
+                },
+            )
+        },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (!fixed) Text(stringResource(Res.string.add_imap_hint), style = MaterialTheme.typography.bodySmall)
+                if (form.gmail && !fixed) {
+                    Text(stringResource(Res.string.add_gmail_app_password_hint), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { Platform.openUrl(GMAIL_APP_PASSWORDS_URL) }) {
+                        Text(stringResource(Res.string.add_gmail_app_password_open))
+                    }
+                } else if (!fixed) {
+                    Text(stringResource(Res.string.add_imap_hint), style = MaterialTheme.typography.bodySmall)
+                }
                 OutlinedTextField(
                     form.email,
                     { update(form.copy(email = it.trim())) },

@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mailtice</title>
+  <link rel="icon" href="icons/32.png">
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <img src="icons/128.png" alt="" width="56" height="56">
+      <div>
+        <h1 data-i18n="title"></h1>
+        <p class="muted" data-i18n="lead"></p>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2 data-i18n="stepAccount"></h2>
+      <div class="row">
+        <span id="account" class="grow muted"></span>
+        <button id="signin" class="primary" data-i18n="signIn"></button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 data-i18n="stepWhat"></h2>
+      <label class="field"><span data-i18n="range"></span>
+        <select id="range">
+          <option value="7" data-i18n="range7"></option>
+          <option value="30" data-i18n="range30" selected></option>
+          <option value="60" data-i18n="range60"></option>
+          <option value="90" data-i18n="range90"></option>
+          <option value="180" data-i18n="range180"></option>
+          <option value="365" data-i18n="range365"></option>
+          <option value="0" data-i18n="rangeAll"></option>
+        </select>
+      </label>
+      <label class="field"><span data-i18n="attachments"></span>
+        <select id="attachments">
+          <option value="0" data-i18n="attNone"></option>
+          <option value="10" data-i18n="att10" selected></option>
+          <option value="25" data-i18n="att25"></option>
+          <option value="-1" data-i18n="attAll"></option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="spamTrash"> <span data-i18n="spamTrash"></span></label>
+      <p class="muted small" data-i18n="privacy"></p>
+      <div class="row">
+        <button id="start" class="primary" data-i18n="start" disabled></button>
+        <button id="cancel" data-i18n="cancel" hidden></button>
+      </div>
+      <div id="status" class="status" hidden>
+        <progress id="bar" max="1" value="0"></progress>
+        <p id="statusText"></p>
+        <p id="keepOpen" class="muted small" data-i18n="keepOpen" hidden></p>
+      </div>
+    </section>
+
+    <details class="card" id="setupBox">
+      <summary data-i18n="setup"></summary>
+      <p class="small" data-i18n="setupText"></p>
+      <div class="row">
+        <code id="redirect" class="grow" dir="ltr"></code>
+        <button id="copy" data-i18n="copy"></button>
+      </div>
+      <label class="field"><span data-i18n="clientId"></span>
+        <input id="clientId" dir="ltr" spellcheck="false" placeholder="1234-abc.apps.googleusercontent.com">
+      </label>
+      <div class="row"><button id="saveClient" data-i18n="save"></button> <span id="savedNote" class="muted small"></span></div>
+    </details>
+  </main>
+  <script type="module" src="src/export-page.js"></script>
+</body>
+</html>

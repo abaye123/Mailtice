@@ -21,6 +21,7 @@ import mailtice.shared.generated.resources.message_moved_to_trash
 import mailtice.shared.generated.resources.message_no_attachments
 import mailtice.shared.generated.resources.message_no_sending_account
 import mailtice.shared.generated.resources.message_not_configured
+import mailtice.shared.generated.resources.message_oauth_keys_saved
 import mailtice.shared.generated.resources.message_provider_not_supported
 import mailtice.shared.generated.resources.message_reset_done
 import mailtice.shared.generated.resources.message_schedule_cancelled
@@ -68,6 +69,7 @@ enum class AppMessage {
     DraftSaved,
     DraftDiscarded,
     CodeCopied,
+    OAuthKeysSaved,
 }
 
 @Composable
@@ -101,4 +103,5 @@ fun AppMessage.text(): String = when (this) {
     AppMessage.DraftSaved -> stringResource(Res.string.message_draft_saved)
     AppMessage.DraftDiscarded -> stringResource(Res.string.message_draft_discarded)
     AppMessage.CodeCopied -> stringResource(Res.string.message_code_copied)
+    AppMessage.OAuthKeysSaved -> stringResource(Res.string.message_oauth_keys_saved)
 }

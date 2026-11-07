@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f8fc;
+  --card: #ffffff;
+  --text: #1f1f1f;
+  --muted: #5f6368;
+  --line: #dadce0;
+  --accent: #1a73e8;
+  --on-accent: #ffffff;
+  --danger: #c5221f;
+  font-family: "Segoe UI", Rubik, Heebo, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1b1c1e; --card: #26282b; --text: #e8eaed; --muted: #9aa0a6; --line: #3c4043; --accent: #8ab4f8; --on-accent: #202124; --danger: #f28b82; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; }
+main { max-width: 680px; margin: 0 auto; padding: 32px 16px 64px; }
+header { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
+summary { cursor: pointer; font-weight: 600; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.check { display: flex; gap: 8px; align-items: center; margin: 12px 0; }
+select, input { font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+select option { background: var(--card); }
+button { font: inherit; border-radius: 20px; padding: 8px 18px; border: 1px solid var(--line); background: transparent; color: var(--accent); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button:disabled { opacity: .5; cursor: default; }
+code { background: var(--bg); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+.status { margin-top: 14px; }
+.status.error #statusText { color: var(--danger); }
+progress { width: 100%; height: 8px; accent-color: var(--accent); }
+body.popup { width: 300px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }

@@ -1,5 +1,6 @@
 package co.abaye.mailtice.app
 
+import co.abaye.mailtice.auth.OAuthKeys
 import co.abaye.mailtice.domain.AccentColor
 import co.abaye.mailtice.domain.AccountsNav
 import co.abaye.mailtice.domain.AppFont
@@ -129,6 +130,18 @@ sealed interface AppIntent {
 
     /** Saves the diagnostics file (counts and states, nothing personal) beside the downloads. */
     data object ExportDiagnostics : AppIntent
+
+    /** The OAuth clients typed in Settings, for a build without them (desktop). */
+    data class SaveOAuthKeys(val keys: OAuthKeys) : AppIntent
+
+    /** Writes every account's stored mail into one transfer file, for a computer without internet. */
+    data object ExportMail : AppIntent
+
+    /** Asks for a transfer file ([title] heads the dialog) and reads it in. */
+    data class ImportMail(val title: String) : AppIntent
+
+    /** The export or import result is read; the settings stop showing it. */
+    data object DismissTransfer : AppIntent
 
     // Settings
     data class SetTheme(val mode: ThemeMode) : AppIntent

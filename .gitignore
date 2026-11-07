@@ -35,3 +35,6 @@ core.*
 
 # Gradle output captured while debugging; regenerated on every build.
 build-*.log
+
+# Browser extension package (extension/build.sh)
+extension/dist/
