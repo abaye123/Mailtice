@@ -573,7 +573,7 @@
     <string name="accounts_connect">התחבר</string>
     <string name="transfer_title">מחשב ללא אינטרנט</string>
     <string name="transfer_export">ייצוא המיילים לקובץ</string>
-    <string name="transfer_export_desc">כל המיילים השמורים כאן מכל החשבונות, בקובץ ‎.mailtice אחד להעברה למחשב ללא אינטרנט. נכנס רק מה ששמור במכשיר הזה: כשמצב לא מקוון פעיל, זו כל תיבת הדואר.</string>
+    <string name="transfer_export_desc">המיילים מכל החשבונות בתקופה שתבחר, בקובץ ‎.mailtice אחד להעברה למחשב ללא אינטרנט.</string>
     <string name="transfer_export_button">ייצוא</string>
     <string name="transfer_import">ייבוא מיילים מקובץ</string>
     <string name="transfer_import_desc">קובץ ‎.mailtice מ-Mailtice במחשב אחר. החשבונות שבו נוספים כעותק לקריאה. חשבון שמחובר כאן מדולג.</string>

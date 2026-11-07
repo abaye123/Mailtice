@@ -533,7 +533,7 @@
     <string name="accounts_connect">פארבינדן</string>
     <string name="transfer_title">קאמפיוטער אן אינטערנעט</string>
     <string name="transfer_export">עקספארטירן די בריוו אין א טעקע</string>
-    <string name="transfer_export_desc">די בריוו פון אלע חשבונות וואס זענען דא אפגעהיטן, אין איין ‎.mailtice טעקע צו טראגן צו א קאמפיוטער אן אינטערנעט. עס גייט אריין נאר וואס איז אפגעהיטן אויף דעם מכשיר: ווען דער אפליין מאדע איז אן, איז דאס די גאנצע בריווקאסטן.</string>
+    <string name="transfer_export_desc">די בריוו פון אלע חשבונות פון א צייט וואס איר קלייבט, אין איין ‎.mailtice טעקע צו טראגן צו א קאמפיוטער אן אינטערנעט.</string>
     <string name="transfer_export_button">עקספארטירן</string>
     <string name="transfer_import">אימפארטירן בריוו פון א טעקע</string>
     <string name="transfer_import_desc">א ‎.mailtice טעקע פון Mailtice אויף אן אנדער קאמפיוטער. אירע חשבונות ווערן צוגעלייגט ווי קאפיעס צו לייענען. א חשבון וואס איז דא פארבונדן ווערט איבערגעהיפט.</string>

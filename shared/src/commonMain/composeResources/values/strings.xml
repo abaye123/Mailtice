@@ -570,7 +570,7 @@
     <string name="accounts_connect">Connect</string>
     <string name="transfer_title">Computer without internet</string>
     <string name="transfer_export">Export mail to a file</string>
-    <string name="transfer_export_desc">Every account\'s mail stored here, in one .mailtice file to carry to a computer without internet. Only what is stored on this device goes in: with offline mode on, that is the whole mailbox.</string>
+    <string name="transfer_export_desc">Every account's mail of a period you choose, in one .mailtice file to carry to a computer without internet.</string>
     <string name="transfer_export_button">Export</string>
     <string name="transfer_import">Import mail from a file</string>
     <string name="transfer_import_desc">A .mailtice file from Mailtice on another computer. Its accounts are added as copies to read. An account connected here is skipped.</string>
