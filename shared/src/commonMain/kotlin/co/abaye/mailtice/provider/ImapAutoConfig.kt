@@ -1,5 +1,6 @@
 package co.abaye.mailtice.provider
 
+import co.abaye.mailtice.domain.GMAIL_IMAP_HOST
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ImapServer
 import io.ktor.client.HttpClient
@@ -28,6 +29,9 @@ class ImapAutoConfig(private val http: HttpClient) {
 
     companion object {
         val KNOWN: Map<String, ImapServer> = mapOf(
+            // Gmail over IMAP takes an app password, for accounts that cannot use Google sign-in.
+            "gmail.com" to ImapServer(GMAIL_IMAP_HOST),
+            "googlemail.com" to ImapServer(GMAIL_IMAP_HOST),
             "outlook.com" to ImapServer("outlook.office365.com"),
             "hotmail.com" to ImapServer("outlook.office365.com"),
             "live.com" to ImapServer("outlook.office365.com"),

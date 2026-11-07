@@ -104,6 +104,9 @@
     <string name="provider_gmail">Google (Gmail / Workspace)</string>
     <string name="provider_microsoft">Microsoft (Outlook / 365)</string>
     <string name="provider_yahoo">Yahoo / AOL</string>
+    <string name="add_gmail_app_password_choose">התחברות עם סיסמת אפליקציה</string>
+    <string name="add_gmail_app_password_hint">הזן את כתובת ה-Gmail וסיסמת אפליקציה, לא את הסיסמה הרגילה. סיסמת אפליקציה דורשת אימות דו-שלבי בחשבון Google. יוצרים אותה בדף של Google ומדביקים כאן את 16 האותיות.</string>
+    <string name="add_gmail_app_password_open">יצירת סיסמת אפליקציה</string>
     <string name="provider_imap">ספק אחר (IMAP)</string>
     <string name="add_imap_hint">מלא כתובת וסיסמה ולחץ \"זהה שרת\". אפשר לתקן ידנית.</string>
     <string name="add_imap_email">כתובת מייל</string>

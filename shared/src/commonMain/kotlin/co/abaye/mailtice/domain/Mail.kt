@@ -42,6 +42,9 @@ enum class MailView(val role: FolderRole?) {
  * What an account can actually do. The UI reads this and never shows an action that is false here,
  * so nothing is offered only to fail.
  */
+/** Gmail's IMAP server, used by accounts that connect with an app password. */
+const val GMAIL_IMAP_HOST = "imap.gmail.com"
+
 @Immutable
 data class Capabilities(
     val markRead: Boolean = true,

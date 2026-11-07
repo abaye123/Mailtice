@@ -104,6 +104,9 @@
     <string name="provider_gmail">Google (Gmail / Workspace)</string>
     <string name="provider_microsoft">Microsoft (Outlook / 365)</string>
     <string name="provider_yahoo">Yahoo / AOL</string>
+    <string name="add_gmail_app_password_choose">Sign in with an app password instead</string>
+    <string name="add_gmail_app_password_hint">Enter your Gmail address and an app password, not your regular password. An app password needs 2-Step Verification on the Google account. Create one on Google\'s page and paste the 16 letters here.</string>
+    <string name="add_gmail_app_password_open">Create an app password</string>
     <string name="provider_imap">Other provider (IMAP)</string>
     <string name="add_imap_hint">Enter the address and password, then \"Detect server\". You can correct it by hand.</string>
     <string name="add_imap_email">Email address</string>

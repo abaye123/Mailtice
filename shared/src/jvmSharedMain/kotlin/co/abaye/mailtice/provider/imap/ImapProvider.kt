@@ -9,6 +9,7 @@ import co.abaye.mailtice.domain.Attachment
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.Folder
 import co.abaye.mailtice.domain.FolderRole
+import co.abaye.mailtice.domain.GMAIL_IMAP_HOST
 import co.abaye.mailtice.domain.ImapSecurity
 import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.LabelColors
@@ -415,7 +416,8 @@ class ImapProvider(private val auth: AuthManager) : ImapBackend {
             throw ProviderException.Transient(e.message.orEmpty())
         }
         val sent = folders.firstOrNull { it.role == FolderRole.Sent }
-        if (account.kind == ProviderKind.Imap && sent != null) {
+        // Gmail files what goes through its SMTP in Sent by itself; a second copy would only duplicate it.
+        if (account.kind == ProviderKind.Imap && sent != null && account.imap?.host != GMAIL_IMAP_HOST) {
             // Best effort: the mail is already on its way; a missing Sent copy is not a failure.
             runCatching {
                 withStore(account) { store ->

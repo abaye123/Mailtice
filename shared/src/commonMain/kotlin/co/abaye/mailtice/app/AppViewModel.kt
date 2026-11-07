@@ -24,6 +24,7 @@ import co.abaye.mailtice.domain.Account
 import co.abaye.mailtice.domain.AccountColor
 import co.abaye.mailtice.domain.Capabilities
 import co.abaye.mailtice.domain.FolderRole
+import co.abaye.mailtice.domain.GMAIL_IMAP_HOST
 import co.abaye.mailtice.domain.ImapServer
 import co.abaye.mailtice.domain.ListFractionRange
 import co.abaye.mailtice.domain.MailBody
@@ -338,6 +339,8 @@ class AppViewModel(
             AppIntent.StartAddAccount -> mutate { it.copy(addAccount = AddAccountStep.ChooseProvider, message = null) }
 
             is AppIntent.ChooseProvider -> chooseProvider(intent.kind)
+
+            AppIntent.ChooseGmailAppPassword -> openGmailAppPasswordForm()
 
             is AppIntent.UpdateImapForm -> mutate { s -> s.copy(addAccount = AddAccountStep.Imap(intent.form.copy(error = null))) }
 
@@ -795,6 +798,8 @@ class AppViewModel(
      */
     private fun availableProviders(): List<ProviderKind> = ProviderKind.entries.filter { kind ->
         if (DemoMode.enabled) return@filter true
+        // Without Google sign-in Gmail is still offered: it connects with an app password instead.
+        if (kind == ProviderKind.Gmail) return@filter true
         val provider = OAuthProvider.of(kind) ?: return@filter true
         provider.clientId.isNotBlank() && authorizer.supports(provider)
     }
@@ -825,9 +830,19 @@ class AppViewModel(
 
     // ---- adding accounts --------------------------------------------------------------------
 
+    private fun googleSignIn(): Boolean = OAuthProvider.Google.clientId.isNotBlank() && authorizer.supports(OAuthProvider.Google)
+
+    private fun openGmailAppPasswordForm() = mutate {
+        it.copy(addAccount = AddAccountStep.Imap(ImapForm(host = GMAIL_IMAP_HOST, gmail = true)))
+    }
+
     private fun chooseProvider(kind: ProviderKind) {
         if (kind == ProviderKind.Imap) {
             mutate { it.copy(addAccount = AddAccountStep.Imap(ImapForm())) }
+            return
+        }
+        if (kind == ProviderKind.Gmail && !DemoMode.enabled && !googleSignIn()) {
+            openGmailAppPasswordForm()
             return
         }
         // Several browser profiles: ask which one first (demo too, so the picker can be seen).

@@ -60,6 +60,8 @@ data class ImapForm(
     val port: String = "993",
     val security: ImapSecurity = ImapSecurity.Tls,
     val username: String = "",
+    /** Gmail over IMAP with an app password: the form explains how to make one. */
+    val gmail: Boolean = false,
     /** Set when fixing the password of an existing account; the other fields are then read-only. */
     val reconnectId: String? = null,
     val busy: Boolean = false,

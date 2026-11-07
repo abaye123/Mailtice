@@ -23,6 +23,9 @@ sealed interface AppIntent {
     // Adding / fixing accounts
     data object StartAddAccount : AppIntent
     data class ChooseProvider(val kind: ProviderKind) : AppIntent
+
+    /** Gmail over IMAP: for accounts that cannot use Google sign-in. */
+    data object ChooseGmailAppPassword : AppIntent
     data class UpdateImapForm(val form: ImapForm) : AppIntent
     data object DetectImapServer : AppIntent
     data object SubmitImapForm : AppIntent
