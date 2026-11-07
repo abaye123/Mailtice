@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +41,7 @@ import co.abaye.mailtice.ui.TooltipIconButton
 import co.abaye.mailtice.ui.formatBytes
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.accounts_add
+import mailtice.shared.generated.resources.accounts_connect
 import mailtice.shared.generated.resources.accounts_empty
 import mailtice.shared.generated.resources.accounts_move_down
 import mailtice.shared.generated.resources.accounts_move_up
@@ -51,6 +53,7 @@ import mailtice.shared.generated.resources.provider_gmail
 import mailtice.shared.generated.resources.provider_imap
 import mailtice.shared.generated.resources.provider_microsoft
 import mailtice.shared.generated.resources.provider_yahoo
+import mailtice.shared.generated.resources.status_from_file
 import mailtice.shared.generated.resources.status_idle
 import mailtice.shared.generated.resources.status_needs_reauth
 import mailtice.shared.generated.resources.status_offline
@@ -152,6 +155,10 @@ private fun AccountRow(
             }
             if (status == AccountStatus.NeedsReauth) {
                 Button(onClick = { onIntent(AppIntent.Reconnect(account.id)) }) { Text(stringResource(Res.string.accounts_reconnect)) }
+            } else if (status == AccountStatus.FromFile) {
+                OutlinedButton(onClick = {
+                    onIntent(AppIntent.Reconnect(account.id))
+                }) { Text(stringResource(Res.string.accounts_connect)) }
             }
             if (canMoveUp || canMoveDown) {
                 TooltipIconButton(
@@ -179,6 +186,7 @@ internal fun AccountStatus.label(): String = when (this) {
     AccountStatus.Ok -> stringResource(Res.string.status_ok)
     AccountStatus.Offline -> stringResource(Res.string.status_offline)
     AccountStatus.NeedsReauth -> stringResource(Res.string.status_needs_reauth)
+    AccountStatus.FromFile -> stringResource(Res.string.status_from_file)
 }
 
 @Composable

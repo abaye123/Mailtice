@@ -38,13 +38,13 @@ enum class MailView(val role: FolderRole?) {
     Scheduled(null),
 }
 
+/** Gmail's IMAP server, used by accounts that connect with an app password. */
+const val GMAIL_IMAP_HOST = "imap.gmail.com"
+
 /**
  * What an account can actually do. The UI reads this and never shows an action that is false here,
  * so nothing is offered only to fail.
  */
-/** Gmail's IMAP server, used by accounts that connect with an app password. */
-const val GMAIL_IMAP_HOST = "imap.gmail.com"
-
 @Immutable
 data class Capabilities(
     val markRead: Boolean = true,
@@ -105,6 +105,11 @@ data class Account(
     val username: String = email,
     /** Gmail historyId. */
     val syncCursor: String = "",
+    /**
+     * Imported from a transfer file and never signed in here (a computer without internet): read
+     * only, never synced, until the user connects it.
+     */
+    val fileOnly: Boolean = false,
 ) {
     val displayName: String get() = label.ifBlank { email }
 }
@@ -229,6 +234,9 @@ enum class AccountStatus {
 
     /** Credentials rejected. Only signing in again (or a new password) fixes it. */
     NeedsReauth,
+
+    /** Imported from a transfer file, not signed in here: mail to read, nothing to sync. */
+    FromFile,
 }
 
 /** Retention choices offered in the UI. 0 = everything. */

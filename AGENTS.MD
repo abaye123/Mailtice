@@ -51,6 +51,9 @@ truth**: sync writes to it, the UI reads SQLDelight Flows. The view model never 
   SMTP next to the IMAP server with the same credential (XOAUTH2 or password), and a generic IMAP
   account also gets the copy appended to its Sent folder. "Delete" always means move to trash.
   Microsoft needs the `SMTP.Send` scope: accounts signed in before it must sign in again to send.
+- `transfer/` - the `.mailtice` file for a computer without internet. It is a zip, read and written as
+  a stream, and optionally encrypted (`TransferCrypto`). Import only makes read-only copies
+  (`Account.fileOnly`), which never reach a server until signed in; connected accounts are skipped.
 - `sync/` - `SyncEngine`: `syncOnce(account)` (shared by the desktop loop, the open Android app and
   the Android `SyncWorker`), per-account mutex, backoff, optimistic actions.
 - `notify/` - `Notifier` (desktop: Nucleus; Android: NotificationCompat), `MailNotifications`

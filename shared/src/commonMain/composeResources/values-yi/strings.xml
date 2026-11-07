@@ -529,4 +529,33 @@
         <item quantity="one">נעכטן</item>
         <item quantity="other">מיט %1$d טעג צוריק</item>
     </plurals>
+    <string name="status_from_file">פון א טעקע</string>
+    <string name="accounts_connect">פארבינדן</string>
+    <string name="transfer_title">קאמפיוטער אן אינטערנעט</string>
+    <string name="transfer_export">עקספארטירן די בריוו אין א טעקע</string>
+    <string name="transfer_export_desc">די בריוו פון אלע חשבונות וואס זענען דא אפגעהיטן, אין איין ‎.mailtice טעקע צו טראגן צו א קאמפיוטער אן אינטערנעט. עס גייט אריין נאר וואס איז אפגעהיטן אויף דעם מכשיר: ווען דער אפליין מאדע איז אן, איז דאס די גאנצע בריווקאסטן.</string>
+    <string name="transfer_export_button">עקספארטירן</string>
+    <string name="transfer_import">אימפארטירן בריוו פון א טעקע</string>
+    <string name="transfer_import_desc">א ‎.mailtice טעקע פון Mailtice אויף אן אנדער קאמפיוטער. אירע חשבונות ווערן צוגעלייגט ווי קאפיעס צו לייענען. א חשבון וואס איז דא פארבונדן ווערט איבערגעהיפט.</string>
+    <string name="transfer_import_button">אימפארטירן</string>
+    <string name="transfer_import_title">קלייבט א Mailtice טעקע</string>
+    <string name="transfer_exporting">עקספארטירט... %1$d בריוו</string>
+    <string name="transfer_importing">אימפארטירט... %1$d בריוו</string>
+    <string name="transfer_exported">עקספארטירט %1$d בריוו פון %2$d חשבונות</string>
+    <string name="transfer_imported">אימפארטירט %1$d בריוו אין %2$d חשבונות</string>
+    <string name="transfer_skipped">פארבונדענע חשבונות וואס זענען איבערגעהיפט: %1$d</string>
+    <string name="transfer_export_failed">דאס עקספארטירן איז דורכגעפאלן. קוקט אז עס איז דא פלאץ אויפן דיסק און פרובירט נאכאמאל.</string>
+    <string name="transfer_import_failed">מען האט נישט געקענט לייענען די טעקע.</string>
+    <string name="transfer_not_a_file">דאס איז נישט קיין Mailtice איבערפירונג טעקע.</string>
+    <string name="transfer_too_new">די טעקע קומט פון א נייערע Mailtice. דערהיינטיקט Mailtice כדי זי צו אימפארטירן.</string>
+    <string name="transfer_show">ווייזן די טעקע</string>
+    <string name="transfer_dismiss">פארמאכן</string>
+    <string name="transfer_password_title">באשיצן די טעקע מיט א פאסווארט</string>
+    <string name="transfer_password">פאסווארט (נישט קיין חיוב)</string>
+    <string name="transfer_password_repeat">שרייבט די פאסווארט נאכאמאל</string>
+    <string name="transfer_password_warning">אן א פאסווארט קען יעדער וואס האט די טעקע לייענען אלע בריוו אין איר. א פארגעסענע פאסווארט קען מען נישט צוריקקריגן.</string>
+    <string name="transfer_password_mismatch">די פאסווערטער זענען נישט גלייך.</string>
+    <string name="transfer_import_password_title">די טעקע האט א פאסווארט</string>
+    <string name="transfer_import_password">פאסווארט</string>
+    <string name="transfer_wrong_password">א פאלשע פאסווארט. פרובירט נאכאמאל.</string>
 </resources>

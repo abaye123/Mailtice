@@ -1,0 +1,3 @@
+-- 6 -> 7: accounts imported from a transfer file (a computer without internet).
+-- Set while the account has never been signed in here: it is read-only and is never synced.
+ALTER TABLE account ADD COLUMN fileOnly INTEGER NOT NULL DEFAULT 0;

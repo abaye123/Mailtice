@@ -23,6 +23,20 @@ class MigrationTest {
             """.trimIndent(),
             0,
         )
+        // The account table as version 1 created it (6 -> 7 adds a column to it).
+        driver.execute(
+            null,
+            """
+            CREATE TABLE account (
+              id TEXT NOT NULL PRIMARY KEY, kind TEXT NOT NULL, email TEXT NOT NULL, label TEXT NOT NULL DEFAULT '',
+              color TEXT NOT NULL, notify INTEGER NOT NULL DEFAULT 1, retentionDays INTEGER NOT NULL DEFAULT 30,
+              capabilities TEXT NOT NULL DEFAULT '', imapHost TEXT, imapPort INTEGER, imapSecurity TEXT, username TEXT,
+              syncCursor TEXT NOT NULL DEFAULT '', sortOrder INTEGER NOT NULL DEFAULT 0, createdAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            0,
+        )
+        driver.execute(null, "INSERT INTO account(id, kind, email, color, createdAt) VALUES ('a', 'Gmail', 'a@example.com', 'Blue', 1)", 0)
         // The body table as version 1 created it, with a stored body.
         driver.execute(
             null,
@@ -52,7 +66,7 @@ class MigrationTest {
         ).value
         // Everything syncs now; notifications untouched; no colour until the next folder refresh.
         assertEquals(listOf("INBOX:1:1:", "SPAM:1:0:"), rows)
-        assertEquals(6L, MailDatabase.Schema.version)
+        assertEquals(7L, MailDatabase.Schema.version)
         // 2 -> 3 added the scheduled-send queue.
         val tables = driver.executeQuery(
             null,
@@ -71,5 +85,13 @@ class MigrationTest {
             0,
         ).value
         assertEquals("hello:0", body)
+        // 6 -> 7: an account already here is a connected one, not a copy from a transfer file.
+        val fileOnly = driver.executeQuery(
+            null,
+            "SELECT fileOnly FROM account WHERE id = 'a'",
+            { cursor -> app.cash.sqldelight.db.QueryResult.Value(if (cursor.next().value) cursor.getLong(0) else -1L) },
+            0,
+        ).value
+        assertEquals(0L, fileOnly)
     }
 }

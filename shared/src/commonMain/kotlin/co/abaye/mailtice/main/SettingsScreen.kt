@@ -408,6 +408,9 @@ fun SettingsScreen(state: AppState, onIntent: (AppIntent) -> Unit, modifier: Mod
             StorageSection(state, onIntent)
 
             HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+            TransferSection(state.transfer, onIntent)
+
+            HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
             SectionHeader(stringResource(Res.string.settings_data))
             SettingRow(stringResource(Res.string.settings_diagnostics), subtitle = stringResource(Res.string.settings_diagnostics_desc)) {
                 OutlinedButton(onClick = { onIntent(AppIntent.ExportDiagnostics) }) {

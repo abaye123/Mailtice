@@ -130,6 +130,18 @@ sealed interface AppIntent {
     /** The window comes back from the tray: a fresh start, so the home screen when the setting asks for it. */
     data object Reopen : AppIntent
 
+    /** Writes every account's stored mail into one transfer file, encrypted when there is a [password]. */
+    data class ExportMail(val password: String?) : AppIntent
+
+    /** Asks for a transfer file ([title] heads the dialog) and reads it in. */
+    data class ImportMail(val title: String) : AppIntent
+
+    /** The password of the encrypted file [TransferStatus.NeedsPassword] is waiting on. */
+    data class ImportWithPassword(val password: String) : AppIntent
+
+    /** The export or import result is read, or the password is not coming: the settings stop showing it. */
+    data object DismissTransfer : AppIntent
+
     /** Saves the diagnostics file (counts and states, nothing personal) beside the downloads. */
     data object ExportDiagnostics : AppIntent
 

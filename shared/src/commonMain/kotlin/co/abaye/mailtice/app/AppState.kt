@@ -23,6 +23,8 @@ import co.abaye.mailtice.domain.conversationKey
 import co.abaye.mailtice.domain.groupConversations
 import co.abaye.mailtice.provider.ImapLoginException
 import co.abaye.mailtice.sync.PollPlan
+import co.abaye.mailtice.transfer.TransferError
+import co.abaye.mailtice.transfer.TransferSummary
 
 @Immutable
 sealed interface AppDialog {
@@ -67,6 +69,23 @@ data class ImapForm(
     val busy: Boolean = false,
     val error: ImapLoginException.Reason? = null,
 )
+
+/** Export to or import from a transfer file (a computer without internet), for the settings to show. */
+@Immutable
+sealed interface TransferStatus {
+    data object Idle : TransferStatus
+
+    /** [messages] done so far. */
+    data class Running(val importing: Boolean, val messages: Int) : TransferStatus
+
+    /** The file at [path] is encrypted; [wrong] after a password that did not open it. */
+    data class NeedsPassword(val path: String, val wrong: Boolean = false) : TransferStatus
+
+    /** [location] is where the export went (null for an import). */
+    data class Done(val importing: Boolean, val summary: TransferSummary, val location: String? = null) : TransferStatus
+
+    data class Failed(val importing: Boolean, val error: TransferError) : TransferStatus
+}
 
 @Immutable
 sealed interface AddAccountStep {
@@ -298,6 +317,8 @@ data class AppState(
     val browserProfiles: List<BrowserProfile> = emptyList(),
     /** Providers the build has credentials for and this platform can sign in to. */
     val availableProviders: List<ProviderKind> = ProviderKind.entries,
+    /** The transfer file export or import, as the settings show it. */
+    val transfer: TransferStatus = TransferStatus.Idle,
     val dialog: AppDialog = AppDialog.Hidden,
     /** Web mail waiting for the user to say which browser profile the account lives in. */
     val webProfileRequest: WebProfileRequest? = null,

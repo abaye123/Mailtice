@@ -48,6 +48,7 @@ import co.abaye.mailtice.ui.TooltipIconButton
 import co.abaye.mailtice.ui.formatBytes
 import mailtice.shared.generated.resources.Res
 import mailtice.shared.generated.resources.accounts_color
+import mailtice.shared.generated.resources.accounts_connect
 import mailtice.shared.generated.resources.accounts_label
 import mailtice.shared.generated.resources.accounts_notify
 import mailtice.shared.generated.resources.accounts_reconnect
@@ -86,7 +87,11 @@ fun AccountDetailScreen(accountId: String, state: AppState, onIntent: (AppIntent
                     Text(account.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text("${account.kind.label()} · ${account.email} · ${status.label()}", style = MaterialTheme.typography.bodySmall)
                 }
-                if (status == AccountStatus.NeedsReauth || !account.kind.oauth) {
+                if (status == AccountStatus.FromFile) {
+                    TextButton(onClick = {
+                        onIntent(AppIntent.Reconnect(account.id))
+                    }) { Text(stringResource(Res.string.accounts_connect)) }
+                } else if (status == AccountStatus.NeedsReauth || !account.kind.oauth) {
                     TextButton(onClick = {
                         onIntent(AppIntent.Reconnect(account.id))
                     }) { Text(stringResource(Res.string.accounts_reconnect)) }

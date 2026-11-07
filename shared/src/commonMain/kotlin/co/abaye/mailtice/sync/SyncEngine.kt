@@ -11,8 +11,6 @@ import co.abaye.mailtice.domain.LabelColors
 import co.abaye.mailtice.domain.MailBody
 import co.abaye.mailtice.domain.MailMessage
 import co.abaye.mailtice.platform.Platform
-import co.abaye.mailtice.platform.joinPath
-import co.abaye.mailtice.platform.safeFileName
 import co.abaye.mailtice.provider.AttachmentFile
 import co.abaye.mailtice.provider.MailProvider
 import co.abaye.mailtice.provider.MailProviders
@@ -160,15 +158,21 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
             monitor?.cancel()
             monitor = if (offline.enabled && probe != null) scope.launch { watchConnection(probe) } else null
         }
-        val wanted = accounts.map { it.id }.toSet()
+        // An account copied from a transfer file has nothing to sign in with here: no loop at all.
+        val (fromFile, connected) = accounts.partition { it.fileOnly }
+        fromFile.forEach { stop(it.id) }
+        _statuses.update { map -> map + fromFile.associate { it.id to AccountStatus.FromFile } }
+        val wanted = connected.map { it.id }.toSet()
         (jobs.keys - wanted).forEach { stop(it) }
-        accounts.filter { jobs[it.id]?.isActive != true }.forEach { account ->
+        connected.filter { jobs[it.id]?.isActive != true }.forEach { account ->
             jobs[account.id] = scope.launch { loop(account.id) }
         }
     }
 
     fun restart(@StructuredScope scope: CoroutineScope, accountId: String) {
         stop(accountId)
+        // Just signed in on a copy from a file: from here on it syncs like any other account.
+        _statuses.update { if (it[accountId] == AccountStatus.FromFile) it + (accountId to AccountStatus.Syncing) else it }
         jobs[accountId] = scope.launch { loop(accountId) }
     }
 
@@ -303,7 +307,7 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         listOfNotNull(e::class.simpleName, e.message?.lineSequence()?.firstOrNull()?.take(240)).joinToString(": ")
 
     /** Background worker entry point: every account once, failures isolated per account. */
-    suspend fun syncAllOnce(): List<NewMail> = repo.accountsNow().mapNotNull { account ->
+    suspend fun syncAllOnce(): List<NewMail> = repo.accountsNow().filterNot { it.fileOnly }.mapNotNull { account ->
         runCatching { syncOnce(account) }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { NewMail(account, it) }
     }
 
@@ -316,6 +320,8 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
     suspend fun setRead(message: MailMessage, read: Boolean) {
         val account = repo.account(message.accountId) ?: return
         repo.setUnread(message.accountId, message.id, !read)
+        // A copy from a transfer file has no server to tell.
+        if (account.fileOnly) return
         try {
             providers.forAccount(account).setRead(account, message, repo.foldersNow(account.id), read)
         } catch (e: CancellationException) {
@@ -439,7 +445,9 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
                 Platform.readBytes(attachmentPath(message.accountId, message.id, i))?.let { AttachmentFile(i, name, it) }
             }
             if (cached.size == wanted.size && cached.isNotEmpty()) return cached
+            if (account.fileOnly) return cached
         }
+        if (account.fileOnly) return emptyList()
         return providers.forAccount(account).fetchAttachments(account, message, indices)
     }
 
@@ -538,13 +546,9 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
         return false
     }
 
-    private fun offlineDir(accountId: String, messageId: String): String =
-        joinPath(joinPath(joinPath(Platform.appDir(), "offline"), safeFileName(accountId, "account")), safeFileName(messageId, "message"))
+    private fun attachmentPath(accountId: String, messageId: String, index: Int) = OfflineFiles.attachment(accountId, messageId, index)
 
-    private fun attachmentPath(accountId: String, messageId: String, index: Int) =
-        joinPath(offlineDir(accountId, messageId), index.toString())
-
-    private fun doneMarker(accountId: String, messageId: String) = joinPath(offlineDir(accountId, messageId), "done")
+    private fun doneMarker(accountId: String, messageId: String) = OfflineFiles.done(accountId, messageId)
 
     /** Older mail straight from the server, as list rows. Never stored (see [MailProvider.olderMessages]). */
     suspend fun olderMessages(account: Account, folders: List<Folder>, query: OlderQuery): List<MailMessage> =
@@ -592,6 +596,8 @@ class SyncEngine(private val repo: MailRepository, private val providers: MailPr
     suspend fun body(message: MailMessage, refresh: Boolean = false): MailBody {
         if (!refresh) repo.body(message.accountId, message.id)?.let { return it }
         val account = repo.account(message.accountId) ?: return MailBody("", "", emptyList())
+        // Exported without its body: the preview is all there is, and no server to ask.
+        if (account.fileOnly) return repo.body(message.accountId, message.id) ?: MailBody(message.snippet, "", emptyList())
         val body = providers.forAccount(account).fetchBody(account, message)
         // Older mail looked at from the server has no stored row, so its body is not stored either.
         if (repo.message(message.accountId, message.id) != null) repo.saveBody(message.accountId, message.id, body)

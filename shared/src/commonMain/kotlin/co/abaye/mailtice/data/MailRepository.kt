@@ -27,6 +27,7 @@ import co.abaye.mailtice.domain.conversationKey
 import co.abaye.mailtice.export.ThreadExport
 import co.abaye.mailtice.platform.Platform
 import co.abaye.mailtice.provider.RemoteFolder
+import co.abaye.mailtice.provider.RemoteMessage
 import co.abaye.mailtice.provider.SyncBatch
 import co.abaye.mailtice.search.MailSearch
 import co.abaye.mailtice.sync.ActivityEvent
@@ -88,8 +89,14 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
                 syncCursor = account.syncCursor,
                 sortOrder = accountsNow().size.toLong(),
                 createdAt = Platform.now(),
+                fileOnly = if (account.fileOnly) 1 else 0,
             ),
         )
+    }
+
+    /** Signed in here at last (or turned into a file-only copy): see [Account.fileOnly]. */
+    fun setFileOnly(accountId: String, fileOnly: Boolean) {
+        q.setAccountFileOnly(if (fileOnly) 1 else 0, accountId)
     }
 
     fun updatePrefs(account: Account) {
@@ -473,6 +480,59 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
         driver.execute(null, "VACUUM", 0)
     }
 
+    // ---- transfer file ----------------------------------------------------------------------
+
+    fun messageCount(accountId: String): Long = q.countAccountMessages(accountId).executeAsOne()
+
+    /** The page of [accountId]'s messages after [after], newest first, with their folders: what an export writes. */
+    fun messagePage(accountId: String, after: MailMessage?, limit: Long): List<MailMessage> =
+        q.selectAccountPage(accountId, after?.receivedAt ?: Long.MAX_VALUE, after?.id.orEmpty(), limit, ::mapInboxMessage).executeAsList()
+
+    /** Adds folders the account does not have yet: synced, without notifications. */
+    fun addFolders(accountId: String, folders: List<RemoteFolder>) {
+        db.transaction {
+            folders.forEach { f -> q.insertFolderIfMissing(accountId, f.id, f.name, f.role.name, 1, 0, f.color) }
+        }
+    }
+
+    /**
+     * Messages read from a transfer file into a copy, in one transaction. New ones are added, never
+     * announced. The file is the truth, so the flags, folders and bodies of messages already stored
+     * follow it too.
+     */
+    fun importMessages(accountId: String, messages: List<RemoteMessage>) {
+        val now = Platform.now()
+        db.transaction {
+            messages.forEach { m ->
+                val existed = q.selectMessage(accountId, m.id).executeAsOneOrNull() != null
+                if (!existed) {
+                    q.insertMessageIfMissing(
+                        accountId, m.id, m.threadId, m.uid, m.fromName, m.fromAddress, m.toLine, m.subject, m.snippet,
+                        m.receivedAt, if (m.unread) 1 else 0, if (m.flagged) 1 else 0, if (m.hasAttachments) 1 else 0, m.sizeBytes,
+                    )
+                    q.markNotified(now, accountId, m.id)
+                } else {
+                    q.setFlags(if (m.unread) 1 else 0, if (m.flagged) 1 else 0, accountId, m.id)
+                    q.clearMessageLinks(accountId, m.id)
+                }
+                m.folderIds.forEach { q.linkFolder(accountId, m.id, it) }
+                val body = m.body
+                if (body != null) {
+                    q.upsertBody(
+                        Message_body(
+                            accountId,
+                            m.id,
+                            body.text,
+                            body.html,
+                            encodeAttachments(body.attachments),
+                            if (body.dynamic) 1L else 0L,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
     // ---- mapping --------------------------------------------------------------------------
 
     @Suppress("LongParameterList")
@@ -492,6 +552,7 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
         syncCursor: String,
         @Suppress("UNUSED_PARAMETER") sortOrder: Long,
         @Suppress("UNUSED_PARAMETER") createdAt: Long,
+        fileOnly: Long,
     ) = Account(
         id = id,
         kind = ProviderKind.entries.firstOrNull { it.name == kind } ?: ProviderKind.Imap,
@@ -506,6 +567,7 @@ class MailRepository(private val driver: SqlDriver, private val dispatcher: Coro
         },
         username = username ?: email,
         syncCursor = syncCursor,
+        fileOnly = fileOnly != 0L,
     )
 
     @Suppress("LongParameterList")
