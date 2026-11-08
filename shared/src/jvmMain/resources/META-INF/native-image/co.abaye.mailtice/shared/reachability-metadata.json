@@ -1,6 +1,13 @@
 {
   "reflection": [
     {
+      "type": "java.lang.IllegalStateException",
+      "jniAccessible": true,
+      "methods": [
+        { "name": "<init>", "parameterTypes": ["java.lang.String"] }
+      ]
+    },
+    {
       "type": "com.sun.jna.platform.win32.Crypt32",
       "jniAccessible": true,
       "allPublicMethods": true
